@@ -4,18 +4,27 @@
 #include <vector>
 #include <memory>
 
-//#include "flat.h"
+#include "tssd.h"
+#include "flat.h"
+
+class TBuffer : public std::vector<std::byte> {
+
+};
 
 class TypeInfo {
 
+    typedef TError (TypeInfo::*SaveFunc)(Flatable *flat, TBuffer &buf);
+    typedef TError (TypeInfo::*DumpFunc)(TBuffer &buf, Flatable *flat);
+
     struct Node {
-        char const* type_;
-        char const* name_;
-        std::ptrdiff_t offset_;
-        std::ptrdiff_t total_offset_;
-        std::size_t size_;
-        int8_t tssd_type_;
-        
+        char const* type_ = nullptr;
+        char const* name_ = nullptr;
+        std::ptrdiff_t offset_ = 0;
+        std::ptrdiff_t total_offset_ = 0;
+        std::size_t size_ = 0;
+        Ttype tssd_type_ = Ttype::Tbool;
+        SaveFunc save = nullptr;
+        DumpFunc dump = nullptr;
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size) 
             : name_(name), type_(type), offset_(offset), size_(size) {}
     };   
@@ -84,7 +93,9 @@ class TypeInfo {
         }
         
         return children;
-    }               
+    }
+
+
 public:
 
     constexpr TypeInfo(char const *type,
