@@ -31,15 +31,10 @@ public:
     }
 };
 
-class TypeInfo;
-    typedef TError (TypeInfo::*SaveFunc)(Flatable *flat, TBuffer &buf);
-    typedef TError (TypeInfo::*DumpFunc)(TBuffer &buf, Flatable *flat);
-
-    //void (Dog::*methodPtr)() = &Dog::bark;
-
 
 class TypeInfo {
-
+    typedef TError (TypeInfo::*SaveFunc)(const Flatable *flat, TBuffer &buf) const;
+    typedef TError (TypeInfo::*DumpFunc)(TBuffer &buf, Flatable *flat) const;
     struct Node {
         char const* type_ = nullptr;
         char const* name_ = nullptr;
@@ -69,7 +64,7 @@ class TypeInfo {
             node_(type, name, offset, size), 
             children_(ch) {}
 
-    TError memSave(Flatable *flat, TBuffer &buf) {
+    TError memSave(const Flatable *flat, TBuffer &buf) const {
         buf.append(node_.tssd_type_);
         std::byte * ptr = (std::byte *)flat;
 
