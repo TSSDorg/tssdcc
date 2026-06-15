@@ -13,10 +13,11 @@ class TypeInfo {
         char const* name_;
         std::ptrdiff_t offset_;
         std::ptrdiff_t total_offset_;
+        std::size_t size_;
         int8_t tssd_type_;
         
-        constexpr Node(char const *type, char const *name, ptrdiff_t offset) 
-            : name_(name), type_(type), offset_(offset) {}
+        constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size) 
+            : name_(name), type_(type), offset_(offset), size_(size) {}
     };   
 
     Node node_;
@@ -24,14 +25,15 @@ class TypeInfo {
 
     constexpr TypeInfo(char const *type,
             char const *name,
-            std::ptrdiff_t offset) : 
-            node_(type, name, offset) {}   
+            std::ptrdiff_t offset, std::size_t size) : 
+            node_(type, name, offset, size) {}   
 
     constexpr TypeInfo(char const *type,
             char const *name,
             std::ptrdiff_t offset,
+            std::size_t size,
             std::vector<TypeInfo> ch) : 
-            node_(type, name, offset), 
+            node_(type, name, offset, size), 
             children_(ch) {}
 
     template <typename T> 
@@ -49,6 +51,7 @@ class TypeInfo {
                     std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
                     std::define_static_string(std::meta::identifier_of(member)),
                     std::meta::offset_of(member).bytes,
+                    std::meta::size_of(member)
                 });
             } else 
             {
@@ -61,6 +64,7 @@ class TypeInfo {
                             std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
                             std::define_static_string(std::meta::identifier_of(member)),
                             std::meta::offset_of(member).bytes,
+                            std::meta::size_of(member),
                             parse<FieldT>(),
                         });
                         
@@ -71,6 +75,7 @@ class TypeInfo {
                         std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
                         std::define_static_string(std::meta::identifier_of(member)),
                         std::meta::offset_of(member).bytes,
+                        std::meta::size_of(member),
                         parse<FieldT>(),
                     });
                 }
@@ -84,11 +89,11 @@ public:
 
     constexpr TypeInfo(char const *type,
         std::vector<TypeInfo> ch) : 
-        node_(type, type, 0), 
+        node_(type, type, 0, 0), 
         children_(ch) {}     
 
     void print() const {
-    std::println("result: {} {} {} {}", node_.type_, node_.name_, node_.offset_, children_.size());
+    std::println("result: {} {} {} {} {}", node_.type_, node_.name_, node_.offset_, node_.size_, children_.size());
     for (int i=0; i<children_.size(); i++) 
         children_[i].print();
     }
