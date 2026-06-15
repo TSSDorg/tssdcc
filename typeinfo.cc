@@ -8,13 +8,37 @@
 #include "flat.h"
 
 class TBuffer : public std::vector<std::byte> {
+    void grow(const std::size_t require=1) {
+        if (size() +  require > capacity()) {
+            reserve(capacity()*2);
+        }
+    }
 
+public:
+
+    TBuffer(std::size_t size=2048) {
+        reserve(size);
+    }
+
+    void append(const TType t) {
+        grow();
+        emplace_back(std::byte(t));
+    }
+
+    void append(const std::span<std::byte> content) {
+        grow(content.size());
+        append_range(content);
+    }
 };
 
-class TypeInfo {
-
+class TypeInfo;
     typedef TError (TypeInfo::*SaveFunc)(Flatable *flat, TBuffer &buf);
     typedef TError (TypeInfo::*DumpFunc)(TBuffer &buf, Flatable *flat);
+
+    //void (Dog::*methodPtr)() = &Dog::bark;
+
+
+class TypeInfo {
 
     struct Node {
         char const* type_ = nullptr;
@@ -22,8 +46,8 @@ class TypeInfo {
         std::ptrdiff_t offset_ = 0;
         std::ptrdiff_t total_offset_ = 0;
         std::size_t size_ = 0;
-        Ttype tssd_type_ = Ttype::Tbool;
-        SaveFunc save = nullptr;
+        TType tssd_type_ = TType::Tbool;
+        SaveFunc save = &TypeInfo::memSave;
         DumpFunc dump = nullptr;
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size) 
             : name_(name), type_(type), offset_(offset), size_(size) {}
@@ -44,6 +68,15 @@ class TypeInfo {
             std::vector<TypeInfo> ch) : 
             node_(type, name, offset, size), 
             children_(ch) {}
+
+    TError memSave(Flatable *flat, TBuffer &buf) {
+        buf.append(node_.tssd_type_);
+        std::byte * ptr = (std::byte *)flat;
+
+        auto span = std::span<std::byte>(ptr+node_.total_offset_, node_.size_);
+        buf.append(span);
+        return TError::T_OK;
+    }
 
     template <typename T> 
     constexpr static auto parse() {
@@ -101,12 +134,12 @@ public:
     constexpr TypeInfo(char const *type,
         std::vector<TypeInfo> ch) : 
         node_(type, type, 0, 0), 
-        children_(ch) {}     
+        children_(ch) {}
 
     void print() const {
-    std::println("result: {} {} {} {} {}", node_.type_, node_.name_, node_.offset_, node_.size_, children_.size());
-    for (int i=0; i<children_.size(); i++) 
-        children_[i].print();
+        std::println("result: {} {} {} {} {}", node_.type_, node_.name_, node_.offset_, node_.size_, children_.size());
+        for (int i=0; i<children_.size(); i++) 
+            children_[i].print();
     }
 
     template <typename T> 
