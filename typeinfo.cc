@@ -27,6 +27,14 @@ public:
         reserve(std::max(size, size_t(1)));  //make sure we reserve 1 byte at least
     }
 
+    void print() const {
+
+        std::cout<<"TBuffer print:[";
+        for (int i=0; i<size(); ++i)
+            std::cout << (int)(*this)[i] << '\t';
+        std::println("]");
+    }
+
     void append(const TType t) {
         grow();
         emplace_back(std::byte(t));
@@ -46,8 +54,8 @@ public:
         *ptr = (std::uint16_t)size;
     }
 
-    void append(std::byte *ptr, std::size_t size) {
-        auto span = std::span<std::byte>(ptr, size);
+    void append(const std::byte *ptr, std::size_t size) {
+        auto span = std::span<std::byte>((std::byte*)ptr, size);
         append(span);
     }
 };
@@ -81,8 +89,8 @@ class TypeInfo {
 
         TType tssd_type_ = TType::Tobject;
         TType local_type_ = TType::Tobject;
-        SaveFunc save = &TypeInfo::objSave;
-        DumpFunc dump = nullptr;
+        SaveFunc save_ = &TypeInfo::objSave;
+        DumpFunc dump_ = nullptr;
         const TypeInfo *parent_ = nullptr;
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size) 
             : name_(name), type_(type), offset_(offset), size_(size) {}
@@ -109,9 +117,9 @@ class TypeInfo {
 
     TError memSave(const std::byte *src, TBuffer &buf) const {
         buf.append(node_.tssd_type_);
-        std::byte * ptr = (std::byte *)src;
+        //std::byte * ptr = (std::byte *)src;
 
-        buf.append(ptr+node_.total_offset_, node_.size_);
+        buf.append(src, node_.size_);
         return TError::T_OK;
     }
 
@@ -120,8 +128,8 @@ class TypeInfo {
         auto pos = buf.appendSize(0);   //sizet reserve
         buf.appendSize(children_.size()); //sizea
         
-        for (auto it : children_) {
-            (it.*it.node_.save)(src + it.node_.total_offset_,  buf);
+        for (auto &it : children_) {
+            (it.*it.node_.save_)(&src[it.node_.offset_],  buf);
         }
 
         buf.updateSize(pos, buf.size() - pos - 2);
@@ -189,7 +197,7 @@ class TypeInfo {
             it.node_.parent_ = parent;
             it.node_.total_offset_ = parent->node_.total_offset_ + it.node_.offset_;
             if (it.node_.is_number_) {
-                it.node_.save = &TypeInfo::memSave;
+                it.node_.save_ = &TypeInfo::memSave;
                 if (it.node_.is_float_)
                     it.node_.tssd_type_ = (it.node_.size_ == 4) ? TType::Tfloat32 : TType::Tfloat64;
                 else {
@@ -239,19 +247,20 @@ public:
     }
 
     TError MarshalTo(const std::byte *flat, TBuffer &buf) const {
-        return (this->*node_.save)(flat, buf);
+        return (this->*node_.save_)(flat, buf);
     }
 
 };
 
 struct Point {
-    int x;
-    int y;
+    char x;
+    char y;
 };
 
 struct MyStruct {
-    int a;
-    double b;
+    char a;
+    //int a;
+    //double b;
     //std::vector<Point> points;
     Point point;
     std::string Name() {
@@ -266,31 +275,20 @@ int main() {
     //TypeInfo ti("MyStruct", "MyStruct", 0, TypeInfo::parse<MyStruct>());
 
     auto ti = TypeInfo::Create<MyStruct>("MyStruct");
+    ti->print();
 
     auto has_template = std::meta::has_template_arguments(^^MyStruct);
 
     constexpr auto no_check = std::meta::access_context::unchecked();
     constexpr auto rx = std::meta::nonstatic_data_members_of(^^MyStruct, no_check)[0];
 
-    MyStruct ms;
+    MyStruct ms{2, {3, 4}};
 
-    auto has_template2 = std::meta::has_template_arguments(rx);
+    TBuffer buf;
 
-    /*std::println("main size: {} has:{} {} {}", ti.size(), has_template, 
-     std::define_static_string(std::meta::display_string_of(std::meta::type_of(rx))),
-                std::define_static_string(std::meta::identifier_of(rx))
-    );*/
+    ti->MarshalTo((const std::byte*)&ms, buf);
 
+    buf.print();
 
-    //template for (constexpr auto member2 : std::define_static_array(std::meta::template_arguments_of(^^))) {
-    //    std::println("===================={}", std::meta::display_string_of(member2));
-    //}
-
-    //for (auto it : ti) {
-        ti->print();
-    //}
-
-    TypeInfo::Create<Point>("int")->print();
-    
     return 0;
 }
