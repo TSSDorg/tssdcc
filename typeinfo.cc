@@ -62,9 +62,9 @@ class TypeInfo {
         std::ptrdiff_t offset_ = 0;
         std::ptrdiff_t total_offset_ = 0;
         std::size_t size_ = 0;
-        TType tssd_type_ = TType::Tbool;
-        TType local_type_ = TType::Tbool;
-        SaveFunc save;  // = &TypeInfo::memSave;
+        TType tssd_type_ = TType::Tobject;
+        TType local_type_ = TType::Tobject;
+        SaveFunc save = &TypeInfo::memSave;
         DumpFunc dump = nullptr;
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size) 
             : name_(name), type_(type), offset_(offset), size_(size) {}
@@ -109,6 +109,7 @@ class TypeInfo {
 
     template <typename T> 
     constexpr static auto parse() {
+        
         constexpr auto ctx = std::meta::access_context::unchecked();
         std::vector<TypeInfo> children;
         
@@ -176,8 +177,9 @@ public:
     }
 
     template <typename T> 
-    static auto Create(const std::string &type="") {
-        return std::make_shared<TypeInfo>(type.c_str(), parse<T>());
+    static auto Create(const std::string &name="") {
+        static_assert(std::meta::is_class_type(^^T));
+        return std::make_shared<TypeInfo>(std::define_static_string(std::meta::display_string_of(^^T)), parse<T>());
     }
 
     TError MarshalTo(const std::byte *flat, TBuffer &buf) const {
@@ -231,6 +233,8 @@ int main() {
     //for (auto it : ti) {
         ti->print();
     //}
+
+    TypeInfo::Create<Point>("int")->print();
     
     return 0;
 }
