@@ -3,6 +3,8 @@
 #include <print>
 #include <vector>
 #include <memory>
+#include <algorithm>
+#include <cstdlib>
 
 #include "tssd.h"
 #include "flat.h"
@@ -14,10 +16,15 @@ class TBuffer : public std::vector<std::byte> {
         }
     }
 
+    void append(const std::span<std::byte> content) {
+        grow(content.size());
+        append_range(content);
+    }
+
 public:
 
     TBuffer(std::size_t size=2048) {
-        reserve(size);
+        reserve(std::max(size, size_t(1)));  //make sure we reserve 1 byte at least
     }
 
     void append(const TType t) {
@@ -25,16 +32,30 @@ public:
         emplace_back(std::byte(t));
     }
 
-    void append(const std::span<std::byte> content) {
-        grow(content.size());
-        append_range(content);
+    //append two bytes size, return the pos of it
+    //you may update it at buf[pos]
+    std::size_t appendSize(const size_t size) {
+        std::uint16_t size2 = std::uint16_t(size);
+        auto pos = this->size();
+        append((std::byte*)&size2, sizeof(size2));
+        return pos;
+    }
+
+    void updateSize(const size_t pos, const size_t size) {
+        std::uint16_t *ptr = (std::uint16_t *)&(*this)[pos];
+        *ptr = (std::uint16_t)size;
+    }
+
+    void append(std::byte *ptr, std::size_t size) {
+        auto span = std::span<std::byte>(ptr, size);
+        append(span);
     }
 };
 
 
 class TypeInfo {
-    typedef TError (TypeInfo::*SaveFunc)(const Flatable *flat, TBuffer &buf) const;
-    typedef TError (TypeInfo::*DumpFunc)(TBuffer &buf, Flatable *flat) const;
+    typedef TError (TypeInfo::*SaveFunc)(const std::byte *src, TBuffer &buf) const;
+    typedef TError (TypeInfo::*DumpFunc)(TBuffer &buf, std::byte *dest) const;
     struct Node {
         char const* type_ = nullptr;
         char const* name_ = nullptr;
@@ -42,7 +63,8 @@ class TypeInfo {
         std::ptrdiff_t total_offset_ = 0;
         std::size_t size_ = 0;
         TType tssd_type_ = TType::Tbool;
-        SaveFunc save = &TypeInfo::memSave;
+        TType local_type_ = TType::Tbool;
+        SaveFunc save;  // = &TypeInfo::memSave;
         DumpFunc dump = nullptr;
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size) 
             : name_(name), type_(type), offset_(offset), size_(size) {}
@@ -64,12 +86,24 @@ class TypeInfo {
             node_(type, name, offset, size), 
             children_(ch) {}
 
-    TError memSave(const Flatable *flat, TBuffer &buf) const {
+    TError memSave(const std::byte *src, TBuffer &buf) const {
         buf.append(node_.tssd_type_);
-        std::byte * ptr = (std::byte *)flat;
+        std::byte * ptr = (std::byte *)src;
 
-        auto span = std::span<std::byte>(ptr+node_.total_offset_, node_.size_);
-        buf.append(span);
+        buf.append(ptr+node_.total_offset_, node_.size_);
+        return TError::T_OK;
+    }
+
+    TError objSave(const std::byte *src, TBuffer &buf) const {
+        buf.append(node_.tssd_type_);   //T
+        auto pos = buf.appendSize(0);   //sizet reserve
+        buf.appendSize(children_.size()); //sizea
+        
+        for (auto it : children_) {
+            (it.*it.node_.save)(src + it.node_.total_offset_,  buf);
+        }
+
+        buf.updateSize(pos, buf.size() - pos - 2);
         return TError::T_OK;
     }
 
@@ -98,7 +132,7 @@ class TypeInfo {
                         std::println("parse template vector");
                         children.push_back(
                         {
-                            std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
+                            std::define_static_string(std::meta::display_string_of(std::meta::template_of(std::meta::type_of(member)))),
                             std::define_static_string(std::meta::identifier_of(member)),
                             std::meta::offset_of(member).bytes,
                             std::meta::size_of(member),
@@ -123,6 +157,10 @@ class TypeInfo {
         return children;
     }
 
+    //set tssd_type, total offset, save, dump by the reflect type
+    void parse() {
+    }
+
 
 public:
 
@@ -141,6 +179,11 @@ public:
     static auto Create(const std::string &type="") {
         return std::make_shared<TypeInfo>(type.c_str(), parse<T>());
     }
+
+    TError MarshalTo(const std::byte *flat, TBuffer &buf) const {
+        return (this->*node_.save)(flat, buf);
+    }
+
 };
 
 struct Point {
