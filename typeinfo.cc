@@ -52,6 +52,17 @@ public:
     }
 };
 
+inline constexpr auto hash(const std::string_view sv) {
+    unsigned long hash{ 5381 };
+    for (unsigned char c : sv) {
+        hash = ((hash << 5) + hash) ^ c;
+    }
+    return hash;
+}
+
+inline constexpr auto operator""_(const char *str, size_t len) {
+    return hash(std::string_view{ str, len });
+}
 
 class TypeInfo {
     typedef TError (TypeInfo::*SaveFunc)(const std::byte *src, TBuffer &buf) const;
@@ -64,7 +75,7 @@ class TypeInfo {
         std::size_t size_ = 0;
         TType tssd_type_ = TType::Tobject;
         TType local_type_ = TType::Tobject;
-        SaveFunc save = &TypeInfo::memSave;
+        SaveFunc save = &TypeInfo::objSave;
         DumpFunc dump = nullptr;
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size) 
             : name_(name), type_(type), offset_(offset), size_(size) {}
@@ -159,7 +170,13 @@ class TypeInfo {
     }
 
     //set tssd_type, total offset, save, dump by the reflect type
-    void parse() {
+    void parse() 
+    {
+        for (auto it : children_) {
+             switch(hash(it.node_.type_)) {
+
+             }
+        }
     }
 
 
@@ -195,7 +212,7 @@ struct Point {
     int y;
 };
 
-struct MyStruct { 
+struct MyStruct {
     Point point;
     int a;
     double b;
