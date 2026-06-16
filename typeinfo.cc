@@ -73,12 +73,22 @@ class TypeInfo {
         std::ptrdiff_t offset_ = 0;
         std::ptrdiff_t total_offset_ = 0;
         std::size_t size_ = 0;
+
+        //TODO: support reflerence
+        bool is_number_ = false;  //is_arithmetic_type
+        bool is_float_ = false;
+        bool is_signed_ = true;
+
         TType tssd_type_ = TType::Tobject;
         TType local_type_ = TType::Tobject;
         SaveFunc save = &TypeInfo::objSave;
         DumpFunc dump = nullptr;
+        const TypeInfo *parent_ = nullptr;
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size) 
             : name_(name), type_(type), offset_(offset), size_(size) {}
+        
+        constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, bool is_number, bool is_float, bool is_signed) 
+            : name_(name), type_(type), offset_(offset), size_(size), is_number_(is_number), is_float_(is_float), is_signed_(is_signed) {}
     };   
 
     Node node_;
@@ -86,8 +96,8 @@ class TypeInfo {
 
     constexpr TypeInfo(char const *type,
             char const *name,
-            std::ptrdiff_t offset, std::size_t size) : 
-            node_(type, name, offset, size) {}   
+            std::ptrdiff_t offset, std::size_t size, bool is_number, bool is_float, bool is_signed) : 
+            node_(type, name, offset, size, is_number, is_float, is_signed) {}   
 
     constexpr TypeInfo(char const *type,
             char const *name,
@@ -134,7 +144,10 @@ class TypeInfo {
                     std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
                     std::define_static_string(std::meta::identifier_of(member)),
                     std::meta::offset_of(member).bytes,
-                    std::meta::size_of(member)
+                    std::meta::size_of(member),
+                    std::meta::is_arithmetic_type(std::meta::type_of(member)),
+                    std::meta::is_floating_point_type(std::meta::type_of(member)),
+                    std::meta::is_signed_type(std::meta::type_of(member))
                 });
             } else 
             {
@@ -170,12 +183,34 @@ class TypeInfo {
     }
 
     //set tssd_type, total offset, save, dump by the reflect type
-    void parse() 
+    void parse(const TypeInfo *parent) 
     {
-        for (auto it : children_) {
-             switch(hash(it.node_.type_)) {
-
-             }
+        for (auto &it : children_) {
+            it.node_.parent_ = parent;
+            it.node_.total_offset_ = parent->node_.total_offset_ + it.node_.offset_;
+            if (it.node_.is_number_) {
+                it.node_.save = &TypeInfo::memSave;
+                if (it.node_.is_float_)
+                    it.node_.tssd_type_ = (it.node_.size_ == 4) ? TType::Tfloat32 : TType::Tfloat64;
+                else {
+                    switch(it.node_.size_) {
+                        case 1:
+                            it.node_.tssd_type_ = (it.node_.is_signed_) ? TType::Tint8 : TType::Tuint8;
+                            break;
+                        case 2:
+                            it.node_.tssd_type_ = (it.node_.is_signed_) ? TType::Tint16 : TType::Tuint16;
+                            break;
+                        case 4:
+                            it.node_.tssd_type_ = (it.node_.is_signed_) ? TType::Tint32 : TType::Tuint32;
+                            break; 
+                        case 8:
+                            it.node_.tssd_type_ = (it.node_.is_signed_) ? TType::Tint64 : TType::Tuint64;
+                            break;                                                          
+                    }
+                }
+            } else {  //object/array/dict
+                it.parse(&it);
+            }
         }
     }
 
@@ -190,15 +225,17 @@ public:
         children_(ch) {}
 
     void print() const {
-        std::println("result: {} {} {} {} {}", node_.type_, node_.name_, node_.offset_, node_.size_, children_.size());
-        for (int i=0; i<children_.size(); i++) 
-            children_[i].print();
+        std::println("result type:{} name:{} offset:{} size:{} total_offset:{}", node_.type_, node_.name_, node_.offset_, node_.size_, node_.total_offset_);
+        for (auto &it : children_) 
+            it.print();
     }
 
     template <typename T> 
     static auto Create(const std::string &name="") {
         static_assert(std::meta::is_class_type(^^T));
-        return std::make_shared<TypeInfo>(std::define_static_string(std::meta::display_string_of(^^T)), name.c_str(), parse<T>());
+        auto ti = std::make_shared<TypeInfo>(std::define_static_string(std::meta::display_string_of(^^T)), name.c_str(), parse<T>());
+        ti->parse(ti.get());
+        return ti;
     }
 
     TError MarshalTo(const std::byte *flat, TBuffer &buf) const {
@@ -213,10 +250,10 @@ struct Point {
 };
 
 struct MyStruct {
-    Point point;
     int a;
     double b;
-    std::vector<Point> points;
+    //std::vector<Point> points;
+    Point point;
     std::string Name() {
         return "MyStruct";
     }
