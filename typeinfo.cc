@@ -165,9 +165,11 @@ class TypeInfo {
 
 public:
 
-    constexpr TypeInfo(char const *type,
+    constexpr TypeInfo(
+        const char *type,
+        const char *name,
         std::vector<TypeInfo> ch) : 
-        node_(type, type, 0, 0), 
+        node_(type, name, 0, 0), 
         children_(ch) {}
 
     void print() const {
@@ -179,7 +181,7 @@ public:
     template <typename T> 
     static auto Create(const std::string &name="") {
         static_assert(std::meta::is_class_type(^^T));
-        return std::make_shared<TypeInfo>(std::define_static_string(std::meta::display_string_of(^^T)), parse<T>());
+        return std::make_shared<TypeInfo>(std::define_static_string(std::meta::display_string_of(^^T)), name.c_str(), parse<T>());
     }
 
     TError MarshalTo(const std::byte *flat, TBuffer &buf) const {
