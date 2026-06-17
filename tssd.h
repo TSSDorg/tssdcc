@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-enum class Ttype : std::int8_t {
+enum class TType : std::int8_t {
     Tbool = 11,
     Tint8,
     Tuint8,
@@ -28,6 +28,12 @@ enum class Ttype : std::int8_t {
     Theader   = 84, //'T' tssd header
     Tversion= 86, //'V' tssd format version
     Tuser = 127, //user define data
+};
+
+enum class TTypeLocal : int {
+    Tvector = 1000,
+    Tmap,
+    Tunordered_map,
 };
 
 enum class TError {

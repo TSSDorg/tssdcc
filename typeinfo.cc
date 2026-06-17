@@ -60,18 +60,6 @@ public:
     }
 };
 
-inline constexpr auto hash(const std::string_view sv) {
-    unsigned long hash{ 5381 };
-    for (unsigned char c : sv) {
-        hash = ((hash << 5) + hash) ^ c;
-    }
-    return hash;
-}
-
-inline constexpr auto operator""_(const char *str, size_t len) {
-    return hash(std::string_view{ str, len });
-}
-
 class TypeInfo {
     typedef TError (TypeInfo::*SaveFunc)(const std::byte *src, TBuffer &buf) const;
     typedef TError (TypeInfo::*DumpFunc)(TBuffer &buf, std::byte *dest) const;
@@ -88,12 +76,12 @@ class TypeInfo {
         bool is_signed_ = true;
 
         TType tssd_type_ = TType::Tobject;
-        TType local_type_ = TType::Tobject;
+        TTypeLocal local_type_ = TTypeLocal(TType::Tobject);
         SaveFunc save_ = &TypeInfo::objSave;
         DumpFunc dump_ = nullptr;
         const TypeInfo *parent_ = nullptr;
-        constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size) 
-            : name_(name), type_(type), offset_(offset), size_(size) {}
+        constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, TTypeLocal local_type) 
+            : name_(name), type_(type), offset_(offset), size_(size), local_type_(local_type) {}
         
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, bool is_number, bool is_float, bool is_signed) 
             : name_(name), type_(type), offset_(offset), size_(size), is_number_(is_number), is_float_(is_float), is_signed_(is_signed) {}
@@ -104,22 +92,32 @@ class TypeInfo {
 
     constexpr TypeInfo(char const *type,
             char const *name,
-            std::ptrdiff_t offset, std::size_t size, bool is_number, bool is_float, bool is_signed) : 
+            std::ptrdiff_t offset, std::size_t size, bool is_number=false, bool is_float=false, bool is_signed=false) : 
             node_(type, name, offset, size, is_number, is_float, is_signed) {}   
 
     constexpr TypeInfo(char const *type,
             char const *name,
             std::ptrdiff_t offset,
             std::size_t size,
+            TTypeLocal ttype,
             std::vector<TypeInfo> ch) : 
-            node_(type, name, offset, size), 
+            node_(type, name, offset, size, ttype), 
             children_(ch) {}
 
     TError memSave(const std::byte *src, TBuffer &buf) const {
         buf.append(node_.tssd_type_);
-        //std::byte * ptr = (std::byte *)src;
-
+        
         buf.append(src, node_.size_);
+        return TError::T_OK;
+    }
+
+    TError strSave(const std::byte *src, TBuffer &buf) const {
+        buf.append(node_.tssd_type_);
+        auto pstr = (const std::string *)src;
+
+        buf.appendSize(pstr->size()); //sizet
+
+        buf.append((const std::byte*)pstr->c_str(), pstr->size());
         return TError::T_OK;
     }
 
@@ -159,8 +157,11 @@ class TypeInfo {
                 });
             } else 
             {
+                 std::println("parse class: {}", std::meta::has_template_arguments(std::meta::type_of(member)));
                 if constexpr(std::meta::has_template_arguments(std::meta::type_of(member))) {
-                        if  constexpr (std::meta::template_of(std::meta::type_of(member)) == ^^std::vector) {
+                    std::println("parse template {}", std::meta::display_string_of(std::meta::template_of(std::meta::type_of(member))));
+                    if  constexpr (std::meta::template_of(std::meta::type_of(member)) == ^^std::vector)
+                    {
                         using FieldT = [:std::meta::template_arguments_of(std::meta::type_of(member))[0]:];            
                         std::println("parse template vector");
                         children.push_back(
@@ -169,22 +170,40 @@ class TypeInfo {
                             std::define_static_string(std::meta::identifier_of(member)),
                             std::meta::offset_of(member).bytes,
                             std::meta::size_of(member),
+                            TTypeLocal::Tvector,
                             parse<FieldT>(),
                         });
-                        
+                    } else if constexpr (std::meta::is_same_type(std::meta::type_of(member), ^^std::string)) {
+                        std::println("parse string");
+                        children.push_back(
+                        {
+                            std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
+                            std::define_static_string(std::meta::identifier_of(member)),
+                            std::meta::offset_of(member).bytes,
+                            std::meta::size_of(member),
+                            TTypeLocal(TType::Tstring),
+                            std::vector<TypeInfo>()
+                        });
                     }
+                    
                 } else {
+                    std::println("parse non-template");
                     children.push_back(
                     {
                         std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
                         std::define_static_string(std::meta::identifier_of(member)),
                         std::meta::offset_of(member).bytes,
                         std::meta::size_of(member),
+                        TType::Tobject,
                         parse<FieldT>(),
                     });
                 }
-            }
-            std::println("name: {}, children size: {}", std::define_static_string(std::meta::identifier_of(member)), children.size());
+            } 
+            std::println("type: {} name: {}, is_class: {} has_template: {} children size: {}", 
+                std::meta::display_string_of(std::meta::type_of(member)),
+                std::define_static_string(std::meta::identifier_of(member)), 
+                std::meta::has_template_arguments(std::meta::type_of(member)),
+                std::is_class_v<FieldT>, children.size());
         }
         
         return children;
@@ -216,8 +235,19 @@ class TypeInfo {
                             break;                                                          
                     }
                 }
-            } else {  //object/array/dict
-                it.parse(&it);
+                it.node_.local_type_ = TTypeLocal(it.node_.tssd_type_);
+            } else {
+                switch(it.node_.local_type_) {
+                    //case "std::string"_:
+                    //case hash(TTYPE_STRING):
+                    //case HASH(TTYPE_STRING):
+                    case TTypeLocal(TType::Tstring):
+                        it.node_.tssd_type_ = TType::Tstring;
+                        it.node_.save_ = &TypeInfo::strSave; 
+                        break;
+                    default:
+                        it.parse(&it);
+                }
             }
         }
     }
@@ -229,7 +259,7 @@ public:
         const char *type,
         const char *name,
         std::vector<TypeInfo> ch) : 
-        node_(type, name, 0, 0), 
+        node_(type, name, 0, 0, TTypeLocal(TType::Tobject)), 
         children_(ch) {}
 
     void print() const {
@@ -258,6 +288,7 @@ struct Point {
 };
 
 struct MyStruct {
+    std::string str;
     char a;
     //int a;
     //double b;
@@ -268,27 +299,48 @@ struct MyStruct {
     }
 };
 
+struct MyStr {
+    std::string str;
+};
+
 
 int main() {
 
     
     //TypeInfo ti("MyStruct", "MyStruct", 0, TypeInfo::parse<MyStruct>());
 
-    auto ti = TypeInfo::Create<MyStruct>("MyStruct");
+    std::println("std::string has template: {}", std::meta::has_template_arguments(^^std::string));
+
+    /*
+    template for (constexpr auto member : std::define_static_array(std::meta::template_arguments_of(^^std::string))) {
+            std::println("direct {}", std::meta::display_string_of(member));
+    }
+*/
+
+    auto ti = TypeInfo::Create<MyStr>("mystr");
     ti->print();
 
-    auto has_template = std::meta::has_template_arguments(^^MyStruct);
-
-    constexpr auto no_check = std::meta::access_context::unchecked();
-    constexpr auto rx = std::meta::nonstatic_data_members_of(^^MyStruct, no_check)[0];
-
-    MyStruct ms{2, {3, 4}};
+    MyStr m{"foo"};
 
     TBuffer buf;
 
-    ti->MarshalTo((const std::byte*)&ms, buf);
+    ti->MarshalTo((const std::byte*)&m, buf);
 
     buf.print();
 
+    
+
+    /*
+    constexpr auto no_check = std::meta::access_context::unchecked();
+    constexpr auto rx = std::meta::nonstatic_data_members_of(^^MyStruct, no_check)[0];
+
+    MyStruct ms{"foo", 2, {3, 4}};
+
+    TBuffer buf;
+
+    //ti->MarshalTo((const std::byte*)&ms, buf);
+
+    buf.print();
+*/
     return 0;
 }
