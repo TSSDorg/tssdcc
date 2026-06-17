@@ -29,6 +29,16 @@ public:
         reserve(std::max(size, size_t(1)));  //make sure we reserve 1 byte at least
     }
 
+    TBuffer& clear() {
+        std::vector<std::byte>::clear();
+        current = 0;
+        return *this;
+    }
+
+    TBuffer& reset() {
+        return this->clear();
+    }
+
     void print() const {
 
         std::cout<<"TBuffer print:[";
@@ -69,14 +79,14 @@ public:
     }
 
     TError dump(std::size_t size, std::byte *dest) {
-        if (this->size() <= size + current) return ERR_INSUFFICIENT_DATA;
+        if (this->size() < size + current) return ERR_INSUFFICIENT_DATA;
         memcpy(dest, &(*this)[current], size);
         current +=  size;
         return OK;
     }
 
     std::byte *dump(std::size_t size) {
-        if (this->size() <= size + current ) return nullptr;
+        if (this->size() < size + current ) return nullptr;
         auto ret = &(*this)[current];
         current += size;
         return ret;
@@ -100,9 +110,9 @@ class TypeInfo {
         bool is_signed_ = true;
 
         TType tssd_type_ = TType::Tobject;
-        TType local_type_ = TType::Tobject;
+        TType local_type_ = tssd_type_;
         SaveFunc save_ = &TypeInfo::objSave;
-        DumpFunc dump_ = nullptr;
+        DumpFunc dump_ = &TypeInfo::objDump;
         const TypeInfo *parent_ = nullptr;
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, TType local_type) 
             : name_(name), type_(type), offset_(offset), size_(size), local_type_(local_type) {}
@@ -130,7 +140,6 @@ class TypeInfo {
 
     TError memSave(const std::byte *src, TBuffer &buf) const {
         buf.append(node_.tssd_type_);
-        
         buf.append(src, node_.size_);
         return OK;
     }
@@ -178,7 +187,7 @@ class TypeInfo {
             return ERR_INSUFFICIENT_DATA;
         }
 
-        pstr->assign(&ptr[0], size);
+        pstr->assign(ptr, size);
         
         return OK;
     }
@@ -205,8 +214,8 @@ class TypeInfo {
             return ERR_INSUFFICIENT_DATA;
         }
 
-        auto sizea = buf.dumpSize();
-        if (sizet != children_.size()) {
+        //sizea
+        if (buf.dumpSize() != children_.size()) {
             return ERR_FORMAT_ERROR;
         }
         
@@ -302,6 +311,7 @@ class TypeInfo {
             it.node_.total_offset_ = parent->node_.total_offset_ + it.node_.offset_;
             if (it.node_.is_number_) {
                 it.node_.save_ = &TypeInfo::memSave;
+                it.node_.dump_ = &TypeInfo::memDump;
                 if (it.node_.is_float_)
                     it.node_.tssd_type_ = (it.node_.size_ == 4) ? TType::Tfloat32 : TType::Tfloat64;
                 else {
@@ -328,10 +338,11 @@ class TypeInfo {
                     //case HASH(TTYPE_STRING):
                     case TType::Tstring:
                         it.node_.tssd_type_ = TType::Tstring;
-                        it.node_.save_ = &TypeInfo::strSave; 
+                        it.node_.save_ = &TypeInfo::strSave;
+                        it.node_.dump_ = &TypeInfo::strDump;
                         break;
                     default:
-                        it.parse(&it);
+                        it.parse(&it);  //Tobject is the default, just walk throuth children
                 }
             }
         }
@@ -361,8 +372,12 @@ public:
         return ti;
     }
 
-    TError MarshalTo(const std::byte *flat, TBuffer &buf) const {
-        return (this->*node_.save_)(flat, buf);
+    TError MarshalTo(const void *obj, TBuffer &buf) const {
+        return (this->*node_.save_)((const std::byte*)obj, buf);
+    }
+
+    TError UnmarshalTo(TBuffer &buf, void *obj) const {
+        return (this->*node_.dump_)(buf, (std::byte *)obj);
     }
 
 };
@@ -393,26 +408,32 @@ int main() {
 
     
     //TypeInfo ti("MyStruct", "MyStruct", 0, TypeInfo::parse<MyStruct>());
-
+/*
     std::println("std::string has template: {}", std::meta::has_template_arguments(^^std::string));
 
-    /*
-    template for (constexpr auto member : std::define_static_array(std::meta::template_arguments_of(^^std::string))) {
-            std::println("direct {}", std::meta::display_string_of(member));
-    }
-*/
 
     auto ti = TypeInfo::Create<MyStr>("mystr");
     ti->print();
 
     MyStr m{"foo"};
 
-    TBuffer buf;
+    
 
     ti->MarshalTo((const std::byte*)&m, buf);
 
-    buf.print();
+    buf.print();*/
+    TBuffer buf;
 
+    Point in{1, 2}, out;
+
+    auto tip = TypeInfo::Create<Point>();
+    tip->print();
+
+    tip->MarshalTo(&in, buf.clear());
+    buf.print();
+    tip->UnmarshalTo(buf, &out);
+
+    std::println("{},{} = {},{}", (int)in.x, (int)in.y, (int)out.x, (int)out.y);
     
 
     /*
