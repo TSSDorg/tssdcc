@@ -60,6 +60,8 @@ public:
     }
 };
 
+
+
 class TypeInfo {
     typedef TError (TypeInfo::*SaveFunc)(const std::byte *src, TBuffer &buf) const;
     typedef TError (TypeInfo::*DumpFunc)(TBuffer &buf, std::byte *dest) const;
@@ -76,11 +78,11 @@ class TypeInfo {
         bool is_signed_ = true;
 
         TType tssd_type_ = TType::Tobject;
-        TTypeLocal local_type_ = TTypeLocal(TType::Tobject);
+        TType local_type_ = TType::Tobject;
         SaveFunc save_ = &TypeInfo::objSave;
         DumpFunc dump_ = nullptr;
         const TypeInfo *parent_ = nullptr;
-        constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, TTypeLocal local_type) 
+        constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, TType local_type) 
             : name_(name), type_(type), offset_(offset), size_(size), local_type_(local_type) {}
         
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, bool is_number, bool is_float, bool is_signed) 
@@ -99,7 +101,7 @@ class TypeInfo {
             char const *name,
             std::ptrdiff_t offset,
             std::size_t size,
-            TTypeLocal ttype,
+            TType ttype,
             std::vector<TypeInfo> ch) : 
             node_(type, name, offset, size, ttype), 
             children_(ch) {}
@@ -170,7 +172,7 @@ class TypeInfo {
                             std::define_static_string(std::meta::identifier_of(member)),
                             std::meta::offset_of(member).bytes,
                             std::meta::size_of(member),
-                            TTypeLocal::Tvector,
+                            TType::Tvector,
                             parse<FieldT>(),
                         });
                     } else if constexpr (std::meta::is_same_type(std::meta::type_of(member), ^^std::string)) {
@@ -181,7 +183,7 @@ class TypeInfo {
                             std::define_static_string(std::meta::identifier_of(member)),
                             std::meta::offset_of(member).bytes,
                             std::meta::size_of(member),
-                            TTypeLocal(TType::Tstring),
+                            TType::Tstring,
                             std::vector<TypeInfo>()
                         });
                     }
@@ -235,13 +237,13 @@ class TypeInfo {
                             break;                                                          
                     }
                 }
-                it.node_.local_type_ = TTypeLocal(it.node_.tssd_type_);
+                it.node_.local_type_ = it.node_.tssd_type_;
             } else {
                 switch(it.node_.local_type_) {
                     //case "std::string"_:
                     //case hash(TTYPE_STRING):
                     //case HASH(TTYPE_STRING):
-                    case TTypeLocal(TType::Tstring):
+                    case TType::Tstring:
                         it.node_.tssd_type_ = TType::Tstring;
                         it.node_.save_ = &TypeInfo::strSave; 
                         break;
@@ -259,7 +261,7 @@ public:
         const char *type,
         const char *name,
         std::vector<TypeInfo> ch) : 
-        node_(type, name, 0, 0, TTypeLocal(TType::Tobject)), 
+        node_(type, name, 0, 0, TType::Tobject), 
         children_(ch) {}
 
     void print() const {
