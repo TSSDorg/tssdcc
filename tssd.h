@@ -36,11 +36,11 @@ enum class TType {
     Tunordered_map,
 };
 
-enum class TError {
-    T_FORMAT_ERROR = -1,
-    T_OK = 0,
-    T_INSUFFICIENT_DATA = 1,
-};
+using TError = std::int16_t;
+const TError ERR_INSUFFICIENT_DATA = -2;
+const TError ERR_FORMAT_ERROR = -1;
+const TError OK = 0;
+
 
 
 #endif

@@ -5,11 +5,13 @@
 #include <memory>
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
 
 #include "tssd.h"
 #include "flat.h"
 
 class TBuffer : public std::vector<std::byte> {
+    size_t current = 0;
     void grow(const std::size_t require=1) {
         if (size() +  require > capacity()) {
             reserve(capacity()*2);
@@ -58,9 +60,29 @@ public:
         auto span = std::span<std::byte>((std::byte*)ptr, size);
         append(span);
     }
+
+    std::int16_t dumpSize() {
+        std::int16_t size(0);
+        if (auto ret = dump(sizeof(size), (std::byte *)&size))
+            return ret;
+        return size;
+    }
+
+    TError dump(std::size_t size, std::byte *dest) {
+        if (this->size() <= size + current) return ERR_INSUFFICIENT_DATA;
+        memcpy(dest, &(*this)[current], size);
+        current +=  size;
+        return OK;
+    }
+
+    std::byte *dump(std::size_t size) {
+        if (this->size() <= size + current ) return nullptr;
+        auto ret = &(*this)[current];
+        current += size;
+        return ret;
+    }
+
 };
-
-
 
 class TypeInfo {
     typedef TError (TypeInfo::*SaveFunc)(const std::byte *src, TBuffer &buf) const;
@@ -110,7 +132,25 @@ class TypeInfo {
         buf.append(node_.tssd_type_);
         
         buf.append(src, node_.size_);
-        return TError::T_OK;
+        return OK;
+    }
+
+    inline TError CheckTType(TBuffer &buf) const {
+        std::int8_t t(0);
+        if (auto ret = buf.dump(sizeof(t), (std::byte*)&t)) 
+            return ret;
+        if ( t != (std::int8_t)node_.tssd_type_)
+            return ERR_FORMAT_ERROR;
+        
+        return OK;
+    }
+
+    TError memDump(TBuffer &buf, std::byte *dest) const {
+
+        if (auto ret = CheckTType(buf))
+            return ret;
+     
+        return buf.dump(node_.size_, dest);
     }
 
     TError strSave(const std::byte *src, TBuffer &buf) const {
@@ -120,20 +160,63 @@ class TypeInfo {
         buf.appendSize(pstr->size()); //sizet
 
         buf.append((const std::byte*)pstr->c_str(), pstr->size());
-        return TError::T_OK;
+        return OK;
+    }
+
+    TError strDump(TBuffer &buf, std::byte *dest) const {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto size = buf.dumpSize();
+        if (size < 0) {
+            return size;
+        }
+
+        auto pstr = (std::string *)dest;
+
+        const char *ptr = (const char *)buf.dump(size);
+        if (!ptr) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        pstr->assign(&ptr[0], size);
+        
+        return OK;
     }
 
     TError objSave(const std::byte *src, TBuffer &buf) const {
         buf.append(node_.tssd_type_);   //T
-        auto pos = buf.appendSize(0);   //sizet reserve
+        std::size_t pos = buf.appendSize(0);   //sizet reserve
         buf.appendSize(children_.size()); //sizea
         
         for (auto &it : children_) {
-            (it.*it.node_.save_)(&src[it.node_.offset_],  buf);
+            if (auto ret = (it.*it.node_.save_)(&src[it.node_.offset_],  buf)) 
+                return ret;
         }
 
         buf.updateSize(pos, buf.size() - pos - 2);
-        return TError::T_OK;
+        return OK;
+    }
+
+    TError objDump(TBuffer &buf, std::byte *dest) const {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto sizet = buf.dumpSize();
+        if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        auto sizea = buf.dumpSize();
+        if (sizet != children_.size()) {
+            return ERR_FORMAT_ERROR;
+        }
+        
+        for (auto &it : children_) {
+            if (auto ret = (it.*it.node_.dump_)(buf, &dest[it.node_.offset_])) {
+                return ret;
+            }
+        }
+
+        return OK;
     }
 
     template <typename T> 
