@@ -237,7 +237,7 @@ class TypeInfo {
         template for (constexpr auto member : std::define_static_array(std::meta::nonstatic_data_members_of(^^T, ctx))) {
             using FieldT = [:std::meta::type_of(member):];
             
-            if constexpr (!std::is_class_v<FieldT>)
+            if constexpr (std::meta::is_arithmetic_type(std::meta::type_of(member)))
             {
                 children.push_back(
                 {
@@ -249,7 +249,25 @@ class TypeInfo {
                     std::meta::is_floating_point_type(std::meta::type_of(member)),
                     std::meta::is_signed_type(std::meta::type_of(member))
                 });
-            } else 
+            } else if constexpr (std::meta::is_array_type(std::meta::type_of(member))) {
+                std::println("parse is_array: {} decay type: {} sizeof: {} sizeof: {}", 
+                    std::meta::is_array_type(std::meta::type_of(member)),
+                    std::meta::display_string_of(std::meta::remove_pointer(std::meta::decay(std::meta::type_of(member)))),
+                    std::meta::size_of(member),
+                    std::meta::size_of(std::meta::remove_pointer(std::meta::decay(std::meta::type_of(member))))
+                );
+                /*
+                children.push_back(
+                        {
+                            std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
+                            std::define_static_string(std::meta::identifier_of(member)),
+                            std::meta::offset_of(member).bytes,
+                            std::meta::size_of(member),
+                            TType::Tarray,
+                            parse<FieldT>(),
+                        });
+                */
+            } else if constexpr (std::is_class_v<FieldT>)
             {
                  std::println("parse class: {}", std::meta::has_template_arguments(std::meta::type_of(member)));
                 if constexpr(std::meta::has_template_arguments(std::meta::type_of(member))) {
@@ -383,15 +401,20 @@ public:
 };
 
 struct Point {
-    char x;
+    short x;
     char y;
+};
+
+struct MyStr {
+    std::string str;
+    bool b;
 };
 
 struct MyStruct {
     std::string str;
-    char a;
+    long long a;
     //int a;
-    //double b;
+    double b;
     //std::vector<Point> points;
     Point point;
     std::string Name() {
@@ -399,8 +422,8 @@ struct MyStruct {
     }
 };
 
-struct MyStr {
-    std::string str;
+struct MyArray {
+    char c[2];
 };
 
 
@@ -408,21 +431,23 @@ int main() {
 
     
     //TypeInfo ti("MyStruct", "MyStruct", 0, TypeInfo::parse<MyStruct>());
-/*
+
     std::println("std::string has template: {}", std::meta::has_template_arguments(^^std::string));
 
 
     auto ti = TypeInfo::Create<MyStr>("mystr");
     ti->print();
 
-    MyStr m{"foo"};
-
-    
+    TBuffer buf;
+    MyStr m{"foo", true}, m2;
 
     ti->MarshalTo((const std::byte*)&m, buf);
 
-    buf.print();*/
-    TBuffer buf;
+    buf.print();
+
+    ti->UnmarshalTo(buf, &m2);
+    std::println("MyStr: {}, {} => {} {}", m.str, m.b, m2.str, m2.b);
+   
 
     Point in{1, 2}, out;
 
@@ -436,17 +461,14 @@ int main() {
     std::println("{},{} = {},{}", (int)in.x, (int)in.y, (int)out.x, (int)out.y);
     
 
-    /*
-    constexpr auto no_check = std::meta::access_context::unchecked();
-    constexpr auto rx = std::meta::nonstatic_data_members_of(^^MyStruct, no_check)[0];
+    //MyStruct ms{"foo", 2, {3, 4}};
 
-    MyStruct ms{"foo", 2, {3, 4}};
-
-    TBuffer buf;
 
     //ti->MarshalTo((const std::byte*)&ms, buf);
 
-    buf.print();
-*/
+    //buf.print();
+
+    TypeInfo::Create<MyArray>();
+
     return 0;
 }

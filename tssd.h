@@ -30,8 +30,10 @@ enum class TType {
     Tversion= 86, //'V' tssd format version
     Tuser = 127, //user define data
 
-    //local type 
+    //local type
     Tvector = 1000,
+    Tlist,
+    Tset,
     Tmap,
     Tunordered_map,
 };
