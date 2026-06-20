@@ -271,101 +271,6 @@ class TypeInfo {
         return OK;
     }
 
-    
-
-    template <typename T> 
-    constexpr static auto parse() {
-        
-        constexpr auto ctx = std::meta::access_context::unchecked();
-        std::vector<TypeInfo> children;
-        
-        template for (constexpr auto member : std::define_static_array(std::meta::nonstatic_data_members_of(^^T, ctx))) {
-            using FieldT = [:std::meta::type_of(member):];
-            
-            if constexpr (std::meta::is_arithmetic_type(std::meta::type_of(member)))
-            {
-                children.push_back(
-                {
-                    std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
-                    std::define_static_string(std::meta::identifier_of(member)),
-                    std::meta::offset_of(member).bytes,
-                    std::meta::size_of(member),
-                    std::meta::is_arithmetic_type(std::meta::type_of(member)),
-                    std::meta::is_floating_point_type(std::meta::type_of(member)),
-                    std::meta::is_signed_type(std::meta::type_of(member))
-                });
-            } else if constexpr (std::meta::is_array_type(std::meta::type_of(member))) {
-                std::println("parse is_array: {} decay type: {} sizeof: {} sizeof: {}", 
-                    std::meta::is_array_type(std::meta::type_of(member)),
-                    std::meta::display_string_of(std::meta::remove_pointer(std::meta::decay(std::meta::type_of(member)))),
-                    std::meta::size_of(member),
-                    std::meta::size_of(std::meta::remove_pointer(std::meta::decay(std::meta::type_of(member))))
-                );
-                /*
-                children.push_back(
-                        {
-                            std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
-                            std::define_static_string(std::meta::identifier_of(member)),
-                            std::meta::offset_of(member).bytes,
-                            std::meta::size_of(member),
-                            TType::Tarray,
-                            parse<FieldT>(),
-                        });
-                */
-            } else if constexpr (std::is_class_v<FieldT>)
-            {
-                 std::println("parse class: {}", std::meta::has_template_arguments(std::meta::type_of(member)));
-                if constexpr(std::meta::has_template_arguments(std::meta::type_of(member))) {
-                    std::println("parse template {}", std::meta::display_string_of(std::meta::template_of(std::meta::type_of(member))));
-                    if  constexpr (std::meta::template_of(std::meta::type_of(member)) == ^^std::vector)
-                    {
-                        using FieldT = [:std::meta::template_arguments_of(std::meta::type_of(member))[0]:];            
-                        std::println("parse template vector");
-                        children.push_back(
-                        {
-                            std::define_static_string(std::meta::display_string_of(std::meta::template_of(std::meta::type_of(member)))),
-                            std::define_static_string(std::meta::identifier_of(member)),
-                            std::meta::offset_of(member).bytes,
-                            std::meta::size_of(member),
-                            TType::Tvector,
-                            parse<FieldT>(),
-                        });
-                    } else if constexpr (std::meta::is_same_type(std::meta::type_of(member), ^^std::string)) {
-                        std::println("parse string");
-                        children.push_back(
-                        {
-                            std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
-                            std::define_static_string(std::meta::identifier_of(member)),
-                            std::meta::offset_of(member).bytes,
-                            std::meta::size_of(member),
-                            TType::Tstring,
-                            std::vector<TypeInfo>()
-                        });
-                    }
-                    
-                } else {
-                    std::println("parse non-template");
-                    children.push_back(
-                    {
-                        std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
-                        std::define_static_string(std::meta::identifier_of(member)),
-                        std::meta::offset_of(member).bytes,
-                        std::meta::size_of(member),
-                        TType::Tobject,
-                        parse<FieldT>(),
-                    });
-                }
-            } 
-            std::println("type: {} name: {}, is_class: {} has_template: {} children size: {}", 
-                std::meta::display_string_of(std::meta::type_of(member)),
-                std::define_static_string(std::meta::identifier_of(member)), 
-                std::meta::has_template_arguments(std::meta::type_of(member)),
-                std::is_class_v<FieldT>, children.size());
-        }
-        
-        return children;
-    }
-
     //set tssd_type, total offset, save, dump by the reflect type
     void parse(const TypeInfo *parent) 
     {
@@ -414,8 +319,6 @@ class TypeInfo {
         }
     }
 
-//public:
-
     template <typename T> 
     constexpr static TypeInfo parse2(std::ptrdiff_t offset=0) {
         constexpr auto member = ^^T;
@@ -432,13 +335,6 @@ class TypeInfo {
                     std::meta::is_signed_type(member)
                 };
             } else if constexpr (std::meta::is_array_type(member)) {
-                /*std::println("parse is_array: {} decay type: {} sizeof: {} sizeof: {}", 
-                    std::meta::is_array_type(std::meta::type_of(member)),
-                    std::meta::display_string_of(std::meta::remove_pointer(std::meta::decay(std::meta::type_of(member)))),
-                    std::meta::size_of(member),
-                    std::meta::size_of(std::meta::remove_pointer(std::meta::decay(std::meta::type_of(member))))
-                );*/
-
                 constexpr auto real = std::meta::remove_pointer(std::meta::decay(member));
                 using FieldT = [:real:];
 
@@ -513,9 +409,7 @@ class TypeInfo {
     }
 
 
-
 public:
-
     constexpr TypeInfo(
         const char *type,
         const char *name,
