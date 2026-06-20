@@ -366,7 +366,7 @@ class TypeInfo {
         }
     }
 
-public:
+//public:
 
     template <typename T> 
     constexpr static TypeInfo parse2(std::ptrdiff_t offset=0) {
@@ -384,22 +384,22 @@ public:
                     std::meta::is_signed_type(member)
                 };
             } else if constexpr (std::meta::is_array_type(member)) {
-                std::println("parse is_array: {} decay type: {} sizeof: {} sizeof: {}", 
+                /*std::println("parse is_array: {} decay type: {} sizeof: {} sizeof: {}", 
                     std::meta::is_array_type(std::meta::type_of(member)),
                     std::meta::display_string_of(std::meta::remove_pointer(std::meta::decay(std::meta::type_of(member)))),
                     std::meta::size_of(member),
                     std::meta::size_of(std::meta::remove_pointer(std::meta::decay(std::meta::type_of(member))))
-                );
+                );*/
 
-                constexpr auto real = std::meta::remove_pointer(std::meta::decay(std::meta::type_of(member)));
-                constexpr auto FieldT = [:real:];
+                constexpr auto real = std::meta::remove_pointer(std::meta::decay(member));
+                using FieldT = [:real:];
 
-                return TypeInfo{std::define_static_string(std::meta::display_string_of(std::meta::type_of(member))),
+                return TypeInfo{std::define_static_string(std::meta::display_string_of(member)),
                             "",
                             offset,
                             std::meta::size_of(member)/std::meta::size_of(real),
                             TType::Tarray,
-                            {parse2<FieldT>(0)}};
+                            {parse2<FieldT>()}};
 
             }
         } else {
@@ -430,7 +430,7 @@ public:
                         offset,
                         std::meta::size_of(member),
                         TType::Tvector,
-                        {parse2<FieldT>(0)}
+                        {parse2<FieldT>()}
                     };
 
                 }
@@ -536,10 +536,6 @@ int main() {
         std::meta::is_same_type(^^std::string, ^^std::string)
     );
 
-
-
-
-    
     TBuffer buf;
     MyStr m{"foo", true}, m2;
 
@@ -553,15 +549,15 @@ int main() {
     ti.UnmarshalTo(buf, &m2);
     std::println("MyStr: {}, {} => {} {}", m.str, m.b, m2.str, m2.b);
    
-/*
+
     Point in{1, 2}, out;
 
     auto tip = TypeInfo::Create<Point>();
-    tip->print();
+    tip.print();
 
-    tip->MarshalTo(&in, buf.clear());
+    tip.MarshalTo(&in, buf.clear());
     buf.print();
-    tip->UnmarshalTo(buf, &out);
+    tip.UnmarshalTo(buf, &out);
 
     std::println("{},{} = {},{}", (int)in.x, (int)in.y, (int)out.x, (int)out.y);
     
@@ -573,8 +569,11 @@ int main() {
 
     //buf.print();
 
-    TypeInfo::Create<MyArray>();
-    */
+    auto ta = TypeInfo::Create<MyArray>();
+    MyArray ma{1, 3}, mb;
+
+    ta.MarshalTo(&ma, buf.clear());
+    
 
     return 0;
 }
