@@ -228,6 +228,51 @@ class TypeInfo {
         return OK;
     }
 
+    //array
+    TError arraySave(const std::byte *src, TBuffer &buf) const {
+        buf.append(node_.tssd_type_);   //T
+        std::size_t pos = buf.appendSize(0);   //sizet reserve
+        buf.appendSize(node_.size_); //sizea
+        
+        auto &node = children_[0].node_;
+        for (int i=0; i<node_.size_; ++i) {
+            if (auto ret = (children_[0].*node.save_)(&src[node.offset_ + node.size_ * i],  buf)) 
+                return ret;
+        }
+
+        buf.updateSize(pos, buf.size() - pos - 2);
+        return OK;
+    }
+
+    TError arrayDump(TBuffer &buf, std::byte *dest) const {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto sizet = buf.dumpSize();
+        if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        //sizea
+        auto sizea = buf.dumpSize();
+        if (sizea < 0) return ERR_FORMAT_ERROR;
+
+        //static array need check node_.size, but dyname array(vector) need skip
+        if ( node_.local_type_ == TType::Tarray && sizea != node_.size_) {
+            return ERR_FORMAT_ERROR;
+        }
+        
+         auto &node = children_[0].node_;
+        for (int i=0; i<sizea; ++i) {
+            if (auto ret = (children_[0].*node.dump_)(buf, &dest[node.offset_ + node.size_ * i])) {
+                return ret;
+            }
+        }
+
+        return OK;
+    }
+
+    
+
     template <typename T> 
     constexpr static auto parse() {
         
@@ -351,13 +396,16 @@ class TypeInfo {
                 it.node_.local_type_ = it.node_.tssd_type_;
             } else {
                 switch(it.node_.local_type_) {
-                    //case "std::string"_:
-                    //case hash(TTYPE_STRING):
-                    //case HASH(TTYPE_STRING):
                     case TType::Tstring:
                         it.node_.tssd_type_ = TType::Tstring;
                         it.node_.save_ = &TypeInfo::strSave;
                         it.node_.dump_ = &TypeInfo::strDump;
+                        break;
+                    case TType::Tarray:     //it'a static array
+                        it.node_.tssd_type_ = TType::Tarray;
+                        it.node_.save_ = &TypeInfo::arraySave;
+                        it.node_.dump_ = &TypeInfo::arrayDump;
+                        it.parse(&it);
                         break;
                     default:
                         it.parse(&it);  //Tobject is the default, just walk throuth children
@@ -570,9 +618,15 @@ int main() {
     //buf.print();
 
     auto ta = TypeInfo::Create<MyArray>();
+    ta.print();
     MyArray ma{1, 3}, mb;
 
     ta.MarshalTo(&ma, buf.clear());
+    buf.print();
+
+    ta.UnmarshalTo(buf, &mb);
+
+    std::println("mb: {} {}", int(mb.c[0]), int(mb.c[1]));
     
 
     return 0;
