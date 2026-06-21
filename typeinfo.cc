@@ -232,11 +232,19 @@ class TypeInfo {
     TError arraySave(const std::byte *src, TBuffer &buf) const {
         buf.append(node_.tssd_type_);   //T
         std::size_t pos = buf.appendSize(0);   //sizet reserve
-        buf.appendSize(node_.size_); //sizea
-        
+
+        auto real_size = node_.size_;
+        auto addr = src;
         auto &node = children_[0].node_;
-        for (int i=0; i<node_.size_; ++i) {
-            if (auto ret = (children_[0].*node.save_)(&src[node.offset_ + node.size_ * i],  buf)) 
+        if (node_.local_type_ == TType::Tvector) {  //for vector, we convert to vector<byte> to calc the real size
+            auto *p = (std::vector<std::byte>*)src;
+            real_size = p->size()/node.size_;
+            addr = p->data();
+        }
+        buf.appendSize(real_size);
+        
+        for (int i=0; i<real_size; ++i) {
+            if (auto ret = (children_[0].*node.save_)(&addr[node.size_ * i],  buf)) 
                 return ret;
         }
 
@@ -256,14 +264,21 @@ class TypeInfo {
         auto sizea = buf.dumpSize();
         if (sizea < 0) return ERR_FORMAT_ERROR;
 
+        auto addr = dest;
+        auto &node = children_[0].node_;
         //static array need check node_.size, but dyname array(vector) need skip
-        if ( node_.local_type_ == TType::Tarray && sizea != node_.size_) {
-            return ERR_FORMAT_ERROR;
+        if (node_.local_type_ == TType::Tarray) {
+            if (sizea != node_.size_)
+                return ERR_FORMAT_ERROR;
+        } else { //for vector we need reserve capacity first
+            auto *p = (std::vector<std::byte>*)dest;
+            p->reserve(node.size_ * sizea);
+            p->resize(node.size_ * sizea);
+            addr = p->data();
         }
         
-         auto &node = children_[0].node_;
         for (int i=0; i<sizea; ++i) {
-            if (auto ret = (children_[0].*node.dump_)(buf, &dest[node.offset_ + node.size_ * i])) {
+            if (auto ret = (children_[0].*node.dump_)(buf, &addr[node.size_ * i])) {
                 return ret;
             }
         }
@@ -307,11 +322,12 @@ class TypeInfo {
                         it.node_.dump_ = &TypeInfo::strDump;
                         break;
                     case TType::Tarray:     //it'a static array
+                    case TType::Tvector:     //dynamic array
                         it.node_.tssd_type_ = TType::Tarray;
                         it.node_.save_ = &TypeInfo::arraySave;
                         it.node_.dump_ = &TypeInfo::arrayDump;
                         it.parse(&it);
-                        break;
+                        break;    
                     default:
                         it.parse(&it);  //Tobject is the default, just walk throuth children
                 }
@@ -458,6 +474,7 @@ struct MyStruct {
 
 struct MyArray {
     char c[2];
+    std::vector<std::int16_t> vec;
 };
 
 
@@ -506,14 +523,17 @@ int main() {
 
     auto ta = TypeInfo::Create<MyArray>();
     ta.print();
-    MyArray ma{1, 3}, mb;
+    MyArray ma{
+        {1, 3},
+        { 2, 4, 5}
+    }, mb;
 
     ta.MarshalTo(&ma, buf.clear());
     buf.print();
 
     ta.UnmarshalTo(buf, &mb);
 
-    std::println("mb: {} {}", int(mb.c[0]), int(mb.c[1]));
+    std::println("mb: {} {} {}", (int)mb.c[0], (int)mb.c[1], mb.vec.size());
 
 
     return 0;
