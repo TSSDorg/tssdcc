@@ -320,14 +320,14 @@ class TypeInfo {
     }
 
     template <typename T> 
-    constexpr static TypeInfo parse2(std::ptrdiff_t offset=0) {
+    constexpr static TypeInfo parse2(std::ptrdiff_t offset=0, const char *name="") {
         constexpr auto member = ^^T;
         if constexpr (!std::is_class_v<T>)
         {
             if constexpr (std::meta::is_arithmetic_type(member)) {
                 return TypeInfo{
                     std::define_static_string(std::meta::display_string_of(member)),
-                    "",
+                    name,
                     offset,
                     std::meta::size_of(member),
                     std::meta::is_arithmetic_type(member),
@@ -339,7 +339,7 @@ class TypeInfo {
                 using FieldT = [:real:];
 
                 return TypeInfo{std::define_static_string(std::meta::display_string_of(member)),
-                            "",
+                            name,
                             offset,
                             std::meta::size_of(member)/std::meta::size_of(real),
                             TType::Tarray,
@@ -353,7 +353,7 @@ class TypeInfo {
                 //std::println("parse string");
                 return TypeInfo{
                     "std::string",
-                    "",
+                    name,
                     offset,
                     std::meta::size_of(member),
                     TType::Tstring,
@@ -370,7 +370,7 @@ class TypeInfo {
 
                     return TypeInfo{
                         std::define_static_string(std::meta::display_string_of(std::meta::template_of(member))),
-                        "",
+                        name,
                         offset,
                         std::meta::size_of(member),
                         TType::Tvector,
@@ -381,16 +381,17 @@ class TypeInfo {
                 //TODO map and others
             }
         
-                        //common class
+            //common class
             constexpr auto ctx = std::meta::access_context::unchecked();
             std::vector<TypeInfo> children;
             template for (constexpr auto member : std::define_static_array(std::meta::nonstatic_data_members_of(^^T, ctx))) {
                 using FieldT = [:std::meta::type_of(member):];
-                children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes));
+                children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes, 
+                    std::define_static_string(std::meta::identifier_of(member))));
             }
             return TypeInfo {
                 std::define_static_string(std::meta::display_string_of(member)),
-                "",
+                name,
                 offset,
                 std::meta::size_of(member),
                 TType::Tobject,
@@ -400,7 +401,7 @@ class TypeInfo {
 
         return TypeInfo {
                 "",
-                "",
+                name,
                 offset,
                 0,
                 TType::Tobject,
