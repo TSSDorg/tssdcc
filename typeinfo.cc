@@ -321,31 +321,32 @@ class TypeInfo {
 
     template <typename T> 
     constexpr static TypeInfo parse2(std::ptrdiff_t offset=0, const char *name="") {
-        constexpr auto member = ^^T;
+        //constexpr auto member = ^^T;
         if constexpr (!std::is_class_v<T>)
         {
-            if constexpr (std::meta::is_arithmetic_type(member)) {
-                return TypeInfo{
-                    std::define_static_string(std::meta::display_string_of(member)),
-                    name,
-                    offset,
-                    std::meta::size_of(member),
-                    std::meta::is_arithmetic_type(member),
-                    std::meta::is_floating_point_type(member),
-                    std::meta::is_signed_type(member)
-                };
-            } else if constexpr (std::meta::is_array_type(member)) {
-                constexpr auto real = std::meta::remove_pointer(std::meta::decay(member));
+            if constexpr (std::meta::is_array_type(^^T)) {
+                constexpr auto real = std::meta::remove_pointer(std::meta::decay(^^T));
                 using FieldT = [:real:];
 
-                return TypeInfo{std::define_static_string(std::meta::display_string_of(member)),
+                return TypeInfo{std::define_static_string(std::meta::display_string_of(^^T)),
                             name,
                             offset,
-                            std::meta::size_of(member)/std::meta::size_of(real),
+                            std::meta::size_of(^^T)/std::meta::size_of(real),
                             TType::Tarray,
                             {parse2<FieldT>()}};
 
             }
+            //if constexpr (std::meta::is_arithmetic_type(^^T)) {
+            return TypeInfo{
+                std::define_static_string(std::meta::display_string_of(^^T)),
+                name,
+                offset,
+                std::meta::size_of(^^T),
+                std::meta::is_arithmetic_type(^^T),
+                std::meta::is_floating_point_type(^^T),
+                std::meta::is_signed_type(^^T)
+            };
+            
         } else {
             
             //string
@@ -355,7 +356,7 @@ class TypeInfo {
                     "std::string",
                     name,
                     offset,
-                    std::meta::size_of(member),
+                    std::meta::size_of(^^T),
                     TType::Tstring,
                     {}
                 };
@@ -364,15 +365,15 @@ class TypeInfo {
             if constexpr(std::meta::has_template_arguments(^^T)) {
                 //vector
                 //std::println("parse template {}", std::meta::display_string_of(std::meta::template_of(member)));
-                if  constexpr (std::meta::template_of(member) == ^^std::vector)
+                if  constexpr (std::meta::template_of(^^T) == ^^std::vector)
                 {
-                    using FieldT = [:std::meta::template_arguments_of(member)[0]:];
+                    using FieldT = [:std::meta::template_arguments_of(^^T)[0]:];
 
                     return TypeInfo{
-                        std::define_static_string(std::meta::display_string_of(std::meta::template_of(member))),
+                        std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))),
                         name,
                         offset,
-                        std::meta::size_of(member),
+                        std::meta::size_of(^^T),
                         TType::Tvector,
                         {parse2<FieldT>()}
                     };
@@ -390,23 +391,14 @@ class TypeInfo {
                     std::define_static_string(std::meta::identifier_of(member))));
             }
             return TypeInfo {
-                std::define_static_string(std::meta::display_string_of(member)),
+                std::define_static_string(std::meta::display_string_of(^^T)),
                 name,
                 offset,
-                std::meta::size_of(member),
+                std::meta::size_of(^^T),
                 TType::Tobject,
                 children
             };
         }
-
-        return TypeInfo {
-                "",
-                name,
-                offset,
-                0,
-                TType::Tobject,
-                {}};
-        
     }
 
 
@@ -426,7 +418,7 @@ public:
 
     template <typename T> 
     static auto Create() {
-        //static_assert(std::meta::is_class_type(^^T));
+        static_assert(std::meta::is_class_type(^^T));
         auto ti = parse2<T>();
         ti.parse(&ti);
         return ti;
@@ -522,7 +514,7 @@ int main() {
     ta.UnmarshalTo(buf, &mb);
 
     std::println("mb: {} {}", int(mb.c[0]), int(mb.c[1]));
-    
+
 
     return 0;
 }
