@@ -219,86 +219,7 @@ struct TypeInfo : public Oper {
     }
 
     template <typename T> 
-    constexpr static std::shared_ptr<TypeInfo> parse2(std::ptrdiff_t offset=0, const char *name=0);
-    /*{
-        //constexpr auto member = ^^T;
-        if constexpr (!std::is_class_v<T>)
-        {
-            if constexpr (std::meta::is_array_type(^^T)) {
-                constexpr auto real = std::meta::remove_pointer(std::meta::decay(^^T));
-                using FieldT = [:real:];
-
-                return std::make_shared<arrayOper>(std::define_static_string(std::meta::display_string_of(^^T)),
-                            name,
-                            offset,
-                            std::meta::size_of(^^T)/std::meta::size_of(real),
-                            TType::Tarray,
-                            {parse2<FieldT>()});
-
-            }
-            //if constexpr (std::meta::is_arithmetic_type(^^T)) {
-            return std::make_shared<TypeInfo>(
-                std::define_static_string(std::meta::display_string_of(^^T)),
-                name,
-                offset,
-                std::meta::size_of(^^T),
-                std::meta::is_arithmetic_type(^^T),
-                std::meta::is_floating_point_type(^^T),
-                std::meta::is_signed_type(^^T)
-            );
-            
-        } else {
-            
-            //string
-            if constexpr (std::is_same_v<T, std::string>) {
-                //std::println("parse string");
-                return std::make_shared<stringOper>(
-                    "std::string",
-                    name,
-                    offset,
-                    std::meta::size_of(^^T),
-                    TType::Tstring,
-                    std::vector<std::shared_ptr<TypeInfo>>{}
-                );
-            }
-            
-            if constexpr(std::meta::has_template_arguments(^^T)) {
-                //vector
-                //std::println("parse template {}", std::meta::display_string_of(std::meta::template_of(member)));
-                if  constexpr (std::meta::template_of(^^T) == ^^std::vector)
-                {
-                    using FieldT = [:std::meta::template_arguments_of(^^T)[0]:];
-
-                    return std::make_shared<arrayOper>(
-                        std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))),
-                        name,
-                        offset,
-                        std::meta::size_of(^^T),
-                        TType::Tvector,
-                        {parse2<FieldT>()}
-                    );
-                }
-                //TODO map and others
-            }
-        
-            //common class
-            constexpr auto ctx = std::meta::access_context::unchecked();
-            std::vector<std::shared_ptr<TypeInfo>> children;
-            template for (constexpr auto member : std::define_static_array(std::meta::nonstatic_data_members_of(^^T, ctx))) {
-                using FieldT = [:std::meta::type_of(member):];
-                children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes, 
-                    std::define_static_string(std::meta::identifier_of(member))));
-            }
-            return std::make_shared<objectOper>(
-                std::define_static_string(std::meta::display_string_of(^^T)),
-                name,
-                offset,
-                std::meta::size_of(^^T),
-                TType::Tobject,
-                children
-            );
-        }
-    }*/
+    constexpr static std::shared_ptr<TypeInfo> parse2(std::ptrdiff_t offset=0, const char *name = "");
 
 public:
     constexpr TypeInfo(
@@ -542,7 +463,6 @@ public:
 template <typename T> 
 constexpr std::shared_ptr<TypeInfo> TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
 {
-    //constexpr auto member = ^^T;
     if constexpr (!std::is_class_v<T>)
     {
         if constexpr (std::meta::is_array_type(^^T)) {
@@ -621,8 +541,10 @@ constexpr std::shared_ptr<TypeInfo> TypeInfo::parse2(std::ptrdiff_t offset, cons
         std::vector<std::shared_ptr<TypeInfo>> children;
         template for (constexpr auto member : std::define_static_array(std::meta::nonstatic_data_members_of(^^T, ctx))) {
             using FieldT = [:std::meta::type_of(member):];
-            children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes));
-           //std::define_static_string(std::meta::identifier_of(member))));
+            
+            constexpr auto name = std::meta::has_identifier(member) ? std::define_static_string(std::meta::identifier_of(member)) : "";
+            //std::println("member: {} has id {} name {}", std::meta::display_string_of(std::meta::type_of(member)), std::meta::has_identifier(member), name);
+            children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes, name));
         }
         return std::make_shared<objectOper>(
             std::define_static_string(std::meta::display_string_of(^^T)),
@@ -664,7 +586,7 @@ struct MyArray {
 };
 
 struct MyMap {
-    std::map<int, std::int64_t> mp;
+    std::map<int, MyStr> mp;
 };
 
 
@@ -682,8 +604,8 @@ int main() {
     tmp->print();
 
     MyMap mmp, mmp2;
-    mmp.mp[1]=123;
-    mmp.mp[2]=45;
+    mmp.mp[1]={"abc", true};
+    mmp.mp[2]={"def", false};
 
     tmp->MarshalTo(&mmp, buf);
     buf.print();
@@ -691,7 +613,7 @@ int main() {
     tmp->UnmarshalTo(buf, &mmp2);
 
      for (const auto& [key, value] : mmp2.mp)
-        std::cout << '[' << key << "] = " << value << "; \n";
+        std::cout << '[' << key << "] = " << value.str << "," << value.b << "; \n";
 
     buf.clear();
 
