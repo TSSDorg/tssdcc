@@ -18,6 +18,7 @@ enum class TType {
     Tfloat64,
     Tstring, //dynamic length data
     Ttime,   //RFC3339Nano string
+    Tenum,   //enum in string format
     Tarray,
     Tarraym, //merged array, elements including 1 simple fixed length data only
     Tobject, //struct

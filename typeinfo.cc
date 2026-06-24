@@ -393,6 +393,60 @@ public:
     }
 };
 
+template <std::meta::info T>
+class conainerOper : public TypeInfo {  //for single node container: vector, list, set, dequeue ?
+public:
+    using TypeInfo::TypeInfo;
+
+    TError save(const std::byte *src, TBuffer &buf) const override {
+        buf.append(node_.tssd_type_);   //T
+        std::size_t pos = buf.appendSize(0);   //sizet reserve
+
+        using Container = [:T:];
+        auto pcontainer = (Container*)src;
+
+        auto real_size = pcontainer->size();
+
+        buf.appendSize(real_size);
+
+        for (const auto& it : *pcontainer) {
+            if (auto ret = children_[0]->save((std::byte*)&it,  buf)) 
+                return ret;   
+        }
+
+        buf.updateSize(pos, buf.size() - pos - 2);
+        return OK;
+    }
+
+    TError dump(TBuffer &buf, std::byte *dest) const override {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto sizet = buf.dumpSize();
+        if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        //sizea
+        auto sizea = buf.dumpSize();
+        if (sizea < 0) return ERR_FORMAT_ERROR;
+
+        using Container = [:T:];
+        auto pcontainer = (Container*)dest;
+        if (this->node_.local_type_ == TType::Tvector) {
+            pcontainer->reserve(sizea);
+        }
+
+        typename Container::value_type node;
+        for (int i=0; i<sizea; ++i) {
+            if (auto ret = children_[0]->dump(buf, (std::byte*)&node)) {
+                return ret;
+            }
+            pcontainer->insert(pcontainer->end(), node);
+        }
+        return OK;
+    }
+};
+
 
 template <std::meta::info T>
 class mapOper : public TypeInfo {
@@ -510,7 +564,7 @@ constexpr std::shared_ptr<TypeInfo> TypeInfo::parse2(std::ptrdiff_t offset, cons
             {
                 using FieldT = [:std::meta::template_arguments_of(^^T)[0]:];
 
-                return std::make_shared<arrayOper>(
+                return std::make_shared<conainerOper<^^T>>(
                     std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))),
                     name,
                     offset,
