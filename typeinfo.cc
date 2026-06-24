@@ -107,6 +107,7 @@ class stringOper;
 class arrayOper;
 
 struct TypeInfo : public Oper {
+
     struct Node {
         char const* type_ = nullptr;
         char const* name_ = nullptr;
@@ -326,16 +327,10 @@ public:
     }
 };
 
-
 //template <std::meta::info Type>
 class stringOper : public TypeInfo {
 public:
-    constexpr stringOper(char const *type,
-            char const *name,
-            std::ptrdiff_t offset,
-            std::size_t size,
-            TType ttype,
-            std::vector<std::shared_ptr<TypeInfo>> ch) : TypeInfo(type, name, offset, size, ttype, ch) {}
+    using TypeInfo::TypeInfo;
 
     TError save(const std::byte *src, TBuffer &buf) const override {
         buf.append(node_.tssd_type_);
@@ -371,12 +366,8 @@ public:
 //template <std::meta::info Type>
 class objectOper : public TypeInfo {
 public:
-    constexpr objectOper(char const *type,
-            char const *name,
-            std::ptrdiff_t offset,
-            std::size_t size,
-            TType ttype,
-            std::vector<std::shared_ptr<TypeInfo>> ch) : TypeInfo(type, name, offset, size, ttype, ch) {}
+    using TypeInfo::TypeInfo;
+
     TError save(const std::byte *src, TBuffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
         std::size_t pos = buf.appendSize(0);   //sizet reserve
@@ -417,12 +408,8 @@ public:
 //template <std::meta::info Type>
 class arrayOper : public TypeInfo {
 public:
-    constexpr arrayOper(char const *type,
-            char const *name,
-            std::ptrdiff_t offset,
-            std::size_t size,
-            TType ttype,
-            std::vector<std::shared_ptr<TypeInfo>> ch) : TypeInfo(type, name, offset, size, ttype, ch) {}
+    using TypeInfo::TypeInfo;
+
     //array
     TError save(const std::byte *src, TBuffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
