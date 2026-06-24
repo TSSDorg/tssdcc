@@ -105,7 +105,6 @@ public:
 class objectOper;
 class stringOper;
 class arrayOper;
-
 struct TypeInfo : public Oper {
 
     struct Node {
@@ -153,11 +152,12 @@ struct TypeInfo : public Oper {
         return OK;
     }
 
-    inline TError CheckTType(TBuffer &buf) const {
+    inline TError CheckTType(TBuffer &buf, std::int8_t type= 0) const {
         std::int8_t t(0);
         if (auto ret = buf.dump(sizeof(t), (std::byte*)&t)) 
             return ret;
-        if ( t != (std::int8_t)node_.tssd_type_)
+        type = type != 0 ? type : (std::int8_t)node_.tssd_type_;
+        if ( t != type)
             return ERR_FORMAT_ERROR;
         
         return OK;
@@ -206,7 +206,11 @@ struct TypeInfo : public Oper {
                     case TType::Tvector:     //dynamic array
                         it->node_.tssd_type_ = TType::Tarray;
                         it->parse(it);
-                        break;    
+                        break;
+                    case TType::Tdict:
+                        it->node_.tssd_type_ = TType::Tdict;
+                        it->parse(it);
+                        break;
                     default:
                         it->parse(it);  //Tobject is the default, just walk throuth children
                 }
@@ -468,6 +472,73 @@ public:
     }
 };
 
+
+template <std::meta::info T>
+class mapOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+
+    TError save(const std::byte *src, TBuffer &buf) const override {
+        buf.append(node_.tssd_type_);   //T
+        std::size_t pos = buf.appendSize(0);   //sizet reserve
+
+        using Map = [:T:];
+        auto pmap = (Map*)src;
+
+        auto real_size = pmap->size();
+
+        buf.appendSize(real_size);
+
+        for (const auto& [key, value] : *pmap) {
+            buf.append(TType::Tdictk);
+            if (auto ret = children_[0]->save((std::byte*)&key,  buf)) 
+                return ret;
+            buf.append(TType::Tdictv);
+            if (auto ret = children_[1]->save((std::byte*)&value,  buf)) 
+                return ret;    
+        }
+
+        buf.updateSize(pos, buf.size() - pos - 2);
+        return OK;
+    }
+
+    TError dump(TBuffer &buf, std::byte *dest) const override {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto sizet = buf.dumpSize();
+        if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        //sizea
+        auto sizea = buf.dumpSize();
+        if (sizea < 0) return ERR_FORMAT_ERROR;
+
+        using Map = [:T:];
+        auto pmap = (Map*)dest;
+
+        typename Map::key_type key;
+        typename Map::mapped_type value;
+
+        auto addr = dest;
+        auto &knode = children_[0]->node_;
+        auto &vnode = children_[1]->node_;
+
+        for (int i=0; i<sizea; ++i) {
+            if (auto ret = CheckTType(buf, (std::int8_t)TType::Tdictk)) return ret;
+            if (auto ret = children_[0]->dump(buf, (std::byte*)&key)) {
+                return ret;
+            }
+            if (auto ret = CheckTType(buf, (std::int8_t)TType::Tdictv)) return ret;
+            if (auto ret = children_[1]->dump(buf, (std::byte*)&value)) {
+                return ret;
+            }
+            (*pmap)[key] = value;
+        }
+        return OK;
+    }
+};
+
 template <typename T> 
 constexpr std::shared_ptr<TypeInfo> TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
 {
@@ -529,6 +600,20 @@ constexpr std::shared_ptr<TypeInfo> TypeInfo::parse2(std::ptrdiff_t offset, cons
                 );
             }
             //TODO map and others
+            if  constexpr (std::meta::template_of(^^T) == ^^std::map)
+            {
+                using FieldK = [:std::meta::template_arguments_of(^^T)[0]:];
+                using FieldV = [:std::meta::template_arguments_of(^^T)[1]:];
+
+                return std::make_shared<mapOper<^^T>>(
+                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))),
+                    name,
+                    offset,
+                    std::meta::size_of(^^T),
+                    TType::Tdict,
+                    std::vector<std::shared_ptr<TypeInfo>>{parse2<FieldK>(), parse2<FieldV>()}
+                );
+            }
         }
     
         //common class
@@ -536,8 +621,7 @@ constexpr std::shared_ptr<TypeInfo> TypeInfo::parse2(std::ptrdiff_t offset, cons
         std::vector<std::shared_ptr<TypeInfo>> children;
         template for (constexpr auto member : std::define_static_array(std::meta::nonstatic_data_members_of(^^T, ctx))) {
             using FieldT = [:std::meta::type_of(member):];
-            children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes,
-            std::define_static_string("str")));
+            children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes));
            //std::define_static_string(std::meta::identifier_of(member))));
         }
         return std::make_shared<objectOper>(
@@ -580,7 +664,7 @@ struct MyArray {
 };
 
 struct MyMap {
-    std::map<std::byte, std::int64_t> mp;
+    std::map<int, std::int64_t> mp;
 };
 
 
@@ -593,6 +677,26 @@ int main() {
     );
 
     TBuffer buf;
+
+    auto tmp = TypeInfo::Create<MyMap>();
+    tmp->print();
+
+    MyMap mmp, mmp2;
+    mmp.mp[1]=123;
+    mmp.mp[2]=45;
+
+    tmp->MarshalTo(&mmp, buf);
+    buf.print();
+
+    tmp->UnmarshalTo(buf, &mmp2);
+
+     for (const auto& [key, value] : mmp2.mp)
+        std::cout << '[' << key << "] = " << value << "; \n";
+
+    buf.clear();
+
+
+
     //MyStr m{"foo", true}, m2;
 
     auto ti = TypeInfo::Create<MyStr>();
