@@ -1,8 +1,15 @@
 #ifndef __TYPEINFO_H__
 #define __TYPEINFO_H__
 
+#include <iostream>
+#include <print>
 #include <vector>
 #include <span>
+#include <cstring>
+#include <meta>
+#include <set>
+#include <list>
+#include <map>
 
 #include "tssd.h"
 
@@ -96,8 +103,9 @@ public:
     virtual TError dump(TBuffer &buf, std::byte *dest) const = 0;
 };
 
-struct TypeInfo : public Oper {
 
+struct TypeInfo : public Oper {
+    
     struct Node {
         char const* type_ = nullptr;
         char const* name_ = nullptr;
@@ -118,10 +126,15 @@ struct TypeInfo : public Oper {
         
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, bool is_number, bool is_float, bool is_signed) 
             : name_(name), type_(type), offset_(offset), size_(size), is_number_(is_number), is_float_(is_float), is_signed_(is_signed) {}
+        constexpr Node(TType type) : tssd_type_(type) {}    
     };
 
     Node node_;
     std::vector<std::shared_ptr<TypeInfo>> children_;
+
+    std::vector<std::byte> Types() const {
+        return std::vector<std::byte> {};
+    }
 
     constexpr TypeInfo(char const *type,
             char const *name,
@@ -137,17 +150,22 @@ struct TypeInfo : public Oper {
             node_(type, name, offset, size, ttype), 
             children_(ch) {}
 
+    constexpr TypeInfo(TType type) : node_(type) {}
+
     TError save(const std::byte *src, TBuffer &buf) const override {
         buf.append(node_.tssd_type_);
         buf.append(src, node_.size_);
         return OK;
     }
 
-    inline TError CheckTType(TBuffer &buf, std::int8_t type= 0) const {
+    inline TError CheckTType(TBuffer &buf) const {
+        return CheckTType(buf, (std::int8_t)node_.tssd_type_);
+    }
+
+    inline static TError CheckTType(TBuffer &buf, std::int8_t type) {
         std::int8_t t(0);
         if (auto ret = buf.dump(sizeof(t), (std::byte*)&t)) 
             return ret;
-        type = type != 0 ? type : (std::int8_t)node_.tssd_type_;
         if ( t != type)
             return ERR_FORMAT_ERROR;
         
@@ -209,9 +227,6 @@ struct TypeInfo : public Oper {
         }
     }
 
-    template <typename T> 
-    constexpr static std::shared_ptr<TypeInfo> parse2(std::ptrdiff_t offset=0, const char *name = "");
-
 public:
     constexpr TypeInfo(
         const char *type,
@@ -226,14 +241,6 @@ public:
             it->print();
     }
 
-    template <typename T> 
-    static auto Create() {
-        static_assert(std::meta::is_class_type(^^T));
-        auto ti = parse2<T>();
-        ti->parse(ti);
-        return ti;
-    }
-
     TError MarshalTo(const void *obj, TBuffer &buf) const {
         return save((const std::byte*)obj, buf);
     }
@@ -242,5 +249,382 @@ public:
         return dump(buf, (std::byte *)obj);
     }
 };
+
+
+class stringOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+
+    stringOper(TType type) : TypeInfo(type) {}
+
+    TError save(const std::byte *src, TBuffer &buf) const override {
+        buf.append(node_.tssd_type_);
+        auto pstr = (const std::string *)src;
+
+        buf.appendSize(pstr->size()); //sizet
+
+        buf.append((const std::byte*)pstr->c_str(), pstr->size());
+        return OK;
+    }
+
+    TError dump(TBuffer &buf, std::byte *dest) const override {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto size = buf.dumpSize();
+        if (size < 0) {
+            return size;
+        }
+
+        auto pstr = (std::string *)dest;
+
+        const char *ptr = (const char *)buf.dump(size);
+        if (!ptr) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        pstr->assign(ptr, size);
+        
+        return OK;
+    }
+};
+
+
+
+class objectOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+
+    TError save(const std::byte *src, TBuffer &buf) const override {
+        buf.append(node_.tssd_type_);   //T
+        std::size_t pos = buf.appendSize(0);   //sizet reserve
+        buf.appendSize(children_.size()); //sizea
+        
+        for (auto &it : children_) {
+            if (auto ret = it->save(&src[it->node_.offset_],  buf)) 
+                return ret;
+        }
+
+        buf.updateSize(pos, buf.size() - pos - 2);
+        return OK;
+    }
+
+    TError dump(TBuffer &buf, std::byte *dest) const override {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto sizet = buf.dumpSize();
+        if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        //sizea
+        if (buf.dumpSize() != children_.size()) {
+            return ERR_FORMAT_ERROR;
+        }
+        
+        for (auto &it : children_) {
+            if (auto ret = it->dump(buf, &dest[it->node_.offset_])) {
+                return ret;
+            }
+        }
+        return OK;
+    }
+
+};
+
+
+class arrayOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+
+    //array
+    TError save(const std::byte *src, TBuffer &buf) const override {
+        buf.append(node_.tssd_type_);   //T
+        std::size_t pos = buf.appendSize(0);   //sizet reserve
+
+        auto real_size = node_.size_;
+        auto addr = src;
+        auto &node = children_[0]->node_;
+        if (node_.local_type_ == TType::Tvector) {  //for vector, we convert to vector<byte> to calc the real size
+            auto *p = (std::vector<std::byte>*)src;
+            real_size = p->size()/node.size_;
+            addr = p->data();
+        }
+        buf.appendSize(real_size);
+        
+        for (int i=0; i<real_size; ++i) {
+            if (auto ret = children_[0]->save(&addr[node.size_ * i],  buf)) 
+                return ret;
+        }
+
+        buf.updateSize(pos, buf.size() - pos - 2);
+        return OK;
+    }
+
+    TError dump(TBuffer &buf, std::byte *dest) const override {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto sizet = buf.dumpSize();
+        if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        //sizea
+        auto sizea = buf.dumpSize();
+        if (sizea < 0) return ERR_FORMAT_ERROR;
+
+        auto addr = dest;
+        auto &node = children_[0]->node_;
+        //static array need check node_.size, but dyname array(vector) need skip
+        if (node_.local_type_ == TType::Tarray) {
+            if (sizea != node_.size_)
+                return ERR_FORMAT_ERROR;
+        } else { //for vector we need reserve capacity first
+            auto *p = (std::vector<std::byte>*)dest;
+            p->reserve(node.size_ * sizea);
+            p->resize(node.size_ * sizea);
+            addr = p->data();
+        }
+        
+        for (int i=0; i<sizea; ++i) {
+            if (auto ret = children_[0]->dump(buf, &addr[node.size_ * i])) {
+                return ret;
+            }
+        }
+        return OK;
+    }
+};
+
+
+template <std::meta::info T>
+class conainerOper : public TypeInfo {  //for single node container: vector, list, set, dequeue ?
+public:
+    using TypeInfo::TypeInfo;
+
+    TError save(const std::byte *src, TBuffer &buf) const override {
+        buf.append(node_.tssd_type_);   //T
+        std::size_t pos = buf.appendSize(0);   //sizet reserve
+
+        using Container = [:T:];
+        auto pcontainer = (Container*)src;
+
+        auto real_size = pcontainer->size();
+
+        buf.appendSize(real_size);
+
+        for (const auto& it : *pcontainer) {
+            if (auto ret = children_[0]->save((std::byte*)&it,  buf)) 
+                return ret;   
+        }
+
+        buf.updateSize(pos, buf.size() - pos - 2);
+        return OK;
+    }
+
+    TError dump(TBuffer &buf, std::byte *dest) const override {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto sizet = buf.dumpSize();
+        if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        //sizea
+        auto sizea = buf.dumpSize();
+        if (sizea < 0) return ERR_FORMAT_ERROR;
+
+        using Container = [:T:];
+        auto pcontainer = (Container*)dest;
+        if (this->node_.local_type_ == TType::Tvector) {
+            pcontainer->reserve(sizea);
+        }
+
+        typename Container::value_type node;
+        for (int i=0; i<sizea; ++i) {
+            if (auto ret = children_[0]->dump(buf, (std::byte*)&node)) {
+                return ret;
+            }
+            pcontainer->insert(pcontainer->end(), node);
+        }
+        return OK;
+    }
+};
+
+
+template <std::meta::info T>
+class mapOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+
+    TError save(const std::byte *src, TBuffer &buf) const override {
+        buf.append(node_.tssd_type_);   //T
+        std::size_t pos = buf.appendSize(0);   //sizet reserve
+
+        using Map = [:T:];
+        auto pmap = (Map*)src;
+
+        auto real_size = pmap->size();
+
+        buf.appendSize(real_size);
+
+        for (const auto& [key, value] : *pmap) {
+            buf.append(TType::Tdictk);
+            if (auto ret = children_[0]->save((std::byte*)&key,  buf)) 
+                return ret;
+            buf.append(TType::Tdictv);
+            if (auto ret = children_[1]->save((std::byte*)&value,  buf)) 
+                return ret;    
+        }
+
+        buf.updateSize(pos, buf.size() - pos - 2);
+        return OK;
+    }
+
+    TError dump(TBuffer &buf, std::byte *dest) const override {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto sizet = buf.dumpSize();
+        if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        //sizea
+        auto sizea = buf.dumpSize();
+        if (sizea < 0) return ERR_FORMAT_ERROR;
+
+        using Map = [:T:];
+        auto pmap = (Map*)dest;
+
+        typename Map::key_type key;
+        typename Map::mapped_type value;
+
+        auto addr = dest;
+        auto &knode = children_[0]->node_;
+        auto &vnode = children_[1]->node_;
+
+        for (int i=0; i<sizea; ++i) {
+            if (auto ret = CheckTType(buf, (std::int8_t)TType::Tdictk)) return ret;
+            if (auto ret = children_[0]->dump(buf, (std::byte*)&key)) {
+                return ret;
+            }
+            if (auto ret = CheckTType(buf, (std::int8_t)TType::Tdictv)) return ret;
+            if (auto ret = children_[1]->dump(buf, (std::byte*)&value)) {
+                return ret;
+            }
+            (*pmap)[key] = value;
+        }
+        return OK;
+    }
+};
+
+template <typename T> 
+constexpr std::shared_ptr<TypeInfo> parse2(std::ptrdiff_t offset=0, const char *name = "") 
+{
+    if constexpr (!std::is_class_v<T>)
+    {
+        if constexpr (std::meta::is_array_type(^^T)) {
+            constexpr auto real = std::meta::remove_pointer(std::meta::decay(^^T));
+            using FieldT = [:real:];
+
+            return std::make_shared<arrayOper>(std::define_static_string(std::meta::display_string_of(^^T)),
+                        name,
+                        offset,
+                        std::meta::size_of(^^T)/std::meta::size_of(real),
+                        TType::Tarray,
+                        std::vector<std::shared_ptr<TypeInfo>>{parse2<FieldT>()});
+
+        }
+        //if constexpr (std::meta::is_arithmetic_type(^^T)) {
+        return std::make_shared<TypeInfo>(
+            std::define_static_string(std::meta::display_string_of(^^T)),
+            name,
+            offset,
+            std::meta::size_of(^^T),
+            std::meta::is_arithmetic_type(^^T),
+            std::meta::is_floating_point_type(^^T),
+            std::meta::is_signed_type(^^T)
+        );
+        
+    } else {
+        
+        //string
+        if constexpr (std::is_same_v<T, std::string>) {
+            //std::println("parse string");
+            return std::make_shared<stringOper>(
+                "std::string",
+                name,
+                offset,
+                std::meta::size_of(^^T),
+                TType::Tstring,
+                std::vector<std::shared_ptr<TypeInfo>>{}
+            );
+        }
+        
+        if constexpr(std::meta::has_template_arguments(^^T)) {
+            //vector
+            //std::println("parse template {}", std::meta::display_string_of(std::meta::template_of(member)));
+
+            //TODO map and others
+            if  constexpr (std::meta::template_of(^^T) == ^^std::map)
+            {
+                using FieldK = [:std::meta::template_arguments_of(^^T)[0]:];
+                using FieldV = [:std::meta::template_arguments_of(^^T)[1]:];
+
+                return std::make_shared<mapOper<^^T>>(
+                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))),
+                    name,
+                    offset,
+                    std::meta::size_of(^^T),
+                    TType::Tdict,
+                    std::vector<std::shared_ptr<TypeInfo>>{parse2<FieldK>(), parse2<FieldV>()}
+                );
+            }
+
+#define  create(x) { \
+                using FieldT = [:std::meta::template_arguments_of(^^T)[0]:]; \
+                return std::make_shared<conainerOper<^^T>>( \
+                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
+                    name, \
+                    offset, \
+                    std::meta::size_of(^^T), \
+                    x, \
+                    std::vector<std::shared_ptr<TypeInfo>>{parse2<FieldT>()} \
+                ); }
+
+            if  constexpr (std::meta::template_of(^^T) == ^^std::vector)
+                create(TType::Tvector);
+            if  constexpr (std::meta::template_of(^^T) == ^^std::list)
+                create(TType::Tlist);
+            if  constexpr (std::meta::template_of(^^T) == ^^std::set)
+                create(TType::Tset);
+        }
+    
+        //common class
+        constexpr auto ctx = std::meta::access_context::unchecked();
+        std::vector<std::shared_ptr<TypeInfo>> children;
+        template for (constexpr auto member : std::define_static_array(std::meta::nonstatic_data_members_of(^^T, ctx))) {
+            using FieldT = [:std::meta::type_of(member):];
+            
+            constexpr auto name = std::meta::has_identifier(member) ? std::define_static_string(std::meta::identifier_of(member)) : "";
+            //std::println("member: {} has id {} name {}", std::meta::display_string_of(std::meta::type_of(member)), std::meta::has_identifier(member), name);
+            children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes, name));
+        }
+        return std::make_shared<objectOper>(
+            std::define_static_string(std::meta::display_string_of(^^T)),
+            name,
+            offset,
+            std::meta::size_of(^^T),
+            TType::Tobject,
+            children
+        );
+    }        
+}
+
+template <typename T> 
+auto Create() {
+    static_assert(std::meta::is_class_type(^^T));
+    auto ti = parse2<T>();
+    ti->parse(ti);
+    return ti;
+}
 
 #endif
