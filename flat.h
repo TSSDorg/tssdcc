@@ -63,7 +63,7 @@ public:
             flat.Version(),
             flat.Progeny(),
             CSchema{},
-            Create<T>());
+            TypeInfo::Create<T>());
 
         group.versions[flat.Version()] = fi;
         fi->schema = flat.Schema();

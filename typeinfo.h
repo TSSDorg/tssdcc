@@ -182,6 +182,10 @@ struct TypeInfo : public Oper {
 
     //set tssd_type, total offset, save, dump by the reflect type
     void parse(std::shared_ptr<TypeInfo> parent);
+    
+    template <typename T> 
+    static constexpr std::shared_ptr<TypeInfo> parse2(std::ptrdiff_t offset=0, const char *name = "");
+
    
 public:
     constexpr TypeInfo(
@@ -195,6 +199,14 @@ public:
         std::println("result type:{} name:{} offset:{} size:{} total_offset:{}", node_.type_, node_.name_?node_.name_:"annonymous", node_.offset_, node_.size_, node_.total_offset_);
         for (auto &it : children_) 
             it->print();
+    }
+
+    template <typename T> 
+    static auto Create() {
+        static_assert(std::meta::is_class_type(^^T));
+        auto ti = TypeInfo::parse2<T>();
+        ti->parse(ti);
+        return ti;
     }
 
     TError MarshalTo(const void *obj, TBuffer &buf) const {
@@ -357,7 +369,8 @@ public:
 };
 
 template <typename T> 
-constexpr std::shared_ptr<TypeInfo> parse2(std::ptrdiff_t offset=0, const char *name = "") 
+constexpr std::shared_ptr<TypeInfo> 
+TypeInfo::parse2(std::ptrdiff_t offset, const char *name) 
 {
     if constexpr (!std::is_class_v<T>)
     {
@@ -457,14 +470,6 @@ constexpr std::shared_ptr<TypeInfo> parse2(std::ptrdiff_t offset=0, const char *
             children
         );
     }        
-}
-
-template <typename T> 
-auto Create() {
-    static_assert(std::meta::is_class_type(^^T));
-    auto ti = parse2<T>();
-    ti->parse(ti);
-    return ti;
 }
 
 #endif
