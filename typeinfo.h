@@ -57,10 +57,19 @@ public:
 
     //append two bytes size, return the pos of it
     //you may update it at buf[pos]
-    std::size_t appendSize(const size_t size) {
+    std::size_t appendSize2(const size_t size) {
         std::uint16_t size2 = std::uint16_t(size);
         auto pos = this->size();
         append((std::byte*)&size2, sizeof(size2));
+        return pos;
+    }
+
+    //append 4 bytes size, return the pos of it
+    //you may update it at buf[pos]
+    std::size_t appendSize4(const size_t size) {
+        std::uint32_t size4 = std::uint32_t(size);
+        auto pos = this->size();
+        append((std::byte*)&size4, sizeof(size4));
         return pos;
     }
 
@@ -74,12 +83,19 @@ public:
         append(span);
     }
 
-    std::int16_t dumpSize() {
-        std::int16_t size(0);
+    int dumpSize2() {
+        std::uint16_t size(0);
         if (auto ret = dump(sizeof(size), (std::byte *)&size))
             return ret;
         return size;
     }
+
+    int dumpSize4() {
+        std::uint32_t size(0);
+        if (auto ret = dump(sizeof(size), (std::byte *)&size))
+            return ret;
+        return size;
+    }    
 
     TError dump(std::size_t size, std::byte *dest) {
         if (this->size() < size + current) return ERR_INSUFFICIENT_DATA;
@@ -96,15 +112,16 @@ public:
     }
 };
 
+/*
 class Oper {
 public:
     virtual ~Oper() {}
     virtual TError save(const std::byte *src, TBuffer &buf) const = 0;
     virtual TError dump(TBuffer &buf, std::byte *dest) const = 0;
 };
+*/
 
-
-struct TypeInfo : public Oper {
+struct TypeInfo {
     
     struct Node {
         char const* type_ = nullptr;
@@ -152,7 +169,7 @@ struct TypeInfo : public Oper {
 
     constexpr TypeInfo(TType type) : node_(type) {}
 
-    TError save(const std::byte *src, TBuffer &buf) const override {
+    virtual TError save(const std::byte *src, TBuffer &buf) const {
         buf.append(node_.tssd_type_);
         buf.append(src, node_.size_);
         return OK;
@@ -172,7 +189,7 @@ struct TypeInfo : public Oper {
         return OK;
     }
 
-    TError dump(TBuffer &buf, std::byte *dest) const override {
+    virtual TError dump(TBuffer &buf, std::byte *dest) const {
 
         if (auto ret = CheckTType(buf))
             return ret;
@@ -254,14 +271,14 @@ public:
 
     TError save(const std::byte *src, TBuffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
-        std::size_t pos = buf.appendSize(0);   //sizet reserve
+        std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
         using Container = [:T:];
         auto pcontainer = (Container*)src;
 
         auto real_size = pcontainer->size();
 
-        buf.appendSize(real_size);
+        buf.appendSize2(real_size);
 
         for (const auto& it : *pcontainer) {
             if (auto ret = children_[0]->save((std::byte*)&it,  buf)) 
@@ -275,13 +292,13 @@ public:
     TError dump(TBuffer &buf, std::byte *dest) const override {
         if (auto ret = CheckTType(buf))
             return ret;
-        auto sizet = buf.dumpSize();
+        auto sizet = buf.dumpSize4();
         if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
             return ERR_INSUFFICIENT_DATA;
         }
 
         //sizea
-        auto sizea = buf.dumpSize();
+        auto sizea = buf.dumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
 
         using Container = [:T:];
@@ -309,14 +326,14 @@ public:
 
     TError save(const std::byte *src, TBuffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
-        std::size_t pos = buf.appendSize(0);   //sizet reserve
+        std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
         using Map = [:T:];
         auto pmap = (Map*)src;
 
         auto real_size = pmap->size();
 
-        buf.appendSize(real_size);
+        buf.appendSize2(real_size);
 
         for (const auto& [key, value] : *pmap) {
             buf.append(TType::Tdictk);
@@ -334,13 +351,13 @@ public:
     TError dump(TBuffer &buf, std::byte *dest) const override {
         if (auto ret = CheckTType(buf))
             return ret;
-        auto sizet = buf.dumpSize();
+        auto sizet = buf.dumpSize4();
         if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
             return ERR_INSUFFICIENT_DATA;
         }
 
         //sizea
-        auto sizea = buf.dumpSize();
+        auto sizea = buf.dumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
 
         using Map = [:T:];

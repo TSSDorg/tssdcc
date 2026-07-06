@@ -68,7 +68,7 @@ stringOper::save(const std::byte *src, TBuffer &buf) const
     buf.append(node_.tssd_type_);
     auto pstr = (const std::string *)src;
 
-    buf.appendSize(pstr->size()); //sizet
+    buf.appendSize4(pstr->size()); //sizet
 
     buf.append((const std::byte*)pstr->c_str(), pstr->size());
     return OK;
@@ -79,7 +79,7 @@ stringOper::dump(TBuffer &buf, std::byte *dest) const
 {
     if (auto ret = CheckTType(buf))
         return ret;
-    auto size = buf.dumpSize();
+    auto size = buf.dumpSize4();
     if (size < 0) {
         return size;
     }
@@ -100,8 +100,8 @@ TError
 objectOper::save(const std::byte *src, TBuffer &buf) const
 {
     buf.append(node_.tssd_type_);   //T
-    std::size_t pos = buf.appendSize(0);   //sizet reserve
-    buf.appendSize(children_.size()); //sizea
+    std::size_t pos = buf.appendSize4(0);   //sizet reserve
+    buf.appendSize2(children_.size()); //sizea
     
     for (auto &it : children_) {
         if (auto ret = it->save(&src[it->node_.offset_],  buf)) 
@@ -117,13 +117,13 @@ objectOper::dump(TBuffer &buf, std::byte *dest) const
 {
     if (auto ret = CheckTType(buf))
         return ret;
-    auto sizet = buf.dumpSize();
+    auto sizet = buf.dumpSize4();
     if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
         return ERR_INSUFFICIENT_DATA;
     }
 
     //sizea
-    if (buf.dumpSize() != children_.size()) {
+    if (buf.dumpSize2() != children_.size()) {
         return ERR_FORMAT_ERROR;
     }
     
@@ -139,7 +139,7 @@ objectOper::dump(TBuffer &buf, std::byte *dest) const
 TError arrayOper::save(const std::byte *src, TBuffer &buf) const
 {
     buf.append(node_.tssd_type_);   //T
-    std::size_t pos = buf.appendSize(0);   //sizet reserve
+    std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
     auto real_size = node_.size_;
     auto addr = src;
@@ -149,7 +149,7 @@ TError arrayOper::save(const std::byte *src, TBuffer &buf) const
         real_size = p->size()/node.size_;
         addr = p->data();
     }
-    buf.appendSize(real_size);
+    buf.appendSize2(real_size);
     
     for (int i=0; i<real_size; ++i) {
         if (auto ret = children_[0]->save(&addr[node.size_ * i],  buf)) 
@@ -164,13 +164,13 @@ TError arrayOper::dump(TBuffer &buf, std::byte *dest) const
 {
     if (auto ret = CheckTType(buf))
         return ret;
-    auto sizet = buf.dumpSize();
+    auto sizet = buf.dumpSize4();
     if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
         return ERR_INSUFFICIENT_DATA;
     }
 
     //sizea
-    auto sizea = buf.dumpSize();
+    auto sizea = buf.dumpSize2();
     if (sizea < 0) return ERR_FORMAT_ERROR;
 
     auto addr = dest;
