@@ -7,39 +7,45 @@
 
 #include "tssd.h"
 #include "typeinfo.h"
+#include "buffer.h"
+
+class Manager;
+class FlatInfo;
+using pMgr = std::shared_ptr<Manager>;
+using pFlatInfo = std::shared_ptr<FlatInfo>;
+using pBuffer = std::shared_ptr<Buffer>;
+
+
 
 class Flatable {
 public:
     virtual ~Flatable() = 0;
-    virtual Flatable* Build() = 0;
-    virtual std::string Hash(std::vector<std::byte>) const;
-    virtual std::vector<std::byte> Types() const;
-    virtual CSchema Schema() const;
-    virtual TError OnHeader (const Header &) const { return OK;}
+    virtual Flatable* Build() const = 0;
+    virtual Schema schema() const;
     virtual std::string Group() const = 0;
     virtual std::string Version() const = 0;
+    virtual std::string TID() const;
+    virtual std::string Hash(const Bytes &in) const;
     virtual std::string Progeny() const { return "";}
     virtual Flatable &Decorate(Flatable &other) { return *this;};
+    Bytes Types() const;
 };
 
 struct FlatInfo {
     std::string version;
     //std::string hash;
     std::string progeny;
-    CSchema schema;
+    Schema schema;
     const std::shared_ptr<TypeInfo> typeInfo;
 };
 
-class Manager;
-using spMgr = std::shared_ptr<Manager>;
-using spFlatInfo = std::shared_ptr<FlatInfo>;
 
 class Manager {
     friend class Flatable;
     struct group {
         std::string current;
-        std::map<std::string, spFlatInfo> versions;  //query by version;
-        std::map<std::string, spFlatInfo> hashes;  //query by schema's hash;
+        std::map<std::string, pFlatInfo> versions;  //query by version;
+        std::map<std::string, pFlatInfo> hashes;  //query by schema's hash;
     };
 
      static std::map<std::string, group> groups;
@@ -50,28 +56,28 @@ public:
         if (!groups.contains(flat.Group())) {
             groups[flat.Group()] = group {
                 flat.Version(),
-                std::map<std::string, spFlatInfo>(),
-                std::map<std::string, spFlatInfo>()
+                std::map<std::string, pFlatInfo>(),
+                std::map<std::string, pFlatInfo>()
             };
         }
 
         auto &group = groups[flat.Group()];
-        if (group.versions.contains(flat.Version())) 
+        if (group.versions.contains(flat.Version()))
             return;
 
-        spFlatInfo fi = std::make_shared<FlatInfo>(
+        pFlatInfo fi = std::make_shared<FlatInfo>(
             flat.Version(),
             flat.Progeny(),
-            CSchema{},
+            Schema{},
             TypeInfo::Create<T>());
 
         group.versions[flat.Version()] = fi;
-        fi->schema = flat.Schema();
+        fi->schema = flat.schema();
         group.hashes[fi->schema.hash] = fi;
     }
 
-    static TError MarshalTo(const Flatable& flat, TBuffer &buf);
-    static TError UnmarshalTo(TBuffer &buf, Flatable& flat);
+    static TError MarshalTo(const Flatable& flat, Buffer &buf);
+    static TError UnmarshalTo(Buffer &buf, Flatable& flat);
 };
 
 #endif

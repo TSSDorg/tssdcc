@@ -12,7 +12,9 @@
 #include <map>
 
 #include "tssd.h"
+#include "buffer.h"
 
+/*
 class TBuffer : public std::vector<std::byte> {
     size_t current = 0;
     void grow(const std::size_t require=1) {
@@ -95,7 +97,7 @@ public:
         if (auto ret = dump(sizeof(size), (std::byte *)&size))
             return ret;
         return size;
-    }    
+    }
 
     TError dump(std::size_t size, std::byte *dest) {
         if (this->size() < size + current) return ERR_INSUFFICIENT_DATA;
@@ -111,18 +113,11 @@ public:
         return ret;
     }
 };
-
-/*
-class Oper {
-public:
-    virtual ~Oper() {}
-    virtual TError save(const std::byte *src, TBuffer &buf) const = 0;
-    virtual TError dump(TBuffer &buf, std::byte *dest) const = 0;
-};
 */
 
+
 struct TypeInfo {
-    
+
     struct Node {
         char const* type_ = nullptr;
         char const* name_ = nullptr;
@@ -138,12 +133,12 @@ struct TypeInfo {
         TType tssd_type_ = TType::Tobject;
         TType local_type_ = tssd_type_;
         std::shared_ptr<TypeInfo> parent_;
-        constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, TType local_type) 
+        constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, TType local_type)
             : name_(name), type_(type), offset_(offset), size_(size), local_type_(local_type) {}
-        
-        constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, bool is_number, bool is_float, bool is_signed) 
+
+        constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, bool is_number, bool is_float, bool is_signed)
             : name_(name), type_(type), offset_(offset), size_(size), is_number_(is_number), is_float_(is_float), is_signed_(is_signed) {}
-        constexpr Node(TType type) : tssd_type_(type) {}    
+        constexpr Node(TType type) : tssd_type_(type) {}
     };
 
     Node node_;
@@ -155,70 +150,70 @@ struct TypeInfo {
 
     constexpr TypeInfo(char const *type,
             char const *name,
-            std::ptrdiff_t offset, std::size_t size, bool is_number=false, bool is_float=false, bool is_signed=false) : 
-            node_(type, name, offset, size, is_number, is_float, is_signed) {}   
+            std::ptrdiff_t offset, std::size_t size, bool is_number=false, bool is_float=false, bool is_signed=false) :
+            node_(type, name, offset, size, is_number, is_float, is_signed) {}
 
     constexpr TypeInfo(char const *type,
             char const *name,
             std::ptrdiff_t offset,
             std::size_t size,
             TType ttype,
-            std::vector<std::shared_ptr<TypeInfo>> ch) : 
-            node_(type, name, offset, size, ttype), 
+            std::vector<std::shared_ptr<TypeInfo>> ch) :
+            node_(type, name, offset, size, ttype),
             children_(ch) {}
 
     constexpr TypeInfo(TType type) : node_(type) {}
 
-    virtual TError save(const std::byte *src, TBuffer &buf) const {
+    virtual TError save(const std::byte *src, Buffer &buf) const {
         buf.append(node_.tssd_type_);
         buf.append(src, node_.size_);
         return OK;
     }
 
-    inline TError CheckTType(TBuffer &buf) const {
+    inline TError CheckTType(Buffer &buf) const {
         return CheckTType(buf, (std::int8_t)node_.tssd_type_);
     }
 
-    inline static TError CheckTType(TBuffer &buf, std::int8_t type) {
+    inline static TError CheckTType(Buffer &buf, std::int8_t type) {
         std::int8_t t(0);
-        if (auto ret = buf.dump(sizeof(t), (std::byte*)&t)) 
+        if (auto ret = buf.dump(sizeof(t), (std::byte*)&t))
             return ret;
         if ( t != type)
             return ERR_FORMAT_ERROR;
-        
+
         return OK;
     }
 
-    virtual TError dump(TBuffer &buf, std::byte *dest) const {
+    virtual TError dump(Buffer &buf, std::byte *dest) const {
 
         if (auto ret = CheckTType(buf))
             return ret;
-     
+
         return buf.dump(node_.size_, dest);
     }
 
     //set tssd_type, total offset, save, dump by the reflect type
     void parse(std::shared_ptr<TypeInfo> parent);
-    
-    template <typename T> 
+
+    template <typename T>
     static constexpr std::shared_ptr<TypeInfo> parse2(std::ptrdiff_t offset=0, const char *name = "");
 
-   
+
 public:
     constexpr TypeInfo(
         const char *type,
         const char *name,
-        std::vector<std::shared_ptr<TypeInfo>> ch) : 
-        node_(type, name, 0, 0, TType::Tobject), 
+        std::vector<std::shared_ptr<TypeInfo>> ch) :
+        node_(type, name, 0, 0, TType::Tobject),
         children_(ch) {}
 
     void print() const {
         std::println("result type:{} name:{} offset:{} size:{} total_offset:{}", node_.type_, node_.name_?node_.name_:"annonymous", node_.offset_, node_.size_, node_.total_offset_);
-        for (auto &it : children_) 
+        for (auto &it : children_)
             it->print();
     }
 
-    template <typename T> 
+    template <typename T>
     static auto Create() {
         static_assert(std::meta::is_class_type(^^T));
         auto ti = TypeInfo::parse2<T>();
@@ -226,11 +221,11 @@ public:
         return ti;
     }
 
-    TError MarshalTo(const void *obj, TBuffer &buf) const {
+    TError MarshalTo(const void *obj, Buffer &buf) const {
         return save((const std::byte*)obj, buf);
     }
 
-    TError UnmarshalTo(TBuffer &buf, void *obj) const {
+    TError UnmarshalTo(Buffer &buf, void *obj) const {
         return dump(buf, (std::byte *)obj);
     }
 };
@@ -241,8 +236,8 @@ public:
     using TypeInfo::TypeInfo;
 
     stringOper(TType type) : TypeInfo(type) {}
-    TError save(const std::byte *src, TBuffer &buf) const override;
-    TError dump(TBuffer &buf, std::byte *dest) const override;
+    TError save(const std::byte *src, Buffer &buf) const override;
+    TError dump(Buffer &buf, std::byte *dest) const override;
 };
 
 
@@ -250,8 +245,8 @@ public:
 class objectOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
-    TError save(const std::byte *src, TBuffer &buf) const override;
-    TError dump(TBuffer &buf, std::byte *dest) const override;
+    TError save(const std::byte *src, Buffer &buf) const override;
+    TError dump(Buffer &buf, std::byte *dest) const override;
 };
 
 
@@ -259,8 +254,8 @@ class arrayOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
     //array
-    TError save(const std::byte *src, TBuffer &buf) const override;
-    TError dump(TBuffer &buf, std::byte *dest) const override;
+    TError save(const std::byte *src, Buffer &buf) const override;
+    TError dump(Buffer &buf, std::byte *dest) const override;
 };
 
 
@@ -269,8 +264,10 @@ class conainerOper : public TypeInfo {  //for single node container: vector, lis
 public:
     using TypeInfo::TypeInfo;
 
-    TError save(const std::byte *src, TBuffer &buf) const override {
+    TError save(const std::byte *src, Buffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
+        int index(0), offset(0);
+        buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
         using Container = [:T:];
@@ -281,15 +278,15 @@ public:
         buf.appendSize2(real_size);
 
         for (const auto& it : *pcontainer) {
-            if (auto ret = children_[0]->save((std::byte*)&it,  buf)) 
-                return ret;   
+            if (auto ret = children_[0]->save((std::byte*)&it,  buf))
+                return ret;
         }
 
-        buf.updateSize(pos, buf.size() - pos - 2);
+        buf.updateSize(index, offset, buf.size() - pos);
         return OK;
     }
 
-    TError dump(TBuffer &buf, std::byte *dest) const override {
+    TError dump(Buffer &buf, std::byte *dest) const override {
         if (auto ret = CheckTType(buf))
             return ret;
         auto sizet = buf.dumpSize4();
@@ -324,8 +321,10 @@ class mapOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
 
-    TError save(const std::byte *src, TBuffer &buf) const override {
+    TError save(const std::byte *src, Buffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
+        int index(0), offset(0);
+        buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
         using Map = [:T:];
@@ -337,18 +336,18 @@ public:
 
         for (const auto& [key, value] : *pmap) {
             buf.append(TType::Tdictk);
-            if (auto ret = children_[0]->save((std::byte*)&key,  buf)) 
+            if (auto ret = children_[0]->save((std::byte*)&key,  buf))
                 return ret;
             buf.append(TType::Tdictv);
-            if (auto ret = children_[1]->save((std::byte*)&value,  buf)) 
-                return ret;    
+            if (auto ret = children_[1]->save((std::byte*)&value,  buf))
+                return ret;
         }
 
-        buf.updateSize(pos, buf.size() - pos - 2);
+        buf.updateSize(index, offset, buf.size() - pos);
         return OK;
     }
 
-    TError dump(TBuffer &buf, std::byte *dest) const override {
+    TError dump(Buffer &buf, std::byte *dest) const override {
         if (auto ret = CheckTType(buf))
             return ret;
         auto sizet = buf.dumpSize4();
@@ -385,9 +384,9 @@ public:
     }
 };
 
-template <typename T> 
-constexpr std::shared_ptr<TypeInfo> 
-TypeInfo::parse2(std::ptrdiff_t offset, const char *name) 
+template <typename T>
+constexpr std::shared_ptr<TypeInfo>
+TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
 {
     if constexpr (!std::is_class_v<T>)
     {
@@ -413,9 +412,9 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
             std::meta::is_floating_point_type(^^T),
             std::meta::is_signed_type(^^T)
         );
-        
+
     } else {
-        
+
         //string
         if constexpr (std::is_same_v<T, std::string>) {
             //std::println("parse string");
@@ -428,7 +427,7 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
                 std::vector<std::shared_ptr<TypeInfo>>{}
             );
         }
-        
+
         if constexpr(std::meta::has_template_arguments(^^T)) {
             //vector
             //std::println("parse template {}", std::meta::display_string_of(std::meta::template_of(member)));
@@ -467,13 +466,13 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
             if  constexpr (std::meta::template_of(^^T) == ^^std::set)
                 create(TType::Tset);
         }
-    
+
         //common class
         constexpr auto ctx = std::meta::access_context::unchecked();
         std::vector<std::shared_ptr<TypeInfo>> children;
         template for (constexpr auto member : std::define_static_array(std::meta::nonstatic_data_members_of(^^T, ctx))) {
             using FieldT = [:std::meta::type_of(member):];
-            
+
             constexpr auto name = std::meta::has_identifier(member) ? std::define_static_string(std::meta::identifier_of(member)) : "";
             //std::println("member: {} has id {} name {}", std::meta::display_string_of(std::meta::type_of(member)), std::meta::has_identifier(member), name);
             children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes, name));
@@ -486,7 +485,7 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
             TType::Tobject,
             children
         );
-    }        
+    }
 }
 
 #endif
