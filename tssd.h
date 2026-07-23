@@ -3,8 +3,11 @@
 
 #include <cstdint>
 #include <iostream>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
+
 
 enum class TType {
     //TSSD type 1 byte only
@@ -55,12 +58,14 @@ const TError ERR_TSSD_MTU_TOO_SMALL = -4;
 const TError ERR_SCHEMA_NOT_FOUND = -3;
 const TError ERR_INSUFFICIENT_DATA = -2;
 const TError ERR_FORMAT_ERROR = -1;
+const TError ERR_CHECKSUM_FAILURE = -5;
 const TError OK = 0;
 
 using Bytes = std::vector<std::byte>;
+using VBytes = std::span<std::byte>;
 
 struct Header {
-    char magic[4];
+    char magic[5];
     std::int8_t version[2];  //TSSD version
 };
 
@@ -72,7 +77,7 @@ struct Schema {
     std::string  extent;
 
     TError Marshal(Buffer &buf);
-    //TError Unmarshal(Buffer &buf);
+    TError Unmarshal(Buffer &buf);
 };
 
 
@@ -80,16 +85,17 @@ struct Fragment {
     Header header;
     Schema schema;
     Bytes data;
-    Bytes checksum;
-    Fragment(std::size_t mtu) : data(mtu){
-        //memcpy(header.magic, MAGIC, sizeof(header.magic));
-        //header.version[0] = 1;
-        //header.version[1] = 0;
-        //data.resize(data.capacity());
-    }
+    VBytes heads;
+    VBytes payload;
+    VBytes checksum;
+    Fragment(std::size_t mtu) : data(mtu){}
+    Fragment(VBytes bs) : payload(bs) {}
+
+    TError Unmarshal(VBytes input, int &remain_pos);
+    TError Validate(VBytes input) const;
 
     void print(int offset) {
-        std::cout << "Fragment[";
+        std::cout << "Fragment size:" << data.size() << '[';
         for (int i=0; i< offset; i++)
             std::cout << int(data[i]) << '\t';
         std::cout << ']' << std::endl;

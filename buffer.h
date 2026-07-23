@@ -23,6 +23,9 @@ struct Buffer {
     int woffset_ = 0;  // write offset
 
     Buffer(int MTU = 0) : mtu_(MTU) {}
+    Buffer(VBytes bs) : size_(bs.size()) {
+        fragments_.emplace_back(std::make_shared<Fragment>(bs));
+    }
 
     Buffer& clear() {
         size_ = index_ = offset_ = 0;
@@ -123,12 +126,12 @@ struct Buffer {
     }
 
 
-    void print(const std::string &prefix="") const {
+    void print(const std::string &prefix="", int n = 0) const {
         if (!prefix.empty())
-            std::cout << prefix << std::endl;
-        for (int i=0; i<fragments_.size()-1; ++i)
-            fragments_[i]->print(fragments_[i]->data.size());
-        fragments_[windex_]->print(woffset_);
+            std::cout << prefix;
+        for (int i=0; i<fragments_.size(); ++i)
+            fragments_[i]->print( n ? n : fragments_[i]->data.size());
+        //fragments_[windex_]->print(woffset_);
     }
 };
 

@@ -18,9 +18,8 @@ TError Buffer::prepare(Schema schema)
     nbuf.append(std::byte(MINOR));
     nbuf.append(std::byte(MAJOR));
     nbuf.append(std::byte(TType::Tschema));
-    nbuf.print("before schema:");
     if (auto ret = schema.Marshal(nbuf)) return ret;
-    nbuf.print("after schema:");
+
 
     nbuf.append(std::byte(TType::Tarraym));
     nbuf.append(std::byte(TType::Tuint8));
@@ -34,7 +33,7 @@ TError Buffer::prepare(Schema schema)
     }
     heads_.resize(nbuf.size());
     memcpy(&heads_[0], &nbuf.fragments_[0]->data[0], nbuf.size());
-    nbuf.print();
+    nbuf.print("prepare:", nbuf.size());
     std::cout << "2 heads_ size:" << heads_.size() << ",cap:" << heads_.capacity() << " nbuf size:" << nbuf.size() << std::endl;
     return OK;
 }
@@ -55,13 +54,14 @@ void Buffer::appendChecksum(int index, int pos)
     int len = TSSD_SIZEA_LENGTH + bs.length();
     int arrayN = bs.length();
     memcpy(&fragments_[index]->data[pos+2], &len, TSSD_SIZET_LENGTH);
-    memcpy(&fragments_[index]->data[pos+5], &arrayN, TSSD_SIZEA_LENGTH);
-    memcpy(&fragments_[index]->data[pos+7], bs.c_str(), bs.length());
+    memcpy(&fragments_[index]->data[pos+6], &arrayN, TSSD_SIZEA_LENGTH);
+    memcpy(&fragments_[index]->data[pos+8], bs.c_str(), bs.length());
 }
 
 void Buffer::finish()
 {
     if (size_ == 0) return;
+    this->print("finish 1:", heads_.size() + size_);
     int pos = heads_.size();
     int length = woffset_ - pos;
     if (!length) {
@@ -70,16 +70,23 @@ void Buffer::finish()
     }
 
     updateFragmentID(windex_, -(windex_+1));
-    memcpy(&fragments_[windex_]->data[pos-TSSD_SIZET_LENGTH-TSSD_SIZEA_LENGTH], &length, TSSD_SIZET_LENGTH);
+
+    auto sizet = length + TSSD_SIZEA_LENGTH;
+    memcpy(&fragments_[windex_]->data[pos-TSSD_SIZET_LENGTH-TSSD_SIZEA_LENGTH], &sizet, TSSD_SIZET_LENGTH);
     memcpy(&fragments_[windex_]->data[pos-TSSD_SIZEA_LENGTH], &length, TSSD_SIZEA_LENGTH);
     appendChecksum(windex_, heads_.size() + length);
+    fragments_[windex_]->payload = std::span(&fragments_[windex_]->data[heads_.size()], length);
 
     //reset last fragment's size
+    fragments_[windex_]->heads = std::span(&fragments_[windex_]->data[0], heads_.size());
     fragments_[windex_]->data.resize(heads_.size() + length + checksum_len_);
-
+    fragments_[windex_]->checksum = std::span(&fragments_[windex_]->data[heads_.size() + length], checksum_len_);
     for (int i=0; i<windex_; ++i)
     {
         appendChecksum(i, heads_.size() + avail(i));
+        fragments_[i]->heads = std::span(&fragments_[i]->data[0], heads_.size());
+        fragments_[i]->payload = std::span(&fragments_[i]->data[heads_.size()], avail(i));
+        fragments_[i]->checksum = std::span(&fragments_[i]->data[mtu_ - checksum_len_], checksum_len_);
     }
 }
 
@@ -123,18 +130,22 @@ TError Buffer::dump(std::size_t size, std::byte *dest) {
     int read = 0;
     while (read < size)
     {
-        if ( offset_ + size - read <= avail(index_)) {
-            memcpy(dest, &fragments_[index_]->data[offset_], size - read);
-            updateOffset(index_, offset_, size - read);
+        if ( offset_ + size - read <= fragments_[index_]->payload.size()) {
+            memcpy(dest, &fragments_[index_]->payload[offset_], size - read);
+            offset_ += size - read;
             size_ -= size - read;
             return OK;
         }
 
-        int remain = avail(index_) - offset_;
+        int remain = fragments_[index_]->payload.size() - offset_;
         memcpy(dest, &fragments_[index_]->data[offset_], remain);
         size_ -= remain;
-        updateOffset(index_, offset_, remain);
         read += remain;
+        offset_ += remain;
+        if (offset_ >= fragments_[index_]->payload.size()) {
+            offset_ -= fragments_[index_]->payload.size();
+            index_ ++;
+        }
     }
     return OK;
 }

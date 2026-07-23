@@ -42,6 +42,7 @@ struct FlatInfo {
 class Manager {
     friend class Flatable;
     friend struct Schema;
+    friend struct Fragment;
     friend class Buffer;
     static std::string hash6(const void *data, int size)
     {
@@ -61,6 +62,12 @@ class Manager {
     static std::function<std::string(const void*, int)> checksum;
     static constexpr std::string MAGIC = "TSSDV";
 public:
+    static int findMagic(VBytes bs) {
+        auto view = std::string_view(reinterpret_cast<const char*>(bs.data()), bs.size());
+        auto pos = view.find(MAGIC);
+        return pos == view.npos ? -1 : pos;
+    }
+
     template<typename T>
     static void Register() {
         T flat;

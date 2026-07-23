@@ -11,7 +11,7 @@ Flatable::~Flatable() {}
 std::string
 Flatable::TID() const
 {
-    return "A1B2C3D4E5F6";
+    return "";
 }
 
 Schema
@@ -39,7 +39,13 @@ TError Manager::MarshalTo(const Flatable &flat, Buffer &buf)
     if (!groups[flat.Group()].versions.contains(flat.Version())) return ERR_SCHEMA_NOT_FOUND;
 
     buf.prepare(flat.schema());
-    return group.versions[flat.Version()]->typeInfo->MarshalTo(&flat, buf);
+    if (auto ret = group.versions[flat.Version()]->typeInfo->MarshalTo(&flat, buf)) {
+        return ret;
+    }
+
+    buf.finish();
+    buf.print("finish 2:");
+    return OK;
 }
 
 TError Manager::UnmarshalTo(Buffer &buf, Flatable &flat)
