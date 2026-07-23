@@ -80,7 +80,7 @@ stringOper::dump(Buffer &buf, std::byte *dest) const
     if (auto ret = CheckTType(buf))
         return ret;
     auto size = buf.dumpSize4();
-    if (size < 0) {
+    if (size <= 0 ) {
         return size;
     }
 

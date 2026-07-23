@@ -88,7 +88,7 @@ struct Fragment {
     VBytes heads;
     VBytes payload;
     VBytes checksum;
-    Fragment(std::size_t mtu) : data(mtu){}
+    Fragment(std::size_t mtu=0) : data(mtu){}
     Fragment(VBytes bs) : payload(bs) {}
 
     TError Unmarshal(VBytes input, int &remain_pos);
