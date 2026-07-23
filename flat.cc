@@ -3,29 +3,24 @@
 #include "buffer.h"
 
 std::map<std::string, Manager::group> Manager::groups;
-
+std::shared_ptr<TypeInfo> Manager::schemaTypeInfo = TypeInfo::Create<Schema>();
+std::function<std::string(const void*, int)> Manager::hash = Manager::hash6;
+std::function<std::string(const void*, int)> Manager::checksum = Manager::hash6;
 Flatable::~Flatable() {}
-
-
-
-std::string
-Flatable::Hash(const Bytes &in) const
-{
-    return "A1B2C3D4";
-}
 
 std::string
 Flatable::TID() const
 {
-    return "TID-A1B2C3D4";
+    return "A1B2C3D4E5F6";
 }
 
 Schema
 Flatable::schema() const
 {
+    auto bs = this->Types();
     struct Schema s{
         -1,
-        this->Hash(this->Types()),
+        Manager::hash(bs.data(), bs.size()),
         this->TID(),
         ""};
     return s;

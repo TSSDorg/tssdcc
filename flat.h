@@ -4,18 +4,18 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <functional>
 
 #include "tssd.h"
 #include "typeinfo.h"
 #include "buffer.h"
+#include "md5.h"
 
 class Manager;
 class FlatInfo;
 using pMgr = std::shared_ptr<Manager>;
 using pFlatInfo = std::shared_ptr<FlatInfo>;
 using pBuffer = std::shared_ptr<Buffer>;
-
-
 
 class Flatable {
 public:
@@ -25,7 +25,6 @@ public:
     virtual std::string Group() const = 0;
     virtual std::string Version() const = 0;
     virtual std::string TID() const;
-    virtual std::string Hash(const Bytes &in) const;
     virtual std::string Progeny() const { return "";}
     virtual Flatable &Decorate(Flatable &other) { return *this;};
     Bytes Types() const;
@@ -42,13 +41,25 @@ struct FlatInfo {
 
 class Manager {
     friend class Flatable;
+    friend struct Schema;
+    friend class Buffer;
+    static std::string hash6(const void *data, int size)
+    {
+        const int LEN = 6;
+        std::string str = md5(data, size);
+        return str.substr(0, LEN) + str.substr(str.length()-LEN, LEN);
+    }
     struct group {
         std::string current;
         std::map<std::string, pFlatInfo> versions;  //query by version;
         std::map<std::string, pFlatInfo> hashes;  //query by schema's hash;
     };
 
-     static std::map<std::string, group> groups;
+    static std::map<std::string, group> groups;
+    static std::shared_ptr<TypeInfo> schemaTypeInfo;
+    static std::function<std::string(const void*, int)> hash;
+    static std::function<std::string(const void*, int)> checksum;
+    static constexpr std::string MAGIC = "TSSDV";
 public:
     template<typename T>
     static void Register() {

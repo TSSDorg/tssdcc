@@ -15,12 +15,14 @@ struct Buffer {
     Bytes heads_;
     int checksum_len_ = 0;
 
-    int MTU = 3072;
+    int mtu_ = 3072;
     int size_ = 0;    //total size
     int index_ = 0;   // read index
     int offset_ = 0;  // read offset
     int windex_ = 0;  // write index
     int woffset_ = 0;  // write offset
+
+    Buffer(int MTU = 0) : mtu_(MTU) {}
 
     Buffer& clear() {
         size_ = index_ = offset_ = 0;
@@ -31,7 +33,8 @@ struct Buffer {
         return *this;
     }
 
-    void prepare(Schema schema) {}
+    TError prepare(Schema schema);
+    void finish();
 
     Buffer& append(const std::span<std::byte> bs);
     Buffer& append(const std::byte bt);
@@ -82,17 +85,22 @@ struct Buffer {
     int dumpSize2();
     int dumpSize4();
 
+    void updateFragmentID(int index, int n);
+    void appendChecksum(int index, int pos);
+
     void updateSize(const int index, const int offset, const int size) {
         // back current write pos
         int windex_bak = windex_;
         int woffset_bak = woffset_;
+        int size_bak = size_;
         // seek to the pos, append the size
         windex_ = index;
         woffset_ = offset;
         appendSize4(size);
-        // recover the pos
+        // recover the pos and size
         windex_ = windex_bak;
         woffset_ = woffset_bak;
+        size_ = size_bak;
     }
 
     void ftell(int &index, int &offset) const {
@@ -115,7 +123,9 @@ struct Buffer {
     }
 
 
-    void print() const {
+    void print(const std::string &prefix="") const {
+        if (!prefix.empty())
+            std::cout << prefix << std::endl;
         for (int i=0; i<fragments_.size()-1; ++i)
             fragments_[i]->print(fragments_[i]->data.size());
         fragments_[windex_]->print(woffset_);
