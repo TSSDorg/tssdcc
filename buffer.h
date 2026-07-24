@@ -8,8 +8,8 @@
 #include "tssd.h"
 
 
-struct Buffer {
-
+class Buffer {
+private:
     std::unordered_map<int, std::shared_ptr<Fragment>> fragments_;
     Schema schema_;
     Bytes heads_;
@@ -22,6 +22,22 @@ struct Buffer {
     std::size_t windex_ = 0;  // write index
     std::size_t woffset_ = 0;  // write offset
 
+    template<typename T>
+    int appendSize(T n)
+    {
+        append((const std::byte *)&n, sizeof(T));
+        return size_;
+    }
+
+    template<typename T>
+    int dumpSize()
+    {
+        T size(0);
+        if (auto ret = dump(sizeof(T), (std::byte *)&size))
+            return ret;
+        return size;
+    }
+public:
     Buffer(int MTU = 0) : mtu_(MTU) {}
     Buffer(VBytes bs) : size_(bs.size()) {
         fragments_[0] = std::make_shared<Fragment>(bs);
@@ -67,17 +83,6 @@ struct Buffer {
 
     int size() { return size_; }
 
-    template<typename T>
-    int appendSize(T n)
-    {
-        //int pos = size_;
-        //Bytes bs(sizeof(T));
-        //memcpy(&bs[0], &n, sizeof(T));
-        //append(bs);
-        append((const std::byte *)&n, sizeof(T));
-        return size_;
-    }
-
     int appendSize2(const int size) {
         return appendSize<std::int16_t>(size);
     }
@@ -86,15 +91,6 @@ struct Buffer {
         return appendSize<std::int32_t>(size);
     }
 
-
-    template<typename T>
-    int dumpSize()
-    {
-        T size(0);
-        if (auto ret = dump(sizeof(T), (std::byte *)&size))
-            return ret;
-        return size;
-    }
     int dumpSize2();
     int dumpSize4();
 
@@ -157,7 +153,6 @@ struct Buffer {
     //  0 : Buffer is complete, all fragments arrive
     //  n(>0): missing n-th fragment
     int wanted();
-
 };
 
 #endif
