@@ -32,6 +32,8 @@ struct TypeInfo {
         TType tssd_type_ = TType::Tobject;
         TType local_type_ = tssd_type_;
         std::shared_ptr<TypeInfo> parent_;
+        std::shared_ptr<TypeInfo> root_;
+        std::vector<std::byte> types_;
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, TType local_type)
             : name_(name), type_(type), offset_(offset), size_(size), local_type_(local_type) {}
 
@@ -44,7 +46,7 @@ struct TypeInfo {
     std::vector<std::shared_ptr<TypeInfo>> children_;
 
     std::vector<std::byte> Types() const {
-        return std::vector<std::byte> {};
+        return node_.root_->node_.types_;
     }
 
     constexpr TypeInfo(char const *type,
@@ -108,6 +110,8 @@ struct TypeInfo {
     template <typename T>
     static constexpr std::shared_ptr<TypeInfo> parse2(std::ptrdiff_t offset=0, const char *name = "");
 
+    void MakeTypes();
+
 
 public:
     constexpr TypeInfo(
@@ -127,7 +131,9 @@ public:
     static auto Create() {
         static_assert(std::meta::is_class_type(^^T));
         auto ti = TypeInfo::parse2<T>();
+        ti->node_.root_ = ti;
         ti->parse(ti);
+        ti->MakeTypes();
         return ti;
     }
 

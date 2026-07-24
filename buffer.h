@@ -15,12 +15,12 @@ struct Buffer {
     Bytes heads_;
     int checksum_len_ = 0;
 
-    int mtu_ = 3072;
-    int size_ = 0;    //total size
-    int index_ = 0;   // read index
-    int offset_ = 0;  // read offset
-    int windex_ = 0;  // write index
-    int woffset_ = 0;  // write offset
+    std::size_t mtu_ = 3072;
+    std::size_t size_ = 0;    //total size
+    std::size_t index_ = 0;   // read index
+    std::size_t offset_ = 0;  // read offset
+    std::size_t windex_ = 0;  // write index
+    std::size_t woffset_ = 0;  // write offset
 
     Buffer(int MTU = 0) : mtu_(MTU) {}
     Buffer(VBytes bs) : size_(bs.size()) {
@@ -38,6 +38,16 @@ struct Buffer {
 
     TError prepare(Schema schema);
     void finish();
+
+    //convert a vector ordered by the fragment id(last fragment is -n)
+    std::vector<pFragment> Fragments()
+    {
+        std::vector<pFragment> result(fragments_.size());
+        for (int i=0; i<fragments_.size(); i++) {
+            result[i] = fragments_[i];
+        }
+        return std::move(result);
+    }
 
     Buffer& append(const std::span<std::byte> bs);
     Buffer& append(const std::byte bt);
@@ -111,7 +121,7 @@ struct Buffer {
         offset = woffset_;
     }
 
-    void updateOffset(int &index, int &offset, int n) {
+    void updateOffset(std::size_t &index, std::size_t &offset, int n) {
         offset += n;
         if (offset >= avail(index_)) {
             offset -= avail(index_);

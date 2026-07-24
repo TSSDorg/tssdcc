@@ -14,12 +14,27 @@
 #include "typeinfo.h"
 #include "flat.h"
 
+void
+TypeInfo::MakeTypes()
+{
+    node_.root_->node_.types_.push_back(std::byte(node_.tssd_type_));
+    if (node_.tssd_type_ == TType::Tobject) {
+        std::int16_t size = children_.size();
+        auto sp = std::span((std::byte*)&size, sizeof(size));
+        node_.root_->node_.types_.append_range(sp);
+    }
+    for (auto &it : children_) {
+        it->MakeTypes();
+    }
+}
 
 void
 TypeInfo::parse(std::shared_ptr<TypeInfo> parent)
 {
+    node_.root_ = parent->node_.root_;
     for (auto &it : children_) {
         it->node_.parent_ = parent;
+        it->node_.root_ = node_.root_;
         it->node_.total_offset_ = parent->node_.total_offset_ + it->node_.offset_;
         if (it->node_.is_number_) {
             if (it->node_.is_float_)

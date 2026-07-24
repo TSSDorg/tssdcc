@@ -3,6 +3,8 @@
 #include <string>
 
 #include "flat.h"
+#include "buffer.h"
+#include "tssd.h"
 
 
 struct Point {
@@ -38,16 +40,16 @@ struct MyMap {
 
 struct Student : public Flatable {
     std::string name;
-    std::uint16_t age;
+    std::int16_t age;
 
-    Flatable *Build() {
+    Flatable *Build() const {
         return new Student;
     }
 
     std::string Group() const {
         return "main.Student";
     }
-    
+
     std::string Version() const {
         return "main.Student.V1";
     }
@@ -56,12 +58,12 @@ struct Student : public Flatable {
 int main() {
     //TypeInfo ti("MyStruct", "MyStruct", 0, TypeInfo::parse<MyStruct>());
 /*
-    std::println("std::string has template: {}, {}", 
+    std::println("std::string has template: {}, {}",
         std::meta::has_template_arguments(^^std::vector<char>),
         std::meta::is_same_type(^^std::string, ^^std::string)
     );
 
-    TBuffer buf;
+    Buffer buf;
 
     auto tmp = TypeInfo::Create<MyMap>();
     tmp->print();
@@ -93,7 +95,7 @@ int main() {
 
     //ti->UnmarshalTo(buf, &m2);
     ///std::println("MyStr: {}, {} => {} {}", m.str, m.b, m2.str, m2.b);
-   
+
 
     Point in{1, 2}, out;
 
@@ -105,7 +107,7 @@ int main() {
     tip->UnmarshalTo(buf, &out);
 
     std::println("{},{} = {},{}", (int)in.x, (int)in.y, (int)out.x, (int)out.y);
-    
+
 
     //MyStruct ms{"foo", 2, {3, 4}};
 
@@ -130,24 +132,47 @@ int main() {
 */
 
     Student st;
-    st.name = "Donald. J. Trump";
+    st.name = "DT";
     st.age = 80;
 
     Manager::Register<Student>();
 
-    TBuffer buf;
+    Buffer buf;
     if (Manager::MarshalTo(st, buf.clear())) {
         std::println("Manager::MarshalTo error");
         return -1;
     }
 
-    Student st2;
-    if (Manager::UnmarshalTo(buf, st2)
-        || st.age !=  st2.age
-        || st.name != st2.name) {
-        std::println("Manager::MarshalTo error");
+    buf.print("after MarshalTo:");
+
+    Buffer rbuf;  ///read/receive/unmarshal buf
+    pFragment frag=std::make_shared<Fragment>(1024);  ///read fragment
+
+    auto list = buf.Fragments();
+
+    for (int i=0; i<list.size(); i++) {
+        int remain_pos = 0;
+        std::span sp(list[0]->data.data(), list[0]->data.size());
+        if (auto ret = frag->Unmarshal(sp, remain_pos)) {
+            std::println("Unarshal frag error", ret);
+        }
+        rbuf.push(frag);
+    }
+
+    if (auto miss = rbuf.wanted()) {
+        std::println("missing a fragment:", miss);
         return -1;
     }
+
+    Student st2;
+    if (Manager::UnmarshalTo(rbuf, st2)
+        || st.age !=  st2.age
+        || st.name != st2.name) {
+        std::println("Manager::UnarshalTo error");
+        return -1;
+    }
+
+    std::println("succ");
 
     return 0;
 }

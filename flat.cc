@@ -18,9 +18,14 @@ Schema
 Flatable::schema() const
 {
     auto bs = this->Types();
+
+    Manager::print(&bs[0], bs.size(), Version());
+    auto ret = Manager::hash(bs.data(), bs.size());
+    std::cout << "hash value:" << ret << std::endl;
     struct Schema s{
         -1,
-        Manager::hash(bs.data(), bs.size()),
+        //Manager::hash(bs.data(), bs.size()),
+        ret,
         this->TID(),
         ""};
     return s;
@@ -44,7 +49,6 @@ TError Manager::MarshalTo(const Flatable &flat, Buffer &buf)
     }
 
     buf.finish();
-    buf.print("finish 2:");
     return OK;
 }
 
