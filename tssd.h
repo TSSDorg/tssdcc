@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
@@ -54,11 +55,13 @@ const int  TSSD_SIZET_LENGTH = 4;
 const int  TSSD_SIZEA_LENGTH = 2;
 
 using TError = std::int16_t;
+const TError ERR_SCHEMA_NOT_MATCH = -3;
+const TError ERR_CHECKSUM_FAILURE = -5;
 const TError ERR_TSSD_MTU_TOO_SMALL = -4;
 const TError ERR_SCHEMA_NOT_FOUND = -3;
 const TError ERR_INSUFFICIENT_DATA = -2;
 const TError ERR_FORMAT_ERROR = -1;
-const TError ERR_CHECKSUM_FAILURE = -5;
+
 const TError OK = 0;
 
 using Bytes = std::vector<std::byte>;
@@ -101,6 +104,6 @@ struct Fragment {
         std::cout << ']' << std::endl;
     }
 };
-
+using pFragment = std::shared_ptr<Fragment>;
 
 #endif

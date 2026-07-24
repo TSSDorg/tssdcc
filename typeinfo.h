@@ -83,6 +83,17 @@ struct TypeInfo {
         return OK;
     }
 
+    inline int CheckDumpTS(Buffer &buf) const {
+        if (auto ret = CheckTType(buf))
+            return ret;
+        auto sizet = buf.dumpSize4();
+        if (sizet < 0 || buf.size() < sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+        return sizet;
+    }
+
+
     virtual TError dump(Buffer &buf, std::byte *dest) const {
 
         if (auto ret = CheckTType(buf))
@@ -186,12 +197,8 @@ public:
     }
 
     TError dump(Buffer &buf, std::byte *dest) const override {
-        if (auto ret = CheckTType(buf))
-            return ret;
-        auto sizet = buf.dumpSize4();
-        if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
-            return ERR_INSUFFICIENT_DATA;
-        }
+        int sizet = CheckDumpTS(buf);
+        if (sizet<0) return sizet;
 
         //sizea
         auto sizea = buf.dumpSize2();
@@ -247,12 +254,8 @@ public:
     }
 
     TError dump(Buffer &buf, std::byte *dest) const override {
-        if (auto ret = CheckTType(buf))
-            return ret;
-        auto sizet = buf.dumpSize4();
-        if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
-            return ERR_INSUFFICIENT_DATA;
-        }
+        int sizet = CheckDumpTS(buf);
+        if (sizet<0) return sizet;
 
         //sizea
         auto sizea = buf.dumpSize2();

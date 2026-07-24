@@ -98,7 +98,7 @@ Buffer& Buffer::append(const std::span<std::byte> bs)
     {
         if (windex_ == fragments_.size()) {
             auto fra = std::make_shared<Fragment>(mtu_);
-            fragments_.emplace_back(fra);
+            fragments_[windex_] = fra;
             if (!heads_.empty()) {
                 memcpy(&fra->data[0], &heads_[0], heads_.size());
                 updateFragmentID(windex_, windex_+1);
@@ -171,3 +171,38 @@ int Buffer::dumpSize4()
     return dumpSize<std::int32_t>();
 }
 
+int Buffer::push(pFragment fragment)
+{
+    if (schema_.hash.empty()) {
+        schema_ = fragment->schema;
+        heads_.assign(fragment->heads.begin(), fragment->heads.end());
+        checksum_len_ = fragment->checksum.size();
+    }
+    if (schema_.hash != fragment->schema.hash || schema_.tid != fragment->schema.tid) {
+        return ERR_SCHEMA_NOT_MATCH;
+    }
+    if (fragment->schema.fragment == 0) {
+        return ERR_FORMAT_ERROR;
+    }
+
+    int fid = fragment->schema.fragment;
+    fid = fid < 0 ? -fid : fid;
+    if (!fragments_.contains(fid-1)) {
+        size_ +=  fragment->payload.size();
+    }
+    fragments_[fid-1] = fragment;
+
+    return wanted();
+}
+
+int Buffer::wanted()
+{
+    for (int i=0; i<fragments_.size(); i++) {
+        if (!fragments_.contains(i))
+            return i+1;
+        if (fragments_[i]->schema.fragment < 0) {
+            return 0;
+        }
+    }
+    return 1;
+}

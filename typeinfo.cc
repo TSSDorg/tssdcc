@@ -117,12 +117,8 @@ objectOper::save(const std::byte *src, Buffer &buf) const
 TError
 objectOper::dump(Buffer &buf, std::byte *dest) const
 {
-    if (auto ret = CheckTType(buf))
-        return ret;
-    auto sizet = buf.dumpSize4();
-    if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
-        return ERR_INSUFFICIENT_DATA;
-    }
+    int sizet = CheckDumpTS(buf);
+    if (sizet<0) return sizet;
 
     //sizea
     if (buf.dumpSize2() != children_.size()) {
@@ -166,12 +162,8 @@ TError arrayOper::save(const std::byte *src, Buffer &buf) const
 
 TError arrayOper::dump(Buffer &buf, std::byte *dest) const
 {
-    if (auto ret = CheckTType(buf))
-        return ret;
-    auto sizet = buf.dumpSize4();
-    if (sizet < 0 || buf.size() < 1 + 2 + sizet) {
-        return ERR_INSUFFICIENT_DATA;
-    }
+    int sizet = CheckDumpTS(buf);
+    if (sizet<0) return sizet;
 
     //sizea
     auto sizea = buf.dumpSize2();

@@ -3,14 +3,14 @@
 
 #include <memory>
 #include <span>
-#include <vector>
+#include <unordered_map>
 
 #include "tssd.h"
 
 
 struct Buffer {
 
-    std::vector<std::shared_ptr<Fragment>> fragments_;
+    std::unordered_map<int, std::shared_ptr<Fragment>> fragments_;
     Schema schema_;
     Bytes heads_;
     int checksum_len_ = 0;
@@ -24,7 +24,7 @@ struct Buffer {
 
     Buffer(int MTU = 0) : mtu_(MTU) {}
     Buffer(VBytes bs) : size_(bs.size()) {
-        fragments_.emplace_back(std::make_shared<Fragment>(bs));
+        fragments_[0] = std::make_shared<Fragment>(bs);
     }
 
     Buffer& clear() {
@@ -125,14 +125,29 @@ struct Buffer {
         return fragments_[index]->data.size() - heads_.size() - checksum_len_;
     }
 
-
-    void print(const std::string &prefix="", int n = 0) const {
+    void print(const std::string &prefix="", int n = 0) {
         if (!prefix.empty())
             std::cout << prefix;
-        for (int i=0; i<fragments_.size(); ++i)
+        for (int i=0; i<fragments_.size(); ++i) {
             fragments_[i]->print( n ? n : fragments_[i]->data.size());
+        }
         //fragments_[windex_]->print(woffset_);
     }
+
+
+    // @desc push a fragment into buffer
+    // return
+    //  < 0:  Error, the fragment was rejected
+    //  0 : push sucess, and Buffer is complete, all fragments arrive
+    //  n(>0): missing n-th fragment
+    int push(pFragment fragment);
+
+    // @desc query the missing fragment
+    // return
+    //  0 : Buffer is complete, all fragments arrive
+    //  n(>0): missing n-th fragment
+    int wanted();
+
 };
 
 #endif
