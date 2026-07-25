@@ -3,7 +3,9 @@
 ################################################################################
 
 # Executable name
-EXEC = program
+EXEC = tssd
+LIB_SHORT = tssdcc
+LIB = libtssdcc.a
 
 # Test executable name
 TEST_EXEC = tests
@@ -20,7 +22,7 @@ SRC_DIR = src
 SRCS := $(sort $(shell find $(SRC_DIR) -name '*.cc'))
 
 # Test sources (found recursively inside TEST_DIR if it exists)
-TEST_DIR = tests
+TEST_DIR = test
 TEST_SRCS := $(sort $(shell find $(TEST_DIR) -name '*.cc' 2> /dev/null))
 
 # Includes
@@ -41,7 +43,7 @@ LDFLAGS = -static
 TEST_LDFLAGS =
 
 # Libraries to link
-LDLIBS =
+LDLIBS = -l$(LIB_SHORT)
 TEST_LDLIBS =
 
 # Target OS detection
@@ -106,9 +108,12 @@ endif
 # Object and bin directories
 OBJ_DIR := $(BUILD_DIR)/obj
 BIN_DIR := $(BUILD_DIR)/bin
+LIB_DIR := $(BUILD_DIR)/lib
+
+LDLIBS += -L $(LIB_DIR)
 
 # Object files
-MAIN_SRC = $(SRC_DIR)/main.cc
+MAIN_SRC = $(TEST_DIR)/main.cc
 MAIN_OBJ := $(MAIN_SRC:%.cc=$(OBJ_DIR)/%.o)
 SRCS_WITHOUT_MAIN := $(filter-out $(MAIN_SRC),$(SRCS))
 SRC_OBJS_WITHOUT_MAIN := $(SRCS_WITHOUT_MAIN:%.cc=$(OBJ_DIR)/%.o)
@@ -132,19 +137,21 @@ FILES := $(shell find $(SRC_DIR) $(TEST_DIR) $(INCLUDE_DIR) -name '*.cc' -o -nam
 .SUFFIXES:
 
 .PHONY: all
-all: $(BIN_DIR)/$(EXEC) $(if $(TEST_SRCS),$(BIN_DIR)/$(TEST_EXEC))
+#all: $(BIN_DIR)/$(EXEC) $(if $(TEST_SRCS),$(BIN_DIR)/$(TEST_EXEC))
+all: $(LIB_DIR)/$(LIB) $(if $(TEST_SRCS),$(BIN_DIR)/$(TEST_EXEC))
 
 # Build executable
-$(BIN_DIR)/$(EXEC): $(MAIN_OBJ) $(SRC_OBJS_WITHOUT_MAIN)
+$(LIB_DIR)/$(LIB): $(SRC_OBJS_WITHOUT_MAIN)
 	@echo "Building executable: $@"
 	@mkdir -p $(@D)
-	@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	$(AR) -r $@ $^
+	#@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Build tests
 $(BIN_DIR)/$(TEST_EXEC): LDFLAGS += $(TEST_LDFLAGS)
 $(BIN_DIR)/$(TEST_EXEC): LDLIBS += $(TEST_LDLIBS)
 $(BIN_DIR)/$(TEST_EXEC): $(TEST_OBJS) $(SRC_OBJS_WITHOUT_MAIN)
-	@echo "Building tests: $@"
+	@echo "Building tests: $@  $(LDLIBS)"
 	@mkdir -p $(@D)
 	@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
