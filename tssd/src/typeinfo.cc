@@ -18,9 +18,15 @@ void
 TypeInfo::MakeTypes()
 {
     node_.root_->node_.types_.push_back(std::byte(node_.tssd_type_));
+    if (node_.tssd_type_ == TType::Tobject) {
+        int size = children_.size();
+        auto sp = std::span((std::byte*)&size, sizeof(size));
+        node_.root_->node_.types_.append_range(sp);
+    }
+    /*
     switch (node_.tssd_type_) {
         case TType::Tobject:
-            std::int16_t size = children_.size();
+            int size = children_.size();
             auto sp = std::span((std::byte*)&size, sizeof(size));
             node_.root_->node_.types_.append_range(sp);
             break;
@@ -30,7 +36,7 @@ TypeInfo::MakeTypes()
             break;
         default:
             break;
-    }
+    }*/
     for (auto &it : children_) {
         it->MakeTypes();
     }
