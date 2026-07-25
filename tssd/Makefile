@@ -138,9 +138,9 @@ FILES := $(shell find $(SRC_DIR) $(TEST_DIR) $(INCLUDE_DIR) -name '*.cc' -o -nam
 
 .PHONY: all
 #all: $(BIN_DIR)/$(EXEC) $(if $(TEST_SRCS),$(BIN_DIR)/$(TEST_EXEC))
-all: $(LIB_DIR)/$(LIB) $(if $(TEST_SRCS),$(BIN_DIR)/$(TEST_EXEC))
+all: $(LIB_DIR)/$(LIB)
 
-# Build executable
+# Build library
 $(LIB_DIR)/$(LIB): $(SRC_OBJS_WITHOUT_MAIN)
 	@echo "Building executable: $@"
 	@mkdir -p $(@D)
@@ -148,16 +148,15 @@ $(LIB_DIR)/$(LIB): $(SRC_OBJS_WITHOUT_MAIN)
 	#@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Build tests
-$(BIN_DIR)/$(TEST_EXEC): LDFLAGS += $(TEST_LDFLAGS)
-$(BIN_DIR)/$(TEST_EXEC): LDLIBS += $(TEST_LDLIBS)
-$(BIN_DIR)/$(TEST_EXEC): $(TEST_OBJS) $(SRC_OBJS_WITHOUT_MAIN)
-	@echo "Building tests: $@  $(LDLIBS)"
-	@mkdir -p $(@D)
-	@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
+#$(BIN_DIR)/$(TEST_EXEC): LDFLAGS += $(TEST_LDFLAGS)
+#$(BIN_DIR)/$(TEST_EXEC): LDLIBS += $(TEST_LDLIBS)
+#$(BIN_DIR)/$(TEST_EXEC): $(TEST_OBJS) $(SRC_OBJS_WITHOUT_MAIN)
+#	@echo "Building tests: $@  $(LDLIBS)"
+#	@mkdir -p $(@D)
+#	@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Compile C++ source files
-$(OBJ_DIR)/$(TEST_DIR)/%.o: INCLUDES += $(TEST_INCLUDES)
-$(ALL_OBJS): $(OBJ_DIR)/%.o: %.cc
+$(SRC_OBJS_WITHOUT_MAIN): $(OBJ_DIR)/%.o: %.cc
 	@echo "Compiling: $<"
 	@mkdir -p $(@D)
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(WARNINGS) -c $< -o $@
@@ -173,9 +172,22 @@ run: $(BIN_DIR)/$(EXEC)
 
 # Build and run tests
 .PHONY: test
-test: $(BIN_DIR)/$(TEST_EXEC)
+test: $(BIN_DIR)/$(TEST_EXEC) $(if $(TEST_SRCS),$(BIN_DIR)/$(TEST_EXEC))
+$(BIN_DIR)/$(TEST_EXEC): LDFLAGS += $(TEST_LDFLAGS)
+$(BIN_DIR)/$(TEST_EXEC): LDLIBS += $(TEST_LDLIBS)
+$(BIN_DIR)/$(TEST_EXEC): $(TEST_OBJS)
+	@echo "Building tests: $@  $(LDLIBS)"
+	@mkdir -p $(@D)
+	@$(CXX)  $(LDFLAGS) $^ $(LDLIBS) -o $@
 	@echo "Running tests: $<"
 	@cd $(BIN_DIR) && ./$(TEST_EXEC)
+
+
+$(OBJ_DIR)/$(TEST_DIR)/%.o:
+$(TEST_OBJS): $(OBJ_DIR)/%.o: %.cc
+	@echo "Compiling: $<"
+	@mkdir -p $(@D)
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(WARNINGS) -c $< -o $@
 
 # Copy assets to bin directory for selected platform
 .PHONY: copyassets
