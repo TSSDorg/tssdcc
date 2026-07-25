@@ -33,7 +33,6 @@ TError Buffer::prepare(Schema schema)
     }
     heads_.resize(nbuf.size());
     memcpy(&heads_[0], &nbuf.fragments_[0]->data[0], nbuf.size());
-    nbuf.print("prepare:", nbuf.size());
     std::cout << "2 heads_ size:" << heads_.size() << ",cap:" << heads_.capacity() << " nbuf size:" << nbuf.size() << std::endl;
     return OK;
 }
@@ -61,7 +60,7 @@ void Buffer::appendChecksum(int index, int pos)
 void Buffer::finish()
 {
     if (size_ == 0) return;
-    this->print("finish 1:", heads_.size() + size_);
+    //this->print("finish 1:", heads_.size() + size_);
     int pos = heads_.size();
     int length = woffset_ - pos;
     if (!length) {

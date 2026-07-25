@@ -18,14 +18,31 @@ void
 TypeInfo::MakeTypes()
 {
     node_.root_->node_.types_.push_back(std::byte(node_.tssd_type_));
-    if (node_.tssd_type_ == TType::Tobject) {
-        std::int16_t size = children_.size();
-        auto sp = std::span((std::byte*)&size, sizeof(size));
-        node_.root_->node_.types_.append_range(sp);
+    switch (node_.tssd_type_) {
+        case TType::Tobject:
+            std::int16_t size = children_.size();
+            auto sp = std::span((std::byte*)&size, sizeof(size));
+            node_.root_->node_.types_.append_range(sp);
+            break;
+        case TType::Tarraym:
+            break;
+        case TType::Ttime:
+            break;
+        default:
+            break;
     }
     for (auto &it : children_) {
         it->MakeTypes();
     }
+}
+
+void
+TypeInfo::UpdateMergedArray()
+{
+    if (node_.tssd_type_ != TType::Tarray) return;
+    if (children_.size() != 1) return;
+    if (!children_[0]->node_.is_number_) return;
+    node_.tssd_type_ = TType::Tarraym;
 }
 
 void
@@ -61,9 +78,10 @@ TypeInfo::parse(std::shared_ptr<TypeInfo> parent)
                 case TType::Tstring:
                     it->node_.tssd_type_ = TType::Tstring;
                     break;
-                case TType::Tarray:     //it'a static array
+                case TType::Tarray:      //it'a static array
                 case TType::Tvector:     //dynamic array
                     it->node_.tssd_type_ = TType::Tarray;
+                    UpdateMergedArray();
                     it->parse(it);
                     break;
                 case TType::Tdict:

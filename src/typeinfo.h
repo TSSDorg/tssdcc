@@ -95,7 +95,6 @@ struct TypeInfo {
         return sizet;
     }
 
-
     virtual TError dump(Buffer &buf, std::byte *dest) const {
 
         if (auto ret = CheckTType(buf))
@@ -112,6 +111,7 @@ struct TypeInfo {
 
     void MakeTypes();
 
+    void UpdateMergedArray();
 
 public:
     constexpr TypeInfo(
