@@ -44,7 +44,7 @@ TEST_LDFLAGS =
 
 # Libraries to link
 LDLIBS = -l$(LIB_SHORT)
-TEST_LDLIBS =
+TEST_LDLIBS = -lgtest -lgtest_main
 
 # Target OS detection
 ifeq ($(OS),Windows_NT) # OS is a preexisting environment variable on Windows

@@ -6,6 +6,7 @@
 #include "buffer.h"
 #include "tssd.h"
 
+#include "gtest/gtest.h"
 
 struct Point {
     short x;
@@ -55,7 +56,9 @@ struct Student : public Flatable {
     }
 };
 
-int main() {
+int main(int argc, char *argv[]) {
+    testing::InitGoogleTest(&argc, argv);
+
     //TypeInfo ti("MyStruct", "MyStruct", 0, TypeInfo::parse<MyStruct>());
 /*
     std::println("std::string has template: {}, {}",
@@ -131,6 +134,12 @@ int main() {
     std::println("mb: {} {} {}", (int)mb.c[0], (int)mb.c[1], mb.vec.size());
 */
 
+    std::println("succ");
+
+    return RUN_ALL_TESTS();
+}
+
+TEST(TSSD, MarshalUnmarsha) {
     Student st;
     st.name = "DT";
     st.age = 80;
@@ -138,10 +147,7 @@ int main() {
     Manager::Register<Student>();
 
     Buffer buf;
-    if (Manager::MarshalTo(st, buf.clear())) {
-        std::println("Manager::MarshalTo error");
-        return -1;
-    }
+    EXPECT_EQ(Manager::MarshalTo(st, buf.clear()), OK);
 
     buf.print("after MarshalTo:");
 
@@ -159,20 +165,11 @@ int main() {
         rbuf.push(frag);
     }
 
-    if (auto miss = rbuf.wanted()) {
-        std::println("missing a fragment:", miss);
-        return -1;
-    }
+    EXPECT_EQ(rbuf.wanted(),0);
 
     Student st2;
-    if (Manager::UnmarshalTo(rbuf, st2)
-        || st.age !=  st2.age
-        || st.name != st2.name) {
-        std::println("Manager::UnarshalTo error");
-        return -1;
-    }
+    EXPECT_EQ(Manager::UnmarshalTo(rbuf, st2), OK);
 
-    std::println("succ");
-
-    return 0;
+    EXPECT_EQ(st.age, st2.age);
+    EXPECT_EQ(st.name, st2.name);
 }
