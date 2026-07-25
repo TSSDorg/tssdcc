@@ -37,13 +37,31 @@ private:
             return ret;
         return size;
     }
+
+    void updateFragmentID(int index, int n);
+    void appendChecksum(int index, int pos);
+
+    inline void updateOffset(std::size_t &index, std::size_t &offset, int n) {
+        offset += n;
+        if (offset >= avail(index_)) {
+            offset -= avail(index_);
+            index ++;
+        }
+    }
+
+    inline int avail(int index) {
+        //std::cout << "avail index:" << index << ", size:" <<  fragments_[index]->data.size() << std::endl;
+        //std::cout << std::addressof(&fragments_[index]) << '\t' << std::addressof(&fragments_[index][0]) << std::endl;
+        return fragments_[index]->data.size() - heads_.size() - checksum_len_;
+    }
+
 public:
     Buffer(int MTU = 0) : mtu_(MTU) {}
     Buffer(VBytes bs) : size_(bs.size()) {
         fragments_[0] = std::make_shared<Fragment>(bs);
     }
 
-    Buffer& clear() {
+    inline Buffer& clear() {
         size_ = index_ = offset_ = 0;
         windex_ = woffset_ = 0;
         heads_.clear();
@@ -55,8 +73,8 @@ public:
     TError prepare(Schema schema);
     void finish();
 
-    //convert a vector ordered by the fragment id(last fragment is -n)
-    std::vector<pFragment> Fragments()
+    //convert to a vector ordered by the fragment id(last fragment is -n)
+    inline std::vector<pFragment> Fragments()
     {
         std::vector<pFragment> result(fragments_.size());
         for (int i=0; i<fragments_.size(); i++) {
@@ -69,11 +87,11 @@ public:
     Buffer& append(const std::byte bt);
     Buffer& append(const TType bt);
 
-    Buffer& append(const Bytes &bs) {
+    inline Buffer& append(const Bytes &bs) {
         return append(bs.data(), bs.size());
     }
 
-    Buffer& append(const std::byte* ptr, const std::size_t size) {
+    inline Buffer& append(const std::byte* ptr, const std::size_t size) {
         auto span = std::span<std::byte>((std::byte*)ptr, size);
         return append(span);
     }
@@ -81,23 +99,20 @@ public:
     TError dump(std::size_t size, std::byte *dest);
     std::byte *dump(std::size_t size);
 
-    int size() { return size_; }
+    inline int size() { return size_; }
 
-    int appendSize2(const int size) {
+    inline int appendSize2(const int size) {
         return appendSize<std::int16_t>(size);
     }
 
-    int appendSize4(const int size) {
+    inline int appendSize4(const int size) {
         return appendSize<std::int32_t>(size);
     }
 
     int dumpSize2();
     int dumpSize4();
 
-    void updateFragmentID(int index, int n);
-    void appendChecksum(int index, int pos);
-
-    void updateSize(const int index, const int offset, const int size) {
+    inline void updateSize(const int index, const int offset, const int size) {
         // back current write pos
         int windex_bak = windex_;
         int woffset_bak = woffset_;
@@ -112,26 +127,12 @@ public:
         size_ = size_bak;
     }
 
-    void ftell(int &index, int &offset) const {
+    inline void ftell(int &index, int &offset) const {
         index = windex_;
         offset = woffset_;
     }
 
-    void updateOffset(std::size_t &index, std::size_t &offset, int n) {
-        offset += n;
-        if (offset >= avail(index_)) {
-            offset -= avail(index_);
-            index ++;
-        }
-    }
-
-    int avail(int index) {
-        //std::cout << "avail index:" << index << ", size:" <<  fragments_[index]->data.size() << std::endl;
-        //std::cout << std::addressof(&fragments_[index]) << '\t' << std::addressof(&fragments_[index][0]) << std::endl;
-        return fragments_[index]->data.size() - heads_.size() - checksum_len_;
-    }
-
-    void print(const std::string &prefix="", int n = 0) {
+    inline void print(const std::string &prefix="", int n = 0) {
         if (!prefix.empty())
             std::cout << prefix;
         for (int i=0; i<fragments_.size(); ++i) {
