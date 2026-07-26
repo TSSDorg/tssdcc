@@ -1,35 +1,70 @@
+#include <cstdlib>
+#include <ctime>
+
 #include "gtest/gtest.h"
 
 #include "tssd.h"
 #include "flat.h"
 
-struct Student : public Flatable {
-    std::string name;
-    std::int16_t age;
+struct BasicType : public Flatable {
+    bool  vbool;
+    std::int8_t vint8;
+    std::uint8_t vuint8;
+    std::int16_t vint16;
+    std::uint16_t vuint16;
+    std::int32_t  vint32;
+    std::uint32_t vuint32;
+    std::int64_t  vint64;
+    std::uint64_t vuint64;
+    float        f32;
+    double       f64;
 
     Flatable *Build() const {
-        return new Student;
+        return new BasicType;
     }
 
     std::string Group() const {
-        return "main.Student";
+        return "BasicType";
     }
 
     std::string Version() const {
-        return "main.Student.V1";
+        return "BasicType";
+    }
+    unsigned bounded_rand(unsigned range)
+    {
+        for (unsigned x, r;;) {
+            x = std::rand();
+            r = x % range;
+            if (x - r <= -range)
+                return r;
+        }
+    }
+
+    //produce random value
+    void rand()
+    {
+
+        std::srand(std::time({})); // use current time as seed for random generator
+        auto *p = (std::byte *)&this->vbool;
+        memset(p, 0, sizeof(BasicType));
+        for (int i=0; i<sizeof(BasicType); i++)
+        {
+            const int random_value = bounded_rand(256);
+            p[i] =  (std::byte) random_value;
+        }
     }
 };
 
 
 TEST(TSSD, MarshalUnmarsha) {
-    Student st;
-    st.name = "DT";
-    st.age = 80;
 
-    Manager::Register<Student>();
+    BasicType bt1;
+    bt1.rand();
+
+    Manager::Register<BasicType>();
 
     Buffer buf;
-    EXPECT_EQ(Manager::MarshalTo(st, buf.clear()), OK);
+    EXPECT_EQ(Manager::MarshalTo(bt1, buf.clear()), OK);
 
     buf.print("after MarshalTo:");
 
@@ -49,9 +84,10 @@ TEST(TSSD, MarshalUnmarsha) {
 
     EXPECT_EQ(rbuf.wanted(),0);
 
-    Student st2;
-    EXPECT_EQ(Manager::UnmarshalTo(rbuf, st2), OK);
+    BasicType bt2;
+    bt2.rand();
+    EXPECT_EQ(Manager::UnmarshalTo(rbuf, bt2), OK);
+    auto ret = memcmp(&bt1, &bt2, sizeof(BasicType));
+    EXPECT_EQ(ret, 0);
 
-    EXPECT_EQ(st.age, st2.age);
-    EXPECT_EQ(st.name, st2.name);
 }
