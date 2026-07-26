@@ -19,15 +19,15 @@ struct BasicType : public Flatable {
     float        f32;
     double       f64;
 
-    Flatable *Build() const {
-        return new BasicType;
+    pFlatable Build() const override {
+        return std::make_shared<BasicType>();
     }
 
-    std::string Group() const {
+    std::string Group() const override {
         return "BasicType";
     }
 
-    std::string Version() const {
+    std::string Version() const override {
         return "BasicType";
     }
     unsigned bounded_rand(unsigned range)

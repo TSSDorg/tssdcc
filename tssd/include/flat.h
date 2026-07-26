@@ -14,14 +14,16 @@
 
 class Manager;
 class FlatInfo;
+class Flatable;
 using pMgr = std::shared_ptr<Manager>;
 using pFlatInfo = std::shared_ptr<FlatInfo>;
 using pBuffer = std::shared_ptr<Buffer>;
+using pFlatable = std::shared_ptr<Flatable>;
 
 class Flatable {
 public:
     virtual ~Flatable() = 0;
-    virtual Flatable* Build() const = 0;
+    virtual pFlatable Build() const = 0;
     virtual Schema schema() const;
     virtual std::string Group() const = 0;
     virtual std::string Version() const = 0;
