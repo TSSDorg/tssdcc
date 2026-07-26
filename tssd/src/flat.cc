@@ -8,14 +8,12 @@ std::function<std::string(const void*, int)> Manager::hash = Manager::hash6;
 std::function<std::string(const void*, int)> Manager::checksum = Manager::hash6;
 Flatable::~Flatable() {}
 
-std::string
-Flatable::TID() const
+std::string Flatable::TID() const
 {
     return "";
 }
 
-Schema
-Flatable::schema() const
+Schema Flatable::schema() const
 {
     auto bs = this->Types();
 

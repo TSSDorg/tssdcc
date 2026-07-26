@@ -18,11 +18,11 @@ struct BasicType : public Flatable {
     std::uint64_t vuint64;
     float        f32;
     double       f64;
-
+/*
     pFlatable Build() const override {
         return std::make_shared<BasicType>();
     }
-
+*/
     std::string Group() const override {
         return "BasicType";
     }

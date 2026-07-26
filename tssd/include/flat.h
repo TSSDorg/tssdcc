@@ -23,7 +23,7 @@ using pFlatable = std::shared_ptr<Flatable>;
 class Flatable {
 public:
     virtual ~Flatable() = 0;
-    virtual pFlatable Build() const = 0;
+    //virtual pFlatable Build() const = 0;
     virtual Schema schema() const;
     virtual std::string Group() const = 0;
     virtual std::string Version() const = 0;
