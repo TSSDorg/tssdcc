@@ -43,12 +43,12 @@ TypeInfo::MakeTypes()
 }
 
 void
-TypeInfo::UpdateMergedArray()
+TypeInfo::UpdateMergedArray(std::shared_ptr<TypeInfo> child)
 {
-    if (node_.tssd_type_ != TType::Tarray) return;
-    if (children_.size() != 1) return;
-    if (!children_[0]->node_.is_number_) return;
-    node_.tssd_type_ = TType::Tarraym;
+    if (child->node_.tssd_type_ != TType::Tarray) return;
+    if (child->children_.size() != 1) return;
+    if (!child->children_[0]->node_.is_number_) return;
+    child->node_.tssd_type_ = TType::Tarraym;
 }
 
 void
@@ -87,7 +87,7 @@ TypeInfo::parse(std::shared_ptr<TypeInfo> parent)
                 case TType::Tarray:      //it'a static array
                 case TType::Tvector:     //dynamic array
                     it->node_.tssd_type_ = TType::Tarray;
-                    UpdateMergedArray();
+                    UpdateMergedArray(it);
                     it->parse(it);
                     break;
                 case TType::Tdict:
@@ -176,22 +176,25 @@ objectOper::dump(Buffer &buf, std::byte *dest) const
 TError arrayOper::save(const std::byte *src, Buffer &buf) const
 {
     buf.append(node_.tssd_type_);   //T
+    auto &child = children_[0]->node_;
+    if (node_.tssd_type_ == TType::Tarraym) {
+        buf.append(child.tssd_type_);
+        auto sizet = child.size_ * node_.size_ + TSSD_SIZEA_LENGTH;
+        buf.appendSize4(child.size_ * node_.size_ + TSSD_SIZEA_LENGTH);
+        buf.appendSize2(node_.size_);
+        buf.append(src, child.size_ * node_.size_);
+        return OK;
+    }
     int index(0), offset(0);
     buf.ftell(index, offset);
     std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
     auto real_size = node_.size_;
     auto addr = src;
-    auto &node = children_[0]->node_;
-    if (node_.local_type_ == TType::Tvector) {  //for vector, we convert to vector<byte> to calc the real size
-        auto *p = (std::vector<std::byte>*)src;
-        real_size = p->size()/node.size_;
-        addr = p->data();
-    }
     buf.appendSize2(real_size);
 
     for (int i=0; i<real_size; ++i) {
-        if (auto ret = children_[0]->save(&addr[node.size_ * i],  buf))
+        if (auto ret = children_[0]->save(&addr[child.size_ * i],  buf))
             return ret;
     }
 
@@ -199,30 +202,44 @@ TError arrayOper::save(const std::byte *src, Buffer &buf) const
     return OK;
 }
 
+
 TError arrayOper::dump(Buffer &buf, std::byte *dest) const
 {
-    int sizet = CheckDumpTS(buf);
-    if (sizet<0) return sizet;
+    std::int8_t t(0);
+    if (auto ret = buf.dump(sizeof(t), (std::byte*)&t))
+            return ret;
 
+    if (t == (std::int8_t)TType::Tarraym) {
+        std::int8_t t2(0);
+        if (auto ret = buf.dump(sizeof(t2), (std::byte*)&t2))
+            return ret;
+
+        if (t2 != (std::int8_t)children_[0]->node_.tssd_type_) {
+            return ERR_FORMAT_ERROR;
+        }
+    }
+
+    auto sizet = buf.dumpSize4();
+    if (sizet < 0 || buf.size() < sizet) {
+        return ERR_INSUFFICIENT_DATA;
+    }
     //sizea
     auto sizea = buf.dumpSize2();
     if (sizea < 0) return ERR_FORMAT_ERROR;
 
-    auto addr = dest;
-    auto &node = children_[0]->node_;
-    //static array need check node_.size, but dyname array(vector) need skip
-    if (node_.local_type_ == TType::Tarray) {
-        if (sizea != node_.size_)
+    auto &child = children_[0]->node_;
+
+    if (sizea != node_.size_)
+        return ERR_FORMAT_ERROR;
+
+    if (t == (std::int8_t)TType::Tarraym) {
+        if (sizet != child.size_ * sizea + TSSD_SIZEA_LENGTH)
             return ERR_FORMAT_ERROR;
-    } else { //for vector we need reserve capacity first
-        auto *p = (std::vector<std::byte>*)dest;
-        p->reserve(node.size_ * sizea);
-        p->resize(node.size_ * sizea);
-        addr = p->data();
+        return buf.dump(sizet-TSSD_SIZEA_LENGTH, dest);
     }
 
     for (int i=0; i<sizea; ++i) {
-        if (auto ret = children_[0]->dump(buf, &addr[node.size_ * i])) {
+        if (auto ret = children_[0]->dump(buf, &dest[child.size_ * i])) {
             return ret;
         }
     }

@@ -1,0 +1,56 @@
+#include <cstdlib>
+#include <ctime>
+#include <span>
+
+#include "tssd.h"
+#include "flat.h"
+
+class Basic {
+public:
+    inline static unsigned bounded_rand(unsigned range)
+    {
+        for (unsigned x, r;;) {
+            x = std::rand();
+            r = x % range;
+            if (x - r <= -range)
+                return r;
+        }
+    }
+
+    //produce random value
+    static void rand(void *dest, std::size_t n)
+    {
+        std::srand(std::time({})); // use current time as seed for random generator
+        auto *p = (std::byte *)dest;
+        std::memset(p, 0, n);
+        for (auto i=0; i<n; i++)
+        {
+            const int random_value = bounded_rand(256);
+            p[i] =  (std::byte) random_value;
+        }
+    }
+
+    template<typename T>
+    static std::size_t SizeofFlat()
+    {
+        return sizeof(T) - sizeof(Flatable);
+    }
+
+    static bool BytesEqual(VBytes s1, VBytes s2)
+    {
+        if (s1.size() != s2.size()) {
+            std::cout <<"diff s1: size:" << s1.size() << ", s2 size:" << s2.size() << std::endl;
+            return false;
+        }
+
+        for (auto i = 0; i<s1.size(); i++)
+        {
+            if (s1[i] != s2[i]) {
+                std::cout <<"diff i:" << i << "s1[i]" << int(s1[i]) << "s2[i]" << int(s2[i]) << std::endl;
+                return false;
+            }
+            return true;
+        }
+
+    }
+};

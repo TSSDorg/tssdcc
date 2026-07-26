@@ -61,6 +61,19 @@ void Buffer::finish()
 {
     if (size_ == 0) return;
     //this->print("finish 1:", heads_.size() + size_);
+    if (heads_.empty()) {
+        auto size = this->size();
+        for (int i=0; i<windex_; ++i)
+        {
+            auto csize = fragments_[i]->data.size();
+            fragments_[i]->payload = std::span(&fragments_[i]->data[0], csize);
+            size -= csize;
+        }
+        fragments_[windex_]->data.resize(size);
+        fragments_[windex_]->payload = std::span(&fragments_[windex_]->data[0], size);
+        return;
+    }
+
     int pos = heads_.size();
     int length = woffset_ - pos;
     if (!length) {

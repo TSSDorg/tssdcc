@@ -111,7 +111,7 @@ struct TypeInfo {
 
     void MakeTypes();
 
-    void UpdateMergedArray();
+    void UpdateMergedArray(std::shared_ptr<TypeInfo>);
 
 public:
     constexpr TypeInfo(
@@ -305,7 +305,7 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
             return std::make_shared<arrayOper>(std::define_static_string(std::meta::display_string_of(^^T)),
                         name,
                         offset,
-                        std::meta::size_of(^^T)/std::meta::size_of(real),
+                        std::meta::size_of(^^T)/std::meta::size_of(real),   //arrayN
                         TType::Tarray,
                         std::vector<std::shared_ptr<TypeInfo>>{parse2<FieldT>()});
 
