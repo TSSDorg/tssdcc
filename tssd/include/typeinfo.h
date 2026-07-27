@@ -176,7 +176,7 @@ public:
 
 
 template <std::meta::info T>
-class conainerOper : public TypeInfo {  //for single node container: vector, list, set, dequeue ?
+class vectorOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
 
@@ -197,14 +197,7 @@ public:
         buf.appendSize2(real_size);
 
         if (node_.tssd_type_ == TType::Tarraym) {
-            if (node_.local_type_ == TType::Tvector) {
-                buf.append(pcontainer->data(), real_size * children_[0]->node_.size_);
-                goto UPDATE;
-            }
-            // we always prever save Taarrym format, it may process for efective for peer
-            for (const auto& it : *pcontainer) {
-                buf.append((std::byte*)&it, children_[0]->node_.size_);
-            }
+            buf.append(pcontainer->data(), real_size * children_[0]->node_.size_);
             goto UPDATE;
         }
         // common array data
@@ -245,29 +238,16 @@ UPDATE:
 
         using Container = [:T:];
         auto pcontainer = (Container*)dest;
-        if (this->node_.local_type_ == TType::Tvector) {
-            pcontainer->reserve(sizea);
-            if (t == (std::int8_t)TType::Tarraym) {
-                pcontainer->resize(sizea);
-                if (auto ret = buf.dump(sizea * child.size_, (std::byte*)pcontainer->data()))
-                    return ret;
-                return OK;
-            }
-        }
-
-        // list or set
-        typename Container::value_type node;
+        pcontainer->reserve(sizea);
         if (t == (std::int8_t)TType::Tarraym) {
-            for (int i=0; i<sizea; ++i) {
-                if (auto ret = buf.dump(child.size_, (std::byte*)&node)) {
-                    return ret;
-                }
-                pcontainer->insert(pcontainer->end(), node);
-            }
+            pcontainer->resize(sizea);
+            if (auto ret = buf.dump(sizea * child.size_, (std::byte*)pcontainer->data()))
+                return ret;
             return OK;
         }
 
         // common array
+        typename Container::value_type node;
         for (int i=0; i<sizea; ++i) {
             if (auto ret = children_[0]->dump(buf, (std::byte*)&node)) {
                 return ret;
@@ -408,7 +388,7 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
 
 #define  create(x) { \
                 using FieldT = [:std::meta::template_arguments_of(^^T)[0]:]; \
-                return std::make_shared<conainerOper<^^T>>( \
+                return std::make_shared<vectorOper<^^T>>( \
                     std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
                     name, \
                     offset, \
@@ -419,10 +399,10 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
 
             if  constexpr (std::meta::template_of(^^T) == ^^std::vector)
                 create(TType::Tvector);
-            if  constexpr (std::meta::template_of(^^T) == ^^std::list)
-                create(TType::Tlist);
-            if  constexpr (std::meta::template_of(^^T) == ^^std::set)
-                create(TType::Tset);
+            //if  constexpr (std::meta::template_of(^^T) == ^^std::list)
+            //    create(TType::Tlist);
+            //if  constexpr (std::meta::template_of(^^T) == ^^std::set)
+            //    create(TType::Tset);
         }
 
         //common class
