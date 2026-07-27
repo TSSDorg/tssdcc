@@ -70,10 +70,10 @@ void Buffer::finish()
             fragments_[i]->payload = std::span(&fragments_[i]->data[0], csize);
             size -= csize;
         }
-        if (size > 0 ) {
-            fragments_[windex_]->data.resize(size);
-            fragments_[windex_]->payload = std::span(&fragments_[windex_]->data[0], size);
-        }
+
+        fragments_[windex_]->data.resize(size);
+        fragments_[windex_]->payload = std::span(&fragments_[windex_]->data[0], size);
+
         return;
     }
 
@@ -120,19 +120,17 @@ Buffer& Buffer::append(const std::span<std::byte> bs)
         if ( woffset_ + bs.size() - written <= avail(windex_) ) {
             memcpy(&fra->data[woffset_], &bs[written], bs.size() - written);
             size_ += bs.size() - written;
-            //updateOffset(windex_, woffset_, bs.size() - written);
             woffset_ += bs.size() - written;
             return *this;
         }
 
         int fill = avail(windex_) - woffset_;
         if (!fill) {  //we are at the end of line
-            woffset_ -= avail(windex_);
+            woffset_ = 0;
             windex_ ++;
             continue;
         }
         memcpy(&fra->data[woffset_], &bs[written], fill);
-        //updateOffset(windex_, woffset_, bs.size() - written);
         woffset_ += fill;
         size_ += fill;
         written += fill;

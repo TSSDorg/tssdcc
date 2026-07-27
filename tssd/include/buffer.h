@@ -41,14 +41,6 @@ private:
     void updateFragmentID(int index, int n);
     void appendChecksum(int index, int pos);
 
-    inline void updateOffset(std::size_t &index, std::size_t &offset, int n) {
-        offset += n;
-        if (offset >= avail(index_)) {
-            offset -= avail(index_);
-            index ++;
-        }
-    }
-
     inline int avail(int index) {
         //std::cout << "avail index:" << index << ", size:" <<  fragments_[index]->data.size() << std::endl;
         //std::cout << std::addressof(&fragments_[index]) << '\t' << std::addressof(&fragments_[index][0]) << std::endl;
