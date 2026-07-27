@@ -3,11 +3,11 @@
 #include "gtest/gtest.h"
 
 #define private public
-
 #include "tssd.h"
 #include "flat.h"
 #include "basic.h"
 #include "buffer.h"
+#undef private
 
 
 
