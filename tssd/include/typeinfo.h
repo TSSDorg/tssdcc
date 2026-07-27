@@ -182,6 +182,9 @@ public:
 
     TError save(const std::byte *src, Buffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
+        if (node_.tssd_type_ == TType::Tarraym)
+            buf.append(children_[0]->node_.tssd_type_);
+
         int index(0), offset(0);
         buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
@@ -193,18 +196,48 @@ public:
 
         buf.appendSize2(real_size);
 
+        if (node_.tssd_type_ == TType::Tarraym) {
+            if (node_.local_type_ == TType::Tvector) {
+                buf.append(pcontainer->data(), real_size * children_[0]->node_.size_);
+                goto UPDATE;
+            }
+            // we always prever save Taarrym format, it may process for efective for peer
+            for (const auto& it : *pcontainer) {
+                buf.append((std::byte*)&it, children_[0]->node_.size_);
+            }
+            goto UPDATE;
+        }
+        // common array data
         for (const auto& it : *pcontainer) {
             if (auto ret = children_[0]->save((std::byte*)&it,  buf))
                 return ret;
         }
-
-        buf.updateSize(index, offset, buf.size() - pos);
+UPDATE:
+       buf.updateSize(index, offset, buf.size() - pos);
         return OK;
     }
 
     TError dump(Buffer &buf, std::byte *dest) const override {
-        int sizet = CheckDumpTS(buf);
-        if (sizet<0) return sizet;
+        std::int8_t t(0);
+        if (auto ret = buf.dump(sizeof(t), (std::byte*)&t))
+                return ret;
+
+        auto &child = children_[0]->node_;
+        if (t == (std::int8_t)TType::Tarraym) {
+            std::int8_t t2(0);
+            if (auto ret = buf.dump(sizeof(t2), (std::byte*)&t2))
+                return ret;
+
+            if (t2 != (std::int8_t)child.tssd_type_) {
+                return ERR_FORMAT_ERROR;
+            }
+        } else if ( t != (std::int8_t)TType::Tarray)
+            return ERR_FORMAT_ERROR;
+
+        auto sizet = buf.dumpSize4();
+        if (sizet < 0 || buf.size() < sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
 
         //sizea
         auto sizea = buf.dumpSize2();
@@ -214,9 +247,27 @@ public:
         auto pcontainer = (Container*)dest;
         if (this->node_.local_type_ == TType::Tvector) {
             pcontainer->reserve(sizea);
+            if (t == (std::int8_t)TType::Tarraym) {
+                pcontainer->resize(sizea);
+                if (auto ret = buf.dump(sizea * child.size_, (std::byte*)pcontainer->data()))
+                    return ret;
+                return OK;
+            }
         }
 
+        // list or set
         typename Container::value_type node;
+        if (t == (std::int8_t)TType::Tarraym) {
+            for (int i=0; i<sizea; ++i) {
+                if (auto ret = buf.dump(child.size_, (std::byte*)&node)) {
+                    return ret;
+                }
+                pcontainer->insert(pcontainer->end(), node);
+            }
+            return OK;
+        }
+
+        // common array
         for (int i=0; i<sizea; ++i) {
             if (auto ret = children_[0]->dump(buf, (std::byte*)&node)) {
                 return ret;
@@ -301,7 +352,6 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
         if constexpr (std::meta::is_array_type(^^T)) {
             constexpr auto real = std::meta::remove_pointer(std::meta::decay(^^T));
             using FieldT = [:real:];
-
             return std::make_shared<arrayOper>(std::define_static_string(std::meta::display_string_of(^^T)),
                         name,
                         offset,

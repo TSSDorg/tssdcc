@@ -218,7 +218,8 @@ TError arrayOper::dump(Buffer &buf, std::byte *dest) const
         if (t2 != (std::int8_t)child.tssd_type_) {
             return ERR_FORMAT_ERROR;
         }
-    }
+    } else if ( t != (std::int8_t)TType::Tarray)
+        return ERR_FORMAT_ERROR;
 
     auto sizet = buf.dumpSize4();
     if (sizet < 0 || buf.size() < sizet) {

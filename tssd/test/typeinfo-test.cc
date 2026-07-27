@@ -1,8 +1,11 @@
 #include "gtest/gtest.h"
 
+#include <vector>
+
 #include "typeinfo.h"
 #include "basic.h"
 
+using namespace std;
 
 struct BasicArray {
     bool            vbool[2];
@@ -76,9 +79,31 @@ TEST(TypeInfo, MarshalUnmarshaBasicTypeArray) {
     EXPECT_TRUE(CMP(bta1.    f641, bta2.    f641));
 
     #undef CMP
-
     //EXPECT_EQ(memcmp(&bta1, &bta2, sizeof(BasicArray)), 0);
     //auto s1 = std::span((std::byte*)&bta1, sizeof(BasicArray));
     //auto s2 = std::span((std::byte*)&bta2, sizeof(BasicArray));
     //EXPECT_TRUE(Basic::BytesEqual(s1, s2));
+}
+
+struct Containers {
+    vector<int8_t> vint8;
+    Containers(int n=0) : vint8(n) {}
+};
+
+TEST(TypeInfo, MarshalUnmarshaContainer) {
+    Buffer buf;
+
+    auto tmp = TypeInfo::Create<Containers>();
+    tmp->print();
+    Containers bta1(3), bta2;
+    Basic::rand(&bta1.vint8[0], bta1.vint8.size());
+
+    tmp->MarshalTo(&bta1, buf);
+    buf.print();
+    buf.finish();
+
+    buf.print("after finish");
+    EXPECT_FALSE(tmp->UnmarshalTo(buf, &bta2));
+
+    EXPECT_TRUE(Basic::BytesEqual(&bta1.vint8[0], bta1.vint8.size(),  &bta2.vint8[0], bta2.vint8.size()));
 }
