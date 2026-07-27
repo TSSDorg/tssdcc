@@ -1,9 +1,12 @@
 #include <cstdlib>
 #include <ctime>
 #include <span>
+#include <list>
 
 #include "tssd.h"
 #include "flat.h"
+
+using namespace std;
 
 class Basic {
 public:
@@ -57,4 +60,19 @@ public:
         }
         return true;
     }
+
+    template<typename T>
+    static bool ListEqual(list<T> la, list<T> lb)
+    {
+        if (la.size() != lb.size()) {
+            std::cout <<"diff la: size:" << la.size() << ", lb size:" << lb.size() << std::endl;
+            return false;
+        }
+        for (auto it1 = la.cbegin(), it2 = lb.cbegin();  it1 != la.cend() && it2 != lb.cend();  it1++, it2++) {
+            if (!BytesEqual(&(*it1), sizeof(T), &(*it2), sizeof(T)))
+                return false;
+        }
+        return true;
+    }
 };
+

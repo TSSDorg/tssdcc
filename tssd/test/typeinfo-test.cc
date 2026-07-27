@@ -87,6 +87,7 @@ TEST(TypeInfo, MarshalUnmarshaBasicTypeArray) {
 
 struct Containers {
     vector<int8_t> vint8;
+    list<int8_t> lint8;
     Containers(int n=0) : vint8(n) {}
 };
 
@@ -97,6 +98,8 @@ TEST(TypeInfo, MarshalUnmarshaContainer) {
     tmp->print();
     Containers bta1(3), bta2;
     Basic::rand(&bta1.vint8[0], bta1.vint8.size());
+    bta1.lint8.emplace_back((int8_t)1);
+    bta1.lint8.emplace_back((int8_t)2);
 
     tmp->MarshalTo(&bta1, buf);
     buf.print();
@@ -106,4 +109,6 @@ TEST(TypeInfo, MarshalUnmarshaContainer) {
     EXPECT_FALSE(tmp->UnmarshalTo(buf, &bta2));
 
     EXPECT_TRUE(Basic::BytesEqual(&bta1.vint8[0], bta1.vint8.size(),  &bta2.vint8[0], bta2.vint8.size()));
+
+    EXPECT_TRUE(Basic::ListEqual(bta1.lint8, bta2.lint8));
 }

@@ -86,6 +86,7 @@ TypeInfo::parse(std::shared_ptr<TypeInfo> parent)
                     break;
                 case TType::Tarray:      //it'a static array
                 case TType::Tvector:     //dynamic array
+                case TType::Tlist:
                     it->node_.tssd_type_ = TType::Tarray;
                     UpdateMergedArray(it);
                     it->parse(it);

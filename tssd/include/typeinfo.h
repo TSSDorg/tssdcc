@@ -260,6 +260,96 @@ UPDATE:
 
 
 template <std::meta::info T>
+class listOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+
+    TError save(const std::byte *src, Buffer &buf) const override {
+        buf.append(node_.tssd_type_);   //T
+        if (node_.tssd_type_ == TType::Tarraym)
+            buf.append(children_[0]->node_.tssd_type_);
+
+        int index(0), offset(0);
+        buf.ftell(index, offset);
+        std::size_t pos = buf.appendSize4(0);   //sizet reserve
+
+        using Container = [:T:];
+        auto pcontainer = (Container*)src;
+
+        auto real_size = pcontainer->size();
+
+        buf.appendSize2(real_size);
+
+        if (node_.tssd_type_ == TType::Tarraym) {
+            for (const auto& it : *pcontainer) {
+                buf.append((std::byte*)&it,  children_[0]->node_.size_);
+            }
+            goto UPDATE;
+        }
+        // common array data
+        for (const auto& it : *pcontainer) {
+            if (auto ret = children_[0]->save((std::byte*)&it,  buf))
+                return ret;
+        }
+UPDATE:
+       buf.updateSize(index, offset, buf.size() - pos);
+        return OK;
+    }
+
+    TError dump(Buffer &buf, std::byte *dest) const override {
+        std::int8_t t(0);
+        if (auto ret = buf.dump(sizeof(t), (std::byte*)&t))
+                return ret;
+
+        auto &child = children_[0]->node_;
+        if (t == (std::int8_t)TType::Tarraym) {
+            std::int8_t t2(0);
+            if (auto ret = buf.dump(sizeof(t2), (std::byte*)&t2))
+                return ret;
+
+            if (t2 != (std::int8_t)child.tssd_type_) {
+                return ERR_FORMAT_ERROR;
+            }
+        } else if ( t != (std::int8_t)TType::Tarray)
+            return ERR_FORMAT_ERROR;
+
+        auto sizet = buf.dumpSize4();
+        if (sizet < 0 || buf.size() < sizet) {
+            return ERR_INSUFFICIENT_DATA;
+        }
+
+        //sizea
+        auto sizea = buf.dumpSize2();
+        if (sizea < 0) return ERR_FORMAT_ERROR;
+
+        using Container = [:T:];
+        auto pcontainer = (Container*)dest;
+        typename Container::value_type node;
+        if (t == (std::int8_t)TType::Tarraym) {
+            for (int i=0; i<sizea; ++i) {
+                if (auto ret = buf.dump(child.size_, (std::byte*)&node)) {
+                    return ret;
+                }
+                pcontainer->emplace_back(node);
+            }
+            return OK;
+        }
+
+        // common list
+        for (int i=0; i<sizea; ++i) {
+            if (auto ret = children_[0]->dump(buf, (std::byte*)&node)) {
+                return ret;
+            }
+            pcontainer->emplace_back(node);
+        }
+        return OK;
+    }
+};
+
+
+
+
+template <std::meta::info T>
 class mapOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
@@ -386,21 +476,21 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
                 );
             }
 
-#define  create(x) { \
+#define  create(x, y) { \
                 using FieldT = [:std::meta::template_arguments_of(^^T)[0]:]; \
-                return std::make_shared<vectorOper<^^T>>( \
+                return std::make_shared<x<^^T>>( \
                     std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
                     name, \
                     offset, \
                     std::meta::size_of(^^T), \
-                    x, \
+                    y, \
                     std::vector<std::shared_ptr<TypeInfo>>{parse2<FieldT>()} \
                 ); }
 
             if  constexpr (std::meta::template_of(^^T) == ^^std::vector)
-                create(TType::Tvector);
-            //if  constexpr (std::meta::template_of(^^T) == ^^std::list)
-            //    create(TType::Tlist);
+                create(vectorOper, TType::Tvector);
+            if  constexpr (std::meta::template_of(^^T) == ^^std::list)
+                create(listOper, TType::Tlist);
             //if  constexpr (std::meta::template_of(^^T) == ^^std::set)
             //    create(TType::Tset);
         }
