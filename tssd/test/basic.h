@@ -46,11 +46,10 @@ public:
         for (auto i = 0; i<s1.size(); i++)
         {
             if (s1[i] != s2[i]) {
-                std::cout <<"diff i:" << i << "s1[i]" << int(s1[i]) << "s2[i]" << int(s2[i]) << std::endl;
+                std::cout <<"Basic::BytesEqual diff i:" << i << "\ts1[i]:" << int(s1[i]) << "\ts2[i]:" << int(s2[i]) << std::endl;
                 return false;
             }
-            return true;
         }
-
+        return true;
     }
 };

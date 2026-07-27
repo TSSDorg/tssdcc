@@ -63,24 +63,22 @@ void Buffer::finish()
     //this->print("finish 1:", heads_.size() + size_);
     if (heads_.empty()) {
         auto size = this->size();
+        if (size == 0) return;
         for (int i=0; i<windex_; ++i)
         {
             auto csize = fragments_[i]->data.size();
             fragments_[i]->payload = std::span(&fragments_[i]->data[0], csize);
             size -= csize;
         }
-        fragments_[windex_]->data.resize(size);
-        fragments_[windex_]->payload = std::span(&fragments_[windex_]->data[0], size);
+        if (size > 0 ) {
+            fragments_[windex_]->data.resize(size);
+            fragments_[windex_]->payload = std::span(&fragments_[windex_]->data[0], size);
+        }
         return;
     }
 
     int pos = heads_.size();
     int length = woffset_ - pos;
-    if (!length) {
-        windex_ --;
-        length = avail(windex_);
-    }
-
     updateFragmentID(windex_, -(windex_+1));
 
     auto sizet = length + TSSD_SIZEA_LENGTH;
@@ -122,13 +120,20 @@ Buffer& Buffer::append(const std::span<std::byte> bs)
         if ( woffset_ + bs.size() - written <= avail(windex_) ) {
             memcpy(&fra->data[woffset_], &bs[written], bs.size() - written);
             size_ += bs.size() - written;
-            updateOffset(windex_, woffset_, bs.size() - written);
+            //updateOffset(windex_, woffset_, bs.size() - written);
+            woffset_ += bs.size() - written;
             return *this;
         }
 
         int fill = avail(windex_) - woffset_;
+        if (!fill) {  //we are at the end of line
+            woffset_ -= avail(windex_);
+            windex_ ++;
+            continue;
+        }
         memcpy(&fra->data[woffset_], &bs[written], fill);
-        updateOffset(windex_, woffset_, bs.size() - written);
+        //updateOffset(windex_, woffset_, bs.size() - written);
+        woffset_ += fill;
         size_ += fill;
         written += fill;
     }
@@ -143,21 +148,22 @@ TError Buffer::dump(std::size_t size, std::byte *dest) {
     while (read < size)
     {
         if ( offset_ + size - read <= fragments_[index_]->payload.size()) {
-            memcpy(dest, &fragments_[index_]->payload[offset_], size - read);
+            memcpy(&dest[read], &fragments_[index_]->payload[offset_], size - read);
             offset_ += size - read;
             size_ -= size - read;
             return OK;
         }
 
         int remain = fragments_[index_]->payload.size() - offset_;
-        memcpy(dest, &fragments_[index_]->data[offset_], remain);
+        if (!remain) {
+            offset_ = 0;
+            index_ ++;
+            continue;
+        }
+        memcpy(&dest[read], &fragments_[index_]->data[offset_], remain);
         size_ -= remain;
         read += remain;
         offset_ += remain;
-        if (offset_ >= fragments_[index_]->payload.size()) {
-            offset_ -= fragments_[index_]->payload.size();
-            index_ ++;
-        }
     }
     return OK;
 }

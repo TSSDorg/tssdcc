@@ -209,12 +209,13 @@ TError arrayOper::dump(Buffer &buf, std::byte *dest) const
     if (auto ret = buf.dump(sizeof(t), (std::byte*)&t))
             return ret;
 
+    auto &child = children_[0]->node_;
     if (t == (std::int8_t)TType::Tarraym) {
         std::int8_t t2(0);
         if (auto ret = buf.dump(sizeof(t2), (std::byte*)&t2))
             return ret;
 
-        if (t2 != (std::int8_t)children_[0]->node_.tssd_type_) {
+        if (t2 != (std::int8_t)child.tssd_type_) {
             return ERR_FORMAT_ERROR;
         }
     }
@@ -225,10 +226,6 @@ TError arrayOper::dump(Buffer &buf, std::byte *dest) const
     }
     //sizea
     auto sizea = buf.dumpSize2();
-    if (sizea < 0) return ERR_FORMAT_ERROR;
-
-    auto &child = children_[0]->node_;
-
     if (sizea != node_.size_)
         return ERR_FORMAT_ERROR;
 
