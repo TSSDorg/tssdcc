@@ -112,3 +112,33 @@ TEST(TypeInfo, MarshalUnmarshaContainer) {
 
     EXPECT_TRUE(Basic::ListEqual(bta1.lint8, bta2.lint8));
 }
+
+struct EqualTest {
+    int8_t vint;
+    int16_t  vint16_t[5];
+    string  s1[2];
+};
+
+
+TEST(TypeInfo, TypeInfoEqual) {
+    auto ti = TypeInfo::Create<EqualTest>();
+
+    EqualTest et1, et2;
+
+    et1.vint = 123;
+    et1.vint16_t[0]= 134;
+    et1.vint16_t[1]= 233;
+    et1.vint16_t[2]=  0;
+    et1.vint16_t[3]=  789;
+    et1.vint16_t[4]=  12345;
+    et1.s1[0] = "123";
+    et1.s1[1] = "456";
+
+    Buffer buf;
+    EXPECT_FALSE(ti->MarshalTo(&et1, buf));
+    buf.finish();
+
+    EXPECT_FALSE(ti->UnmarshalTo(buf, &et2));
+
+    EXPECT_TRUE(ti->Equal(&et1, &et2));
+}

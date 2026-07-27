@@ -103,6 +103,10 @@ struct TypeInfo {
         return buf.dump(node_.size_, dest);
     }
 
+    virtual bool equal(const std::byte *pl, const std::byte *pr) const {
+        return !std::memcmp(pl, pr, node_.size_);
+    }
+
     //set tssd_type, total offset, save, dump by the reflect type
     void parse(std::shared_ptr<TypeInfo> parent);
 
@@ -144,6 +148,10 @@ public:
     TError UnmarshalTo(Buffer &buf, void *obj) const {
         return dump(buf, (std::byte *)obj);
     }
+
+    bool Equal(const void *obj1, const void *obj2) const {
+        return equal((const std::byte *)obj1, (const std::byte *)obj2);
+    }
 };
 
 
@@ -154,6 +162,7 @@ public:
     stringOper(TType type) : TypeInfo(type) {}
     TError save(const std::byte *src, Buffer &buf) const override;
     TError dump(Buffer &buf, std::byte *dest) const override;
+    bool   equal(const std::byte *pl, const std::byte *pr) const override;
 };
 
 
@@ -163,6 +172,7 @@ public:
     using TypeInfo::TypeInfo;
     TError save(const std::byte *src, Buffer &buf) const override;
     TError dump(Buffer &buf, std::byte *dest) const override;
+    bool   equal(const std::byte *pl, const std::byte *pr) const override;
 };
 
 
@@ -172,6 +182,7 @@ public:
     //array
     TError save(const std::byte *src, Buffer &buf) const override;
     TError dump(Buffer &buf, std::byte *dest) const override;
+    bool   equal(const std::byte *pl, const std::byte *pr) const override;
 };
 
 
@@ -209,7 +220,29 @@ UPDATE:
        buf.updateSize(index, offset, buf.size() - pos);
         return OK;
     }
+    /*
+    bool equal(const std::byte *pl, const std::byte *pr) const override {
+        using Container = [:T:];
+        auto pcontainer1 = (Container*)pl;
+        auto pcontainer2 = (Container*)pr;
 
+        auto real_size = pcontainer1->size();
+        if (real_size != pcontainer2->size())
+            return false;
+
+        if (node_.tssd_type_ == TType::Tarraym) {
+            return !std::memcmp(pcontainer1->data(),  pcontainer2->data(),  real_size * children_[0]->node_.size_);
+        }
+
+        const auto it1 = pcontainer1->cbegin(), it2 = pcontainer2->cbegin();
+        for (; it1 != pcontainer1->cend() && it2 != pcontainer2->cend(); it1++, it2++)
+        {
+            if (!children_[0]->equal((std::byte*)&(*it1),  (const std::byte*)&(*it2)))
+                return false;
+        }
+        return it1 == pcontainer1->cend() && it2 == pcontainer2->cend();
+    }
+*/
     TError dump(Buffer &buf, std::byte *dest) const override {
         std::int8_t t(0);
         if (auto ret = buf.dump(sizeof(t), (std::byte*)&t))
@@ -295,7 +328,25 @@ UPDATE:
        buf.updateSize(index, offset, buf.size() - pos);
         return OK;
     }
+/*
+    bool equal(const std::byte *pl, const std::byte *pr) const override {
+        using Container = [:T:];
+        auto pcontainer1 = (const Container*)pl;
+        auto pcontainer2 = (const Container*)pr;
 
+        auto real_size = pcontainer1->size();
+        if (real_size != pcontainer2->size())
+            return false;
+
+        const auto it1 = pcontainer1->cbegin(), it2 = pcontainer2->cbegin();
+        for (; it1 != pcontainer1->cend() && it2 != pcontainer2->cend(); ++it1, ++it2)
+        {
+            if (!children_[0]->equal((std::byte*)&(*it1),  (const std::byte*)&(*it2)))
+                return false;
+        }
+        return it1 == pcontainer1->cend() && it2 == pcontainer2->cend();
+    }
+*/
     TError dump(Buffer &buf, std::byte *dest) const override {
         std::int8_t t(0);
         if (auto ret = buf.dump(sizeof(t), (std::byte*)&t))
@@ -346,9 +397,6 @@ UPDATE:
     }
 };
 
-
-
-
 template <std::meta::info T>
 class mapOper : public TypeInfo {
 public:
@@ -362,9 +410,7 @@ public:
 
         using Map = [:T:];
         auto pmap = (Map*)src;
-
         auto real_size = pmap->size();
-
         buf.appendSize2(real_size);
 
         for (const auto& [key, value] : *pmap) {
@@ -379,7 +425,26 @@ public:
         buf.updateSize(index, offset, buf.size() - pos);
         return OK;
     }
+/*
+    bool equal(const std::byte *pl, const std::byte *pr) const override {
+        using Map = [:T:];
+        auto pmap1 = (Map*)pl;
+        auto pmap2 = (Map*)pr;
 
+        auto real_size = pmap1->size();
+        if (real_size != pmap2->size())
+            return false;
+        for (const auto& [key, value] : *pmap1) {
+            if (!pmap2->contains(key))
+                return false;
+            auto value2 = pmap2[key];
+
+            if (!children_[1]->equal((std::byte*)&value, (std::byte*)&value2))
+                return false;
+        }
+        return true;
+    }
+*/
     TError dump(Buffer &buf, std::byte *dest) const override {
         int sizet = CheckDumpTS(buf);
         if (sizet<0) return sizet;

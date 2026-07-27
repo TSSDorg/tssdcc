@@ -136,6 +136,14 @@ stringOper::dump(Buffer &buf, std::byte *dest) const
     return OK;
 }
 
+bool
+stringOper::equal(const std::byte *pl, const std::byte *pr) const
+{
+    auto pstrl = (std::string *)pl;
+    auto pstrr = (std::string *)pr;
+    return *pstrl == *pstrr;
+}
+
 TError
 objectOper::save(const std::byte *src, Buffer &buf) const
 {
@@ -171,6 +179,16 @@ objectOper::dump(Buffer &buf, std::byte *dest) const
         }
     }
     return OK;
+}
+
+bool
+objectOper::equal(const std::byte *pl, const std::byte *pr) const
+{
+    for (auto &it : children_) {
+        if (!it->equal(&pl[it->node_.offset_],  &pr[it->node_.offset_]))
+            return false;
+    }
+    return true;
 }
 
 //array
@@ -243,4 +261,20 @@ TError arrayOper::dump(Buffer &buf, std::byte *dest) const
         }
     }
     return OK;
+}
+
+bool
+arrayOper::equal(const std::byte *pl, const std::byte *pr) const
+{
+    auto child = children_[0]->node_;
+
+    if (node_.tssd_type_ == TType::Tarraym) {
+        return !std::memcmp(pl, pr, child.size_ * node_.size_);
+    }
+
+    for (int i=0; i<node_.size_; ++i) {
+        if (!children_[0]->equal(&pl[child.size_ * i],  &pr[child.size_ * i]))
+            return false;
+    }
+    return true;
 }

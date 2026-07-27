@@ -68,11 +68,12 @@ public:
             std::cout <<"diff la: size:" << la.size() << ", lb size:" << lb.size() << std::endl;
             return false;
         }
-        for (auto it1 = la.cbegin(), it2 = lb.cbegin();  it1 != la.cend() && it2 != lb.cend();  it1++, it2++) {
+        auto it1 = la.cbegin(), it2 = lb.cbegin();
+        for (; it1 != la.cend() && it2 != lb.cend(); it1++, it2++) {
             if (!BytesEqual(&(*it1), sizeof(T), &(*it2), sizeof(T)))
                 return false;
         }
-        return true;
+        return it1 == la.cend() &&  it2 == lb.cend();
     }
 };
 
