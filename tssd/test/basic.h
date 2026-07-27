@@ -36,6 +36,11 @@ public:
         return sizeof(T) - sizeof(Flatable);
     }
 
+    static bool BytesEqual(const void *p1, std::size_t s1, const void *p2, std::size_t s2)
+    {
+        return BytesEqual(std::span((std::byte*)p1, s1), std::span((std::byte*)p2, s2));
+    }
+
     static bool BytesEqual(VBytes s1, VBytes s2)
     {
         if (s1.size() != s2.size()) {

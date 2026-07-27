@@ -70,10 +70,8 @@ void Buffer::finish()
             fragments_[i]->payload = std::span(&fragments_[i]->data[0], csize);
             size -= csize;
         }
-
         fragments_[windex_]->data.resize(size);
         fragments_[windex_]->payload = std::span(&fragments_[windex_]->data[0], size);
-
         return;
     }
 
@@ -93,9 +91,9 @@ void Buffer::finish()
     fragments_[windex_]->checksum = std::span(&fragments_[windex_]->data[heads_.size() + length], checksum_len_);
     for (int i=0; i<windex_; ++i)
     {
-        appendChecksum(i, heads_.size() + avail(i));
+        appendChecksum(i, avail(i));
         fragments_[i]->heads = std::span(&fragments_[i]->data[0], heads_.size());
-        fragments_[i]->payload = std::span(&fragments_[i]->data[heads_.size()], avail(i));
+        fragments_[i]->payload = std::span(&fragments_[i]->data[heads_.size()], avail(i) - heads_.size());
         fragments_[i]->checksum = std::span(&fragments_[i]->data[mtu_ - checksum_len_], checksum_len_);
     }
 }
@@ -158,7 +156,7 @@ TError Buffer::dump(std::size_t size, std::byte *dest) {
             index_ ++;
             continue;
         }
-        memcpy(&dest[read], &fragments_[index_]->data[offset_], remain);
+        memcpy(&dest[read], &fragments_[index_]->payload[offset_], remain);
         size_ -= remain;
         read += remain;
         offset_ += remain;
@@ -208,17 +206,18 @@ int Buffer::push(pFragment fragment)
     }
     fragments_[fid-1] = fragment;
 
-    return wanted();
+    return (int)wanted();
 }
 
-int Buffer::wanted()
+std::size_t Buffer::wanted()
 {
-    for (int i=0; i<fragments_.size(); i++) {
+    std::size_t i = 0;
+    for (; i<fragments_.size(); i++) {
         if (!fragments_.contains(i))
             return i+1;
         if (fragments_[i]->schema.fragment < 0) {
             return 0;
         }
     }
-    return 1;
+    return i + 1;
 }

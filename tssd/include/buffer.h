@@ -44,11 +44,11 @@ private:
     inline int avail(int index) {
         //std::cout << "avail index:" << index << ", size:" <<  fragments_[index]->data.size() << std::endl;
         //std::cout << std::addressof(&fragments_[index]) << '\t' << std::addressof(&fragments_[index][0]) << std::endl;
-        return fragments_[index]->data.size() - heads_.size() - checksum_len_;
+        return fragments_[index]->data.size() - checksum_len_;
     }
 
 public:
-    Buffer(int MTU = 0) : mtu_(MTU) {}
+    Buffer(size_t MTU = 0) : mtu_(std::max(MTU, TSSD_BUFFER_MIN_MTU)) {}
     Buffer(VBytes bs) : size_(bs.size()) {
         fragments_[0] = std::make_shared<Fragment>(bs);
     }
@@ -81,6 +81,10 @@ public:
 
     inline Buffer& append(const Bytes &bs) {
         return append(bs.data(), bs.size());
+    }
+
+    inline Buffer& append(const void* ptr, const std::size_t size) {
+        return append((const std::byte*)ptr, size);
     }
 
     inline Buffer& append(const std::byte* ptr, const std::size_t size) {
@@ -126,13 +130,12 @@ public:
 
     inline void print(const std::string &prefix="", int n = 0) {
         if (!prefix.empty())
-            std::cout << prefix;
+            std::cout << prefix << " size:" << fragments_.size() << std::endl;
         for (int i=0; i<fragments_.size(); ++i) {
             fragments_[i]->print( n ? n : fragments_[i]->data.size());
         }
         //fragments_[windex_]->print(woffset_);
     }
-
 
     // @desc push a fragment into buffer
     // return
@@ -145,7 +148,7 @@ public:
     // return
     //  0 : Buffer is complete, all fragments arrive
     //  n(>0): missing n-th fragment
-    int wanted();
+    std::size_t wanted();
 };
 
 #endif

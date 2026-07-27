@@ -95,7 +95,7 @@ struct BasicTypeArray : public Flatable {
     std::uint16_t vuint16[5];
     std::int32_t   vint32[6];
     std::uint32_t vuint32[7];
-    std::int64_t   vint64[8];
+    std::int64_t   vint64[5];
     std::uint64_t vuint64[9];
     float             f32[3];
     double            f64[2];
@@ -119,27 +119,28 @@ TEST(TSSD, MarshalUnmarshaBasicSizeofFlat) {
 TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
 
     BasicTypeArray bta1;
-    Basic::rand(&bta1.vbool[0], Basic::SizeofFlat<BasicType>());
+    Basic::rand(&bta1.vbool[0], Basic::SizeofFlat<BasicTypeArray>());
 
-    //std::cout << "bt1 addr:" << std::addressof(bt1)
-    //          << ", bt1.vbool addr:" << std::addressof(bt1.vbool) << std::endl;
+    std::cout << "bta1 addr:" << std::addressof(bta1)
+              << ", bt1.vint64 addr:" << std::addressof(bta1.vint64[0])
+              << ", value:" << bta1.vint64[0] << std::endl;
 
     Manager::Register<BasicTypeArray>();
 
-    Buffer buf;
+    Buffer buf(256);
     EXPECT_EQ(Manager::MarshalTo(bta1, buf.clear()), OK);
-
 
     buf.print("after MarshalTo:");
 
     Buffer rbuf;  ///read/receive/unmarshal buf
-    pFragment frag=std::make_shared<Fragment>(2048);  ///read fragment
+
 
     auto list = buf.Fragments();
 
     for (int i=0; i<list.size(); i++) {
+        pFragment frag=std::make_shared<Fragment>(2048);  ///read fragment
         int remain_pos = 0;
-        std::span sp(list[0]->data.data(), list[0]->data.size());
+        std::span sp(list[i]->data.data(), list[i]->data.size());
         if (auto ret = frag->Unmarshal(sp, remain_pos)) {
             std::println("Unarshal frag error", ret);
         }
@@ -149,9 +150,16 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
     EXPECT_EQ(rbuf.wanted(),0);
 
     BasicTypeArray bta2;
-    memset(&bta2.vbool[0], 0, Basic::SizeofFlat<BasicType>());
+    memset(&bta2.vbool[0], 0, Basic::SizeofFlat<BasicTypeArray>());
     //Basic::rand(&bt2.vint8, sizeof(BasicTypeArray));
     EXPECT_EQ(Manager::UnmarshalTo(rbuf, bta2), OK);
+
+
+    Manager::print(bta1.vuint32, sizeof(bta1.vuint32), "bta1.vuint32:");
+    Manager::print(bta2.vuint32, sizeof(bta2.vuint32), "bta2.vuint32:");
+
+    Manager::print(bta1.vint64, sizeof(bta1.vint64), "bta1:");
+    Manager::print(bta2.vint64, sizeof(bta2.vint64), "bta2:");
 
     std::span<std::byte> s1, s2;
     bool ret;
@@ -170,7 +178,6 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
     EXPECT_TRUE(CMP(bta1.vuint64,bta2.vuint64));
     EXPECT_TRUE(CMP(bta1.    f32,bta2.    f32));
     EXPECT_TRUE(CMP(bta1.    f64,bta2.    f64));
-
     #undef CMP
 
 }
