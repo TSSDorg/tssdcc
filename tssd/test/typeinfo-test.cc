@@ -89,6 +89,7 @@ TEST(TypeInfo, MarshalUnmarshaBasicTypeArray) {
 struct Containers {
     vector<int8_t> vint8;
     list<int8_t> lint8;
+    map<string, int32_t> mp;
     Containers(int n=0) : vint8(n) {}
 };
 
@@ -101,6 +102,8 @@ TEST(TypeInfo, MarshalUnmarshaContainer) {
     Basic::rand(&bta1.vint8[0], bta1.vint8.size());
     bta1.lint8.emplace_back((int8_t)1);
     bta1.lint8.emplace_back((int8_t)2);
+    bta1.mp["hello"] = 1234;
+    bta1.mp["foo"] = 5678;
 
     tmp->MarshalTo(&bta1, buf);
     buf.print();

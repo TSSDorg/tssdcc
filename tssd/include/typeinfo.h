@@ -465,10 +465,8 @@ public:
         auto pset = (Set*)dest;
 
         typename Set::key_type key;
-
         auto addr = dest;
         auto &knode = children_[0]->node_;
-
         for (int i=0; i<sizea; ++i) {
             if (auto ret = children_[0]->dump(buf, (std::byte*)&key)) {
                 return ret;
@@ -519,7 +517,7 @@ public:
         for (const auto& [key, value] : *pmap1) {
             if (!pmap2->contains(key))
                 return false;
-            auto value2 = pmap2[key];
+            auto &value2 = (*pmap2)[key];
 
             if (!children_[1]->equal((const std::byte*)&value, (const std::byte*)&value2))
                 return false;
