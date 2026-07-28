@@ -41,6 +41,16 @@ struct FlatInfo {
     const std::shared_ptr<TypeInfo> typeInfo;
 };
 
+template<typename T>
+class Equalizer {
+    const std::shared_ptr<TypeInfo> typeInfo_;
+public:
+    Equalizer() : typeInfo_(TypeInfo::Create<T>()) {}
+    bool Equal(const T &t1, const T &t2) const
+    {
+        return typeInfo_->Equal(t1, t2);
+    }
+};
 
 class Manager {
     friend class Flatable;

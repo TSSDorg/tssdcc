@@ -117,12 +117,13 @@ struct EqualTest {
     int8_t vint;
     int16_t  vint16_t[5];
     string  s1[2];
+    list<int32_t> li;
+    set<int16_t> si;
 };
 
 
 TEST(TypeInfo, TypeInfoEqual) {
     auto ti = TypeInfo::Create<EqualTest>();
-
     EqualTest et1, et2;
 
     et1.vint = 123;
@@ -133,12 +134,22 @@ TEST(TypeInfo, TypeInfoEqual) {
     et1.vint16_t[4]=  12345;
     et1.s1[0] = "123";
     et1.s1[1] = "456";
+    et1.li.emplace_back(5);
+    et1.li.emplace_back(6);
+    et1.si.insert(788);
+    et1.si.insert(6678);
 
     Buffer buf;
+
+    Containers c1, c2;
+
     EXPECT_FALSE(ti->MarshalTo(&et1, buf));
     buf.finish();
 
     EXPECT_FALSE(ti->UnmarshalTo(buf, &et2));
 
-    EXPECT_TRUE(ti->Equal(&et1, &et2));
+    EXPECT_TRUE(ti->Equal(et1, et2));
+    Equalizer<EqualTest> cmp;
+    EXPECT_TRUE(cmp.Equal(et1, et2));
+    EXPECT_TRUE(Equalizer<Containers>().Equal(c1, c2));
 }

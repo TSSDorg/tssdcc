@@ -151,8 +151,9 @@ public:
         return dump(buf, (std::byte *)obj);
     }
 
-    bool Equal(const void *obj1, const void *obj2) const {
-        return equal((const std::byte *)obj1, (const std::byte *)obj2);
+    template <typename T>
+    bool Equal(const T &obj1, const T &obj2) const {
+        return equal((const std::byte *)&obj1, (const std::byte *)&obj2);
     }
 };
 
@@ -274,7 +275,7 @@ UPDATE:
             return ERR_FORMAT_ERROR;
 
         auto sizet = buf.dumpSize4();
-        if (sizet < 0 || buf.size() < sizet) {
+        if (sizet < 0 || buf.size() < (std::size_t)sizet) {
             return ERR_INSUFFICIENT_DATA;
         }
 
@@ -380,7 +381,7 @@ UPDATE:
             return ERR_FORMAT_ERROR;
 
         auto sizet = buf.dumpSize4();
-        if (sizet < 0 || buf.size() < sizet) {
+        if (sizet < 0 || buf.size() < (std::size_t)sizet) {
             return ERR_INSUFFICIENT_DATA;
         }
 
