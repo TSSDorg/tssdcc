@@ -144,6 +144,14 @@ stringOper::equal(const std::byte *pl, const std::byte *pr) const
     return *pstrl == *pstrr;
 }
 
+void
+stringOper::copy(const std::byte *src, std::byte *dest) const
+{
+    auto psrc = (std::string *)src;
+    auto pdest = (std::string *)dest;
+    *pdest = *psrc;
+}
+
 TError
 objectOper::save(const std::byte *src, Buffer &buf) const
 {
@@ -179,6 +187,13 @@ objectOper::dump(Buffer &buf, std::byte *dest) const
         }
     }
     return OK;
+}
+
+void
+objectOper::copy(const std::byte *src, std::byte *dest) const
+{
+    for (const auto &it : children_)
+        it->copy(&src[it->node_.offset_],  &dest[it->node_.offset_]);
 }
 
 bool
@@ -261,6 +276,20 @@ TError arrayOper::dump(Buffer &buf, std::byte *dest) const
         }
     }
     return OK;
+}
+
+void
+arrayOper::copy(const std::byte *src, std::byte *dest) const
+{
+    auto child = children_[0]->node_;
+    if (node_.tssd_type_ == TType::Tarraym) {
+        std::memcpy(dest, src, child.size_ * node_.size_);
+        return;
+    }
+
+    for (std::size_t i=0; i<node_.size_; ++i) {
+        children_[0]->copy(&src[child.size_ * i], &dest[child.size_ * i]);
+    }
 }
 
 bool

@@ -42,10 +42,14 @@ struct FlatInfo {
 };
 
 template<typename T>
-class Equalizer {
+class Cpeq {
     const std::shared_ptr<TypeInfo> typeInfo_;
 public:
-    Equalizer() : typeInfo_(TypeInfo::Create<T>()) {}
+    Cpeq() : typeInfo_(TypeInfo::Create<T>()) {}
+    void Copy(const T &src, T &dest) const
+    {
+        typeInfo_->Copy(src, dest);
+    }
     bool Equal(const T &t1, const T &t2) const
     {
         return typeInfo_->Equal(t1, t2);

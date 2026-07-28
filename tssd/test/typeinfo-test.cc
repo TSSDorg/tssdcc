@@ -47,7 +47,12 @@ TEST(TypeInfo, MarshalUnmarshaBasicTypeArray) {
 
     buf.print("after finish");
     EXPECT_FALSE(tmp->UnmarshalTo(buf, &bta2));
-    EXPECT_TRUE(Equalizer<BasicArray>().Equal(bta1, bta2));
+    EXPECT_TRUE(Cpeq<BasicArray>().Equal(bta1, bta2));
+
+    BasicArray bta3;
+    Basic::rand(&bta3, sizeof(bta3));
+    Cpeq<BasicArray>().Copy(bta1, bta3);
+    EXPECT_TRUE(Cpeq<BasicArray>().Equal(bta3, bta2));
 
     std::span<std::byte> s1, s2;
     bool ret;
@@ -115,7 +120,7 @@ TEST(TypeInfo, MarshalUnmarshaContainer) {
     EXPECT_TRUE(Basic::BytesEqual(&bta1.vint8[0], bta1.vint8.size(),  &bta2.vint8[0], bta2.vint8.size()));
 
     EXPECT_TRUE(Basic::ListEqual(bta1.lint8, bta2.lint8));
-    EXPECT_TRUE(Equalizer<Containers>().Equal(bta1, bta2));
+    EXPECT_TRUE(Cpeq<Containers>().Equal(bta1, bta2));
 }
 
 struct EqualTest {
@@ -154,7 +159,7 @@ TEST(TypeInfo, TypeInfoEqual) {
     EXPECT_FALSE(ti->UnmarshalTo(buf, &et2));
 
     EXPECT_TRUE(ti->Equal(et1, et2));
-    Equalizer<EqualTest> cmp;
+    Cpeq<EqualTest> cmp;
     EXPECT_TRUE(cmp.Equal(et1, et2));
-    EXPECT_TRUE(Equalizer<Containers>().Equal(c1, c2));
+    EXPECT_TRUE(Cpeq<Containers>().Equal(c1, c2));
 }

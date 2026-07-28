@@ -67,12 +67,6 @@ struct TypeInfo {
 
     constexpr TypeInfo(TType type) : node_(type) {}
 
-    virtual TError save(const std::byte *src, Buffer &buf) const {
-        buf.append(node_.tssd_type_);
-        buf.append(src, node_.size_);
-        return OK;
-    }
-
     inline TError CheckTType(Buffer &buf) const {
         return CheckTType(buf, (std::int8_t)node_.tssd_type_);
     }
@@ -97,12 +91,21 @@ struct TypeInfo {
         return sizet;
     }
 
-    virtual TError dump(Buffer &buf, std::byte *dest) const {
+    virtual TError save(const std::byte *src, Buffer &buf) const {
+        buf.append(node_.tssd_type_);
+        buf.append(src, node_.size_);
+        return OK;
+    }
 
+    virtual TError dump(Buffer &buf, std::byte *dest) const {
         if (auto ret = CheckTType(buf))
             return ret;
 
         return buf.dump(node_.size_, dest);
+    }
+
+    virtual void copy(const std::byte *src, std::byte *dest) const {
+        std::memcpy(dest, src, node_.size_);
     }
 
     virtual bool equal(const std::byte *pl, const std::byte *pr) const {
@@ -152,6 +155,11 @@ public:
     }
 
     template <typename T>
+    void Copy(const T &src, T &dest) const {
+        copy((const std::byte *)&src, (std::byte *)&dest);
+    }
+
+    template <typename T>
     bool Equal(const T &obj1, const T &obj2) const {
         return equal((const std::byte *)&obj1, (const std::byte *)&obj2);
     }
@@ -165,9 +173,9 @@ public:
     stringOper(TType type) : TypeInfo(type) {}
     TError save(const std::byte *src, Buffer &buf) const override;
     TError dump(Buffer &buf, std::byte *dest) const override;
+    void   copy(const std::byte *src, std::byte *dest) const override;
     bool   equal(const std::byte *pl, const std::byte *pr) const override;
 };
-
 
 
 class objectOper : public TypeInfo {
@@ -175,6 +183,7 @@ public:
     using TypeInfo::TypeInfo;
     TError save(const std::byte *src, Buffer &buf) const override;
     TError dump(Buffer &buf, std::byte *dest) const override;
+    void   copy(const std::byte *src, std::byte *dest) const override;
     bool   equal(const std::byte *pl, const std::byte *pr) const override;
 };
 
@@ -185,6 +194,7 @@ public:
     //array
     TError save(const std::byte *src, Buffer &buf) const override;
     TError dump(Buffer &buf, std::byte *dest) const override;
+    void   copy(const std::byte *src, std::byte *dest) const override;
     bool   equal(const std::byte *pl, const std::byte *pr) const override;
 };
 
