@@ -47,6 +47,7 @@ TEST(TypeInfo, MarshalUnmarshaBasicTypeArray) {
 
     buf.print("after finish");
     EXPECT_FALSE(tmp->UnmarshalTo(buf, &bta2));
+    EXPECT_TRUE(Equalizer<BasicArray>().Equal(bta1, bta2));
 
     std::span<std::byte> s1, s2;
     bool ret;
@@ -111,6 +112,7 @@ TEST(TypeInfo, MarshalUnmarshaContainer) {
     EXPECT_TRUE(Basic::BytesEqual(&bta1.vint8[0], bta1.vint8.size(),  &bta2.vint8[0], bta2.vint8.size()));
 
     EXPECT_TRUE(Basic::ListEqual(bta1.lint8, bta2.lint8));
+    EXPECT_TRUE(Equalizer<Containers>().Equal(bta1, bta2));
 }
 
 struct EqualTest {

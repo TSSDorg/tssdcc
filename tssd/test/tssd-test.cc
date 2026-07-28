@@ -65,6 +65,9 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
 
     EXPECT_EQ(Manager::UnmarshalTo(rbuf, bta2), OK);
 
+    EXPECT_TRUE(Equalizer<BasicType>().Equal(bta1, bta2));
+
+
     std::span<std::byte> s1, s2;
     bool ret;
     #define CMP(x, y) Basic::BytesEqual(std::span((std::byte*)&x, sizeof(x)), std::span((std::byte*)&y, sizeof(y)))
@@ -153,6 +156,8 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
     memset(&bta2.vbool[0], 0, Basic::SizeofFlat<BasicTypeArray>());
     //Basic::rand(&bt2.vint8, sizeof(BasicTypeArray));
     EXPECT_EQ(Manager::UnmarshalTo(rbuf, bta2), OK);
+
+    EXPECT_TRUE(Equalizer<BasicTypeArray>().Equal(bta1, bta2));
 
 
     Manager::print(bta1.vuint32, sizeof(bta1.vuint32), "bta1.vuint32:");
