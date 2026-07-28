@@ -193,7 +193,7 @@ template <std::meta::info T>
 class vectorOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
-
+    using Container = [:T:];
     TError save(const std::byte *src, Buffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
         if (node_.tssd_type_ == TType::Tarraym)
@@ -203,11 +203,8 @@ public:
         buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
-        using Container = [:T:];
         auto pcontainer = (Container*)src;
-
         auto real_size = pcontainer->size();
-
         buf.appendSize2(real_size);
 
         if (node_.tssd_type_ == TType::Tarraym) {
@@ -225,7 +222,6 @@ UPDATE:
     }
 
     bool equal(const std::byte *pl, const std::byte *pr) const override {
-        using Container = [:T:];
         auto pcontainer1 = (Container*)pl;
         auto pcontainer2 = (Container*)pr;
 
@@ -283,7 +279,6 @@ UPDATE:
         auto sizea = buf.dumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
 
-        using Container = [:T:];
         auto pcontainer = (Container*)dest;
         pcontainer->reserve(sizea);
         if (t == (std::int8_t)TType::Tarraym) {
@@ -310,7 +305,7 @@ template <std::meta::info T>
 class listOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
-
+    using Container = [:T:];
     TError save(const std::byte *src, Buffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
         if (node_.tssd_type_ == TType::Tarraym)
@@ -319,12 +314,9 @@ public:
         int index(0), offset(0);
         buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
-
-        using Container = [:T:];
         auto pcontainer = (Container*)src;
 
         auto real_size = pcontainer->size();
-
         buf.appendSize2(real_size);
 
         if (node_.tssd_type_ == TType::Tarraym) {
@@ -344,7 +336,6 @@ UPDATE:
     }
 
     bool equal(const std::byte *pl, const std::byte *pr) const override {
-        using Container = [:T:];
         auto pcontainer1 = (const Container*)pl;
         auto pcontainer2 = (const Container*)pr;
 
@@ -388,8 +379,6 @@ UPDATE:
         //sizea
         auto sizea = buf.dumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
-
-        using Container = [:T:];
         auto pcontainer = (Container*)dest;
         typename Container::value_type node;
         if (t == (std::int8_t)TType::Tarraym) {
@@ -418,13 +407,13 @@ template <std::meta::info T>
 class setOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
+    using Set = [:T:];
     TError save(const std::byte *src, Buffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
         int index(0), offset(0);
         buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
-        using Set = [:T:];
         auto pset = (Set*)src;
         auto real_size = pset->size();
         buf.appendSize2(real_size);
@@ -439,7 +428,6 @@ public:
     }
 
     bool equal(const std::byte *pl, const std::byte *pr) const override {
-        using Set = [:T:];
         auto pset1 = (Set*)pl;
         auto pset2 = (Set*)pr;
 
@@ -461,9 +449,7 @@ public:
         auto sizea = buf.dumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
 
-        using Set = [:T:];
         auto pset = (Set*)dest;
-
         typename Set::key_type key;
         auto addr = dest;
         auto &knode = children_[0]->node_;
@@ -481,14 +467,13 @@ template <std::meta::info T>
 class mapOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
-
+    using Map = [:T:];
     TError save(const std::byte *src, Buffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
         int index(0), offset(0);
         buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
-        using Map = [:T:];
         auto pmap = (Map*)src;
         auto real_size = pmap->size();
         buf.appendSize2(real_size);
@@ -507,7 +492,6 @@ public:
     }
 
     bool equal(const std::byte *pl, const std::byte *pr) const override {
-        using Map = [:T:];
         auto pmap1 = (Map*)pl;
         auto pmap2 = (Map*)pr;
 
@@ -532,8 +516,6 @@ public:
         //sizea
         auto sizea = buf.dumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
-
-        using Map = [:T:];
         auto pmap = (Map*)dest;
 
         typename Map::key_type key;
