@@ -10,7 +10,7 @@
 
 class Buffer {
 private:
-    std::unordered_map<int, std::shared_ptr<Fragment>> fragments_;
+    std::unordered_map<std::size_t, std::shared_ptr<Fragment>> fragments_;
     Schema schema_;
     Bytes heads_;
     int checksum_len_ = 0;
@@ -41,7 +41,7 @@ private:
     void updateFragmentID(int index, int n);
     void appendChecksum(int index, int pos);
 
-    inline int avail(int index) {
+    inline std::size_t avail(std::size_t index) {
         //std::cout << "avail index:" << index << ", size:" <<  fragments_[index]->data.size() << std::endl;
         //std::cout << std::addressof(&fragments_[index]) << '\t' << std::addressof(&fragments_[index][0]) << std::endl;
         return fragments_[index]->data.size() - checksum_len_;
@@ -69,10 +69,12 @@ public:
     inline std::vector<pFragment> Fragments()
     {
         std::vector<pFragment> result(fragments_.size());
-        for (int i=0; i<fragments_.size(); i++) {
+        for (std::size_t i=0; i<fragments_.size(); i++) {
             result[i] = fragments_[i];
         }
-        return std::move(result);
+        // g++ does't like the move
+        // return std::move(result);
+        return result;
     }
 
     Buffer& append(const std::span<std::byte> bs);
@@ -95,7 +97,7 @@ public:
     TError dump(std::size_t size, std::byte *dest);
     std::byte *dump(std::size_t size);
 
-    inline int size() { return size_; }
+    inline std::size_t size() { return size_; }
 
     inline int appendSize2(const int size) {
         return appendSize<std::int16_t>(size);
@@ -131,7 +133,7 @@ public:
     inline void print(const std::string &prefix="", int n = 0) {
         if (!prefix.empty())
             std::cout << prefix << " size:" << fragments_.size() << std::endl;
-        for (int i=0; i<fragments_.size(); ++i) {
+        for (std::size_t i=0; i<fragments_.size(); ++i) {
             fragments_[i]->print( n ? n : fragments_[i]->data.size());
         }
         //fragments_[windex_]->print(woffset_);

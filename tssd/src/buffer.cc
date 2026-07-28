@@ -64,7 +64,7 @@ void Buffer::finish()
     if (heads_.empty()) {
         auto size = this->size();
         if (size == 0) return;
-        for (int i=0; i<windex_; ++i)
+        for (std::size_t i=0; i<windex_; ++i)
         {
             auto csize = fragments_[i]->data.size();
             fragments_[i]->payload = std::span(&fragments_[i]->data[0], csize);
@@ -89,7 +89,7 @@ void Buffer::finish()
     fragments_[windex_]->heads = std::span(&fragments_[windex_]->data[0], heads_.size());
     fragments_[windex_]->data.resize(heads_.size() + length + checksum_len_);
     fragments_[windex_]->checksum = std::span(&fragments_[windex_]->data[heads_.size() + length], checksum_len_);
-    for (int i=0; i<windex_; ++i)
+    for (std::size_t i=0; i<windex_; ++i)
     {
         appendChecksum(i, avail(i));
         fragments_[i]->heads = std::span(&fragments_[i]->data[0], heads_.size());
@@ -101,7 +101,7 @@ void Buffer::finish()
 Buffer& Buffer::append(const std::span<std::byte> bs)
 {
     if (bs.empty()) return *this;
-    int written = 0;
+    std::size_t written = 0;
     while (written < bs.size())
     {
         if (windex_ == fragments_.size()) {
@@ -140,7 +140,7 @@ Buffer& Buffer::append(const std::span<std::byte> bs)
 TError Buffer::dump(std::size_t size, std::byte *dest) {
     if (size > size_) return ERR_INSUFFICIENT_DATA;
 
-    int read = 0;
+    std::size_t read = 0;
     while (read < size)
     {
         if ( offset_ + size - read <= fragments_[index_]->payload.size()) {

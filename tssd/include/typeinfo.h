@@ -10,6 +10,8 @@
 #include <set>
 #include <list>
 #include <map>
+#include <iterator>
+#include <vector>
 
 #include "tssd.h"
 #include "buffer.h"
@@ -220,7 +222,7 @@ UPDATE:
        buf.updateSize(index, offset, buf.size() - pos);
         return OK;
     }
-    /*
+
     bool equal(const std::byte *pl, const std::byte *pr) const override {
         using Container = [:T:];
         auto pcontainer1 = (Container*)pl;
@@ -234,15 +236,26 @@ UPDATE:
             return !std::memcmp(pcontainer1->data(),  pcontainer2->data(),  real_size * children_[0]->node_.size_);
         }
 
-        const auto it1 = pcontainer1->cbegin(), it2 = pcontainer2->cbegin();
-        for (; it1 != pcontainer1->cend() && it2 != pcontainer2->cend(); it1++, it2++)
+        std::size_t i(0);
+        while (i<real_size)
         {
-            if (!children_[0]->equal((std::byte*)&(*it1),  (const std::byte*)&(*it2)))
+            if (!children_[0]->equal((const std::byte*)&((*pcontainer1)[i]),  (const std::byte*)&((*pcontainer2)[i])))
+                return false;
+            ++i;
+        }
+        return true;
+
+        /*
+        const auto it1 = pcontainer1->cbegin(), it2 = pcontainer2->cbegin();
+        for (; it1 != pcontainer1->cend() && it2 != pcontainer2->cend(); std::advance(it1, 1))
+        {
+            if (!children_[0]->equal((const std::byte*)&(*it1),  (const std::byte*)&(*it2)))
                 return false;
         }
         return it1 == pcontainer1->cend() && it2 == pcontainer2->cend();
+        */
     }
-*/
+
     TError dump(Buffer &buf, std::byte *dest) const override {
         std::int8_t t(0);
         if (auto ret = buf.dump(sizeof(t), (std::byte*)&t))
@@ -328,7 +341,7 @@ UPDATE:
        buf.updateSize(index, offset, buf.size() - pos);
         return OK;
     }
-/*
+
     bool equal(const std::byte *pl, const std::byte *pr) const override {
         using Container = [:T:];
         auto pcontainer1 = (const Container*)pl;
@@ -339,14 +352,16 @@ UPDATE:
             return false;
 
         const auto it1 = pcontainer1->cbegin(), it2 = pcontainer2->cbegin();
-        for (; it1 != pcontainer1->cend() && it2 != pcontainer2->cend(); ++it1, ++it2)
+        while (it1 != pcontainer1->cend() && it2 != pcontainer2->cend())
         {
-            if (!children_[0]->equal((std::byte*)&(*it1),  (const std::byte*)&(*it2)))
+            if (!children_[0]->equal((const std::byte*)&(*it1),  (const std::byte*)&(*it2)))
                 return false;
+            ++it1;
+            ++it2;
         }
         return it1 == pcontainer1->cend() && it2 == pcontainer2->cend();
     }
-*/
+
     TError dump(Buffer &buf, std::byte *dest) const override {
         std::int8_t t(0);
         if (auto ret = buf.dump(sizeof(t), (std::byte*)&t))
@@ -425,7 +440,7 @@ public:
         buf.updateSize(index, offset, buf.size() - pos);
         return OK;
     }
-/*
+
     bool equal(const std::byte *pl, const std::byte *pr) const override {
         using Map = [:T:];
         auto pmap1 = (Map*)pl;
@@ -439,12 +454,12 @@ public:
                 return false;
             auto value2 = pmap2[key];
 
-            if (!children_[1]->equal((std::byte*)&value, (std::byte*)&value2))
+            if (!children_[1]->equal((const std::byte*)&value, (const std::byte*)&value2))
                 return false;
         }
         return true;
     }
-*/
+
     TError dump(Buffer &buf, std::byte *dest) const override {
         int sizet = CheckDumpTS(buf);
         if (sizet<0) return sizet;

@@ -36,7 +36,7 @@ CPPFLAGS = $(INCLUDES) -MMD -MP
 # C++ compiler settings
 CXX = g++
 CXXFLAGS = -std=c++20
-WARNINGS = -Wall -Wpedantic -Wextra -std=c++26 -freflection -g
+WARNINGS = -Wall -Wpedantic -Wextra -std=c++26 -freflection -g -fpermissive
 
 # Linker flags
 LDFLAGS = -static
