@@ -92,10 +92,10 @@ TEST(TypeInfo, MarshalUnmarshaBasicTypeArray) {
 }
 
 struct Containers {
-    vector<int8_t> vint8;
+    vector<string> vstr;
     list<int8_t> lint8;
+    set<string> ss;
     map<string, int32_t> mp;
-    Containers(int n=0) : vint8(n) {}
 };
 
 TEST(TypeInfo, MarshalUnmarshaContainer) {
@@ -103,24 +103,37 @@ TEST(TypeInfo, MarshalUnmarshaContainer) {
 
     auto tmp = TypeInfo::Create<Containers>();
     tmp->print();
-    Containers bta1(3), bta2;
-    Basic::rand(&bta1.vint8[0], bta1.vint8.size());
+    Containers bta1, bta2;
+    //Basic::rand(&bta1.vint8[0], bta1.vint8.size());
+    bta1.vstr.emplace_back("haha");
+    bta1.vstr.emplace_back("blabla");
     bta1.lint8.emplace_back((int8_t)1);
     bta1.lint8.emplace_back((int8_t)2);
     bta1.mp["hello"] = 1234;
     bta1.mp["foo"] = 5678;
+    bta1.ss.insert("wrold");
 
     tmp->MarshalTo(&bta1, buf);
     buf.print();
     buf.finish();
 
     buf.print("after finish");
+    bta2.vstr.emplace_back("======");
+    bta2.ss.insert("yyyy");
+    bta2.mp["x"] = 2;
+    bta2.lint8.emplace_back((int8_t)10);
     EXPECT_FALSE(tmp->UnmarshalTo(buf, &bta2));
 
-    EXPECT_TRUE(Basic::BytesEqual(&bta1.vint8[0], bta1.vint8.size(),  &bta2.vint8[0], bta2.vint8.size()));
-
-    EXPECT_TRUE(Basic::ListEqual(bta1.lint8, bta2.lint8));
     EXPECT_TRUE(Cpeq<Containers>().Equal(bta1, bta2));
+
+    Containers bta3;
+    bta3.vstr.emplace_back("999999");
+    bta3.mp["bar"] = 12;
+    bta3.ss.insert("xxx");
+    bta3.lint8.emplace_back((int8_t)12);
+    Cpeq<Containers>().Copy(bta2, bta3);
+    EXPECT_TRUE(Cpeq<Containers>().Equal(bta1, bta3));
+
 }
 
 struct EqualTest {

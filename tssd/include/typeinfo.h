@@ -213,7 +213,7 @@ public:
         buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
-        auto pcontainer = (Container*)src;
+        auto pcontainer = (const Container*)src;
         auto real_size = pcontainer->size();
         buf.appendSize2(real_size);
 
@@ -223,7 +223,7 @@ public:
         }
         // common array data
         for (const auto& it : *pcontainer) {
-            if (auto ret = children_[0]->save((std::byte*)&it,  buf))
+            if (auto ret = children_[0]->save((const std::byte*)&it,  buf))
                 return ret;
         }
 UPDATE:
@@ -231,9 +231,32 @@ UPDATE:
         return OK;
     }
 
+    void copy(const std::byte *src, std::byte *dest) const
+    {
+        auto pcontainer1 = (const Container*)src;
+        auto pcontainer2 = (Container*)dest;
+
+        auto real_size = pcontainer1->size();
+        pcontainer2->reserve(real_size);
+
+        if (node_.tssd_type_ == TType::Tarraym) {
+            pcontainer2->resize(real_size);
+            std::memcpy(pcontainer2->data(),  pcontainer1->data(),  real_size * children_[0]->node_.size_);
+            return;
+        }
+
+        typename Container::value_type node;
+        pcontainer2->clear();
+        for (const auto &it : *pcontainer1)
+        {
+            children_[0]->copy((const std::byte*)&it, (std::byte*)&node);
+            pcontainer2->emplace_back(node);
+        }
+    }
+
     bool equal(const std::byte *pl, const std::byte *pr) const override {
-        auto pcontainer1 = (Container*)pl;
-        auto pcontainer2 = (Container*)pr;
+        auto pcontainer1 = (const Container*)pl;
+        auto pcontainer2 = (const Container*)pr;
 
         auto real_size = pcontainer1->size();
         if (real_size != pcontainer2->size())
@@ -251,16 +274,6 @@ UPDATE:
             ++i;
         }
         return true;
-
-        /*
-        const auto it1 = pcontainer1->cbegin(), it2 = pcontainer2->cbegin();
-        for (; it1 != pcontainer1->cend() && it2 != pcontainer2->cend(); std::advance(it1, 1))
-        {
-            if (!children_[0]->equal((const std::byte*)&(*it1),  (const std::byte*)&(*it2)))
-                return false;
-        }
-        return it1 == pcontainer1->cend() && it2 == pcontainer2->cend();
-        */
     }
 
     TError dump(Buffer &buf, std::byte *dest) const override {
@@ -291,6 +304,7 @@ UPDATE:
 
         auto pcontainer = (Container*)dest;
         pcontainer->reserve(sizea);
+        pcontainer->clear();
         if (t == (std::int8_t)TType::Tarraym) {
             pcontainer->resize(sizea);
             if (auto ret = buf.dump(sizea * child.size_, (std::byte*)pcontainer->data()))
@@ -304,7 +318,7 @@ UPDATE:
             if (auto ret = children_[0]->dump(buf, (std::byte*)&node)) {
                 return ret;
             }
-            pcontainer->insert(pcontainer->end(), node);
+            pcontainer->emplace_back(node);
         }
         return OK;
     }
@@ -324,20 +338,18 @@ public:
         int index(0), offset(0);
         buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
-        auto pcontainer = (Container*)src;
-
-        auto real_size = pcontainer->size();
-        buf.appendSize2(real_size);
+        auto pcontainer = (const Container*)src;
+        buf.appendSize2(pcontainer->size());
 
         if (node_.tssd_type_ == TType::Tarraym) {
             for (const auto& it : *pcontainer) {
-                buf.append((std::byte*)&it,  children_[0]->node_.size_);
+                buf.append((const std::byte*)&it, children_[0]->node_.size_);
             }
             goto UPDATE;
         }
         // common array data
         for (const auto& it : *pcontainer) {
-            if (auto ret = children_[0]->save((std::byte*)&it,  buf))
+            if (auto ret = children_[0]->save((const std::byte*)&it,  buf))
                 return ret;
         }
 UPDATE:
@@ -345,12 +357,26 @@ UPDATE:
         return OK;
     }
 
-    bool equal(const std::byte *pl, const std::byte *pr) const override {
+    void copy(const std::byte *src, std::byte *dest) const
+    {
+        auto pcontainer1 = (const Container*)src;
+        auto pcontainer2 = (Container*)dest;
+        pcontainer2->clear();
+
+        typename Container::value_type node;
+        for (const auto &it1 : *pcontainer1)
+        {
+            children_[0]->copy((const std::byte*)&it1, (std::byte*)&node);
+            pcontainer2->emplace_back(node);
+        }
+    }
+
+    bool equal(const std::byte *pl, const std::byte *pr) const override
+    {
         auto pcontainer1 = (const Container*)pl;
         auto pcontainer2 = (const Container*)pr;
 
-        auto real_size = pcontainer1->size();
-        if (real_size != pcontainer2->size())
+        if (pcontainer1->size() != pcontainer2->size())
             return false;
 
         const auto it1 = pcontainer1->cbegin(), it2 = pcontainer2->cbegin();
@@ -390,6 +416,7 @@ UPDATE:
         auto sizea = buf.dumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
         auto pcontainer = (Container*)dest;
+        pcontainer->clear();
         typename Container::value_type node;
         if (t == (std::int8_t)TType::Tarraym) {
             for (int i=0; i<sizea; ++i) {
@@ -424,9 +451,8 @@ public:
         buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
-        auto pset = (Set*)src;
-        auto real_size = pset->size();
-        buf.appendSize2(real_size);
+        auto pset = (const Set*)src;
+        buf.appendSize2(pset->size());
 
         for (const auto& key : *pset) {
             if (auto ret = children_[0]->save((const std::byte*)&key,  buf))
@@ -438,11 +464,10 @@ public:
     }
 
     bool equal(const std::byte *pl, const std::byte *pr) const override {
-        auto pset1 = (Set*)pl;
-        auto pset2 = (Set*)pr;
+        auto pset1 = (const Set*)pl;
+        auto pset2 = (const Set*)pr;
 
-        auto real_size = pset1->size();
-        if (real_size != pset2->size())
+        if (pset1->size() != pset2->size())
             return false;
         for (const auto& key : *pset1) {
             if (!pset2->contains(key))
@@ -451,18 +476,29 @@ public:
         return true;
     }
 
+    void copy(const std::byte *src, std::byte *dest) const override
+    {
+        auto pset1 = (const Set*)src;
+        auto pset2 = (Set*)dest;
+        pset2->clear();  //need clear first
+        typename Set::key_type key;
+        for (const auto &it : *pset1)
+        {
+            children_[0]->copy((const std::byte*)&it, (std::byte*)&key);
+            pset2->insert(key);
+        }
+    }
+
     TError dump(Buffer &buf, std::byte *dest) const override {
         int sizet = CheckDumpTS(buf);
         if (sizet<0) return sizet;
-
         //sizea
         auto sizea = buf.dumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
 
         auto pset = (Set*)dest;
+        pset->clear();
         typename Set::key_type key;
-        auto addr = dest;
-        auto &knode = children_[0]->node_;
         for (int i=0; i<sizea; ++i) {
             if (auto ret = children_[0]->dump(buf, (std::byte*)&key)) {
                 return ret;
@@ -484,16 +520,16 @@ public:
         buf.ftell(index, offset);
         std::size_t pos = buf.appendSize4(0);   //sizet reserve
 
-        auto pmap = (Map*)src;
+        auto pmap = (const Map*)src;
         auto real_size = pmap->size();
         buf.appendSize2(real_size);
 
         for (const auto& [key, value] : *pmap) {
             buf.append(TType::Tdictk);
-            if (auto ret = children_[0]->save((std::byte*)&key,  buf))
+            if (auto ret = children_[0]->save((const std::byte*)&key,  buf))
                 return ret;
             buf.append(TType::Tdictv);
-            if (auto ret = children_[1]->save((std::byte*)&value,  buf))
+            if (auto ret = children_[1]->save((const std::byte*)&value,  buf))
                 return ret;
         }
 
@@ -501,19 +537,27 @@ public:
         return OK;
     }
 
-    bool equal(const std::byte *pl, const std::byte *pr) const override {
-        auto pmap1 = (Map*)pl;
-        auto pmap2 = (Map*)pr;
+    void copy(const std::byte *src, std::byte *dest) const override
+    {
+        auto pmap1 = (const Map*)src;
+        auto pmap2 = (Map*)dest;
+        pmap2->clear();
+        for (const auto& [key, value] : *pmap1) {
+            (*pmap2)[key] = value;
+        }
+    }
 
-        auto real_size = pmap1->size();
-        if (real_size != pmap2->size())
+    bool equal(const std::byte *pl, const std::byte *pr) const override {
+        auto pmap1 = (const Map*)pl;
+        auto pmap2 = (const Map*)pr;
+
+        if (pmap1->size() != pmap2->size())
             return false;
         for (const auto& [key, value] : *pmap1) {
-            if (!pmap2->contains(key))
+            auto search = pmap2->find(key);
+            if ( search == pmap2->end())
                 return false;
-            auto &value2 = (*pmap2)[key];
-
-            if (!children_[1]->equal((const std::byte*)&value, (const std::byte*)&value2))
+            if (!children_[1]->equal((const std::byte*)&value, (const std::byte*)&search->second))
                 return false;
         }
         return true;
@@ -527,11 +571,11 @@ public:
         auto sizea = buf.dumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
         auto pmap = (Map*)dest;
+        pmap->clear();
 
         typename Map::key_type key;
         typename Map::mapped_type value;
 
-        auto addr = dest;
         auto &knode = children_[0]->node_;
         auto &vnode = children_[1]->node_;
 
