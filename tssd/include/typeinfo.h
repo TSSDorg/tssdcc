@@ -412,6 +412,72 @@ UPDATE:
     }
 };
 
+
+template <std::meta::info T>
+class setOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+    TError save(const std::byte *src, Buffer &buf) const override {
+        buf.append(node_.tssd_type_);   //T
+        int index(0), offset(0);
+        buf.ftell(index, offset);
+        std::size_t pos = buf.appendSize4(0);   //sizet reserve
+
+        using Set = [:T:];
+        auto pset = (Set*)src;
+        auto real_size = pset->size();
+        buf.appendSize2(real_size);
+
+        for (const auto& key : *pset) {
+            if (auto ret = children_[0]->save((const std::byte*)&key,  buf))
+                return ret;
+        }
+
+        buf.updateSize(index, offset, buf.size() - pos);
+        return OK;
+    }
+
+    bool equal(const std::byte *pl, const std::byte *pr) const override {
+        using Set = [:T:];
+        auto pset1 = (Set*)pl;
+        auto pset2 = (Set*)pr;
+
+        auto real_size = pset1->size();
+        if (real_size != pset2->size())
+            return false;
+        for (const auto& key : *pset1) {
+            if (!pset2->contains(key))
+                return false;
+        }
+        return true;
+    }
+
+    TError dump(Buffer &buf, std::byte *dest) const override {
+        int sizet = CheckDumpTS(buf);
+        if (sizet<0) return sizet;
+
+        //sizea
+        auto sizea = buf.dumpSize2();
+        if (sizea < 0) return ERR_FORMAT_ERROR;
+
+        using Set = [:T:];
+        auto pset = (Set*)dest;
+
+        typename Set::key_type key;
+
+        auto addr = dest;
+        auto &knode = children_[0]->node_;
+
+        for (int i=0; i<sizea; ++i) {
+            if (auto ret = children_[0]->dump(buf, (std::byte*)&key)) {
+                return ret;
+            }
+            pset->insert(key);
+        }
+        return OK;
+    }
+};
+
 template <std::meta::info T>
 class mapOper : public TypeInfo {
 public:
@@ -571,8 +637,8 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
                 create(vectorOper, TType::Tvector);
             if  constexpr (std::meta::template_of(^^T) == ^^std::list)
                 create(listOper, TType::Tlist);
-            //if  constexpr (std::meta::template_of(^^T) == ^^std::set)
-            //    create(TType::Tset);
+            if  constexpr (std::meta::template_of(^^T) == ^^std::set)
+                create(setOper, TType::Tset);
         }
 
         //common class
