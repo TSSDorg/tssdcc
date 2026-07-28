@@ -91,7 +91,7 @@ struct TypeInfo {
         if (auto ret = CheckTType(buf))
             return ret;
         auto sizet = buf.dumpSize4();
-        if (sizet < 0 || buf.size() < sizet) {
+        if (sizet < 0 || buf.size() < (std::size_t)sizet) {
             return ERR_INSUFFICIENT_DATA;
         }
         return sizet;

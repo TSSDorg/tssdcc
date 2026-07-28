@@ -169,7 +169,7 @@ objectOper::dump(Buffer &buf, std::byte *dest) const
     if (sizet<0) return sizet;
 
     //sizea
-    if (buf.dumpSize2() != children_.size()) {
+    if (buf.dumpSize2() != (int)children_.size()) {
         return ERR_FORMAT_ERROR;
     }
 
@@ -198,10 +198,10 @@ TError arrayOper::save(const std::byte *src, Buffer &buf) const
     auto &child = children_[0]->node_;
     if (node_.tssd_type_ == TType::Tarraym) {
         buf.append(child.tssd_type_);
-        auto sizet = child.size_ * node_.size_ + TSSD_SIZEA_LENGTH;
-        buf.appendSize4(child.size_ * node_.size_ + TSSD_SIZEA_LENGTH);
+        auto sizet = child.size_ * node_.size_;
+        buf.appendSize4(sizet + TSSD_SIZEA_LENGTH); // real sizet need another TSSD_SIZEA_LENGTH
         buf.appendSize2(node_.size_);
-        buf.append(src, child.size_ * node_.size_);
+        buf.append(src, sizet);
         return OK;
     }
     int index(0), offset(0);
@@ -212,7 +212,7 @@ TError arrayOper::save(const std::byte *src, Buffer &buf) const
     auto addr = src;
     buf.appendSize2(real_size);
 
-    for (int i=0; i<real_size; ++i) {
+    for (std::size_t i=0; i<real_size; ++i) {
         if (auto ret = children_[0]->save(&addr[child.size_ * i],  buf))
             return ret;
     }
@@ -241,16 +241,16 @@ TError arrayOper::dump(Buffer &buf, std::byte *dest) const
         return ERR_FORMAT_ERROR;
 
     auto sizet = buf.dumpSize4();
-    if (sizet < 0 || buf.size() < sizet) {
+    if (sizet < 0 || (int)buf.size() < sizet) {
         return ERR_INSUFFICIENT_DATA;
     }
     //sizea
     auto sizea = buf.dumpSize2();
-    if (sizea != node_.size_)
+    if (sizea != (int)node_.size_)
         return ERR_FORMAT_ERROR;
 
     if (t == (std::int8_t)TType::Tarraym) {
-        if (sizet != child.size_ * sizea + TSSD_SIZEA_LENGTH)
+        if ((std::size_t)sizet != child.size_ * sizea + TSSD_SIZEA_LENGTH)
             return ERR_FORMAT_ERROR;
         return buf.dump(sizet-TSSD_SIZEA_LENGTH, dest);
     }
@@ -272,9 +272,10 @@ arrayOper::equal(const std::byte *pl, const std::byte *pr) const
         return !std::memcmp(pl, pr, child.size_ * node_.size_);
     }
 
-    for (int i=0; i<node_.size_; ++i) {
+    for (std::size_t i=0; i<node_.size_; ++i) {
         if (!children_[0]->equal(&pl[child.size_ * i],  &pr[child.size_ * i]))
             return false;
     }
     return true;
+
 }

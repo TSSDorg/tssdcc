@@ -23,11 +23,11 @@ TError merge_byte_slice_dump(VBytes input, int &len) {
     std::int16_t arrayN = 0;
     std::memcpy(&arrayN, input.data() + 6, sizeof(arrayN));
 
-    if (size4 != std::int32_t(arrayN) + TSSD_SIZEA_LENGTH) {
+    if (size4 != std::int32_t(arrayN + TSSD_SIZEA_LENGTH)) {
         return ERR_FORMAT_ERROR;
     }
 
-    if (input.size() < 8 + arrayN) {
+    if (input.size() < std::size_t(8 + arrayN)) {
         return ERR_INSUFFICIENT_DATA;
     }
 

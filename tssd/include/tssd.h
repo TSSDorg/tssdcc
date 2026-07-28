@@ -51,8 +51,8 @@ const char MAJOR = 0;
 const char TSSD_VERSION[2] = {MINOR, MAJOR};
 const std::size_t TSSD_BUFFER_MIN_MTU = 256;
 const std::size_t TSSD_BUFFER_MTU = 3072;
-const int  TSSD_SIZET_LENGTH = 4;
-const int  TSSD_SIZEA_LENGTH = 2;
+const std::size_t TSSD_SIZET_LENGTH = 4;
+const std::size_t TSSD_SIZEA_LENGTH = 2;
 
 using TError = std::int16_t;
 const TError ERR_SCHEMA_NOT_MATCH = -3;
