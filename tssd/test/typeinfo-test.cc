@@ -1,6 +1,10 @@
 #include "gtest/gtest.h"
 
 #include <vector>
+#include <set>
+#include <list>
+#include <map>
+#include <unordered_map>
 
 #include "typeinfo.h"
 #include "basic.h"
@@ -207,6 +211,7 @@ struct ContainerT {
     list<T> lst;
     set<T, Compare> sba;
     map<string, T> mp;
+    unordered_map<int, T> ump;
 };
 
 template<typename T, typename Compare = LexCompare<T>>
@@ -226,6 +231,8 @@ void TestContainerT() {
     cba1.sba.insert(ba2);
     cba1.mp["hello"] = ba1;
     cba1.mp["world"] = ba2;
+    cba1.ump[1] = ba1;
+    cba1.ump[2] = ba2;
 
     Buffer buf;
 
@@ -254,5 +261,5 @@ TEST(TypeInfo, ContainerT) {
     TestContainerT<float>();
     TestContainerT<double>();
     TestContainerT<BasicType>();
-     TestContainerT<byte>();
+    TestContainerT<byte>();
 }

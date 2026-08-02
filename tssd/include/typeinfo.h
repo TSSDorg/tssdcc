@@ -12,10 +12,10 @@
 #include <map>
 #include <iterator>
 #include <vector>
+#include <unordered_map>
 
 #include "tssd.h"
 #include "buffer.h"
-
 
 struct TypeInfo {
 
@@ -165,7 +165,6 @@ public:
     }
 };
 
-
 class stringOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
@@ -177,7 +176,6 @@ public:
     bool   equal(const std::byte *pl, const std::byte *pr) const override;
 };
 
-
 class objectOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
@@ -186,7 +184,6 @@ public:
     void   copy(const std::byte *src, std::byte *dest) const override;
     bool   equal(const std::byte *pl, const std::byte *pr) const override;
 };
-
 
 class arrayOper : public TypeInfo {
 public:
@@ -197,7 +194,6 @@ public:
     void   copy(const std::byte *src, std::byte *dest) const override;
     bool   equal(const std::byte *pl, const std::byte *pr) const override;
 };
-
 
 template <std::meta::info T>
 class vectorOper : public TypeInfo {
@@ -323,7 +319,6 @@ UPDATE:
         return OK;
     }
 };
-
 
 template <std::meta::info T>
 class listOper : public TypeInfo {
@@ -594,6 +589,7 @@ public:
     }
 };
 
+
 template <typename T>
 constexpr std::shared_ptr<TypeInfo>
 TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
@@ -641,23 +637,24 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
             //vector
             //std::println("parse template {}", std::meta::display_string_of(std::meta::template_of(member)));
 
-            //TODO map and others
+#define createMap(x, y) { \
+                using KeyT = [:std::meta::template_arguments_of(^^T)[0]:]; \
+                using ValueT = [:std::meta::template_arguments_of(^^T)[1]:]; \
+                return std::make_shared<x<^^T>>( \
+                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
+                    name, \
+                    offset, \
+                    std::meta::size_of(^^T), \
+                    y, \
+                    std::vector<std::shared_ptr<TypeInfo>>{parse2<KeyT>(), parse2<ValueT>()} \
+                ); }
+
             if  constexpr (std::meta::template_of(^^T) == ^^std::map)
-            {
-                using FieldK = [:std::meta::template_arguments_of(^^T)[0]:];
-                using FieldV = [:std::meta::template_arguments_of(^^T)[1]:];
-
-                return std::make_shared<mapOper<^^T>>(
-                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))),
-                    name,
-                    offset,
-                    std::meta::size_of(^^T),
-                    TType::Tdict,
-                    std::vector<std::shared_ptr<TypeInfo>>{parse2<FieldK>(), parse2<FieldV>()}
-                );
-            }
-
-#define  create(x, y) { \
+                createMap(mapOper, TType::Tmap);
+            if constexpr (std::meta::template_of(^^T) == ^^std::unordered_map)
+                createMap(mapOper, TType::Tunordered_map);
+#undef createMap
+#define createContainer(x, y) { \
                 using FieldT = [:std::meta::template_arguments_of(^^T)[0]:]; \
                 return std::make_shared<x<^^T>>( \
                     std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
@@ -669,11 +666,14 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
                 ); }
 
             if  constexpr (std::meta::template_of(^^T) == ^^std::vector)
-                create(vectorOper, TType::Tvector);
+                createContainer(vectorOper, TType::Tvector);
             if  constexpr (std::meta::template_of(^^T) == ^^std::list)
-                create(listOper, TType::Tlist);
+                createContainer(listOper, TType::Tlist);
             if  constexpr (std::meta::template_of(^^T) == ^^std::set)
-                create(setOper, TType::Tset);
+                createContainer(setOper, TType::Tset);
+            //if  constexpr (std::meta::template_of(^^T) == ^^std::shared_ptr)
+            //    createContainer(shared_ptrOper, TType::Tshared_ptr);
+#undef createContainer
         }
 
         //common class
