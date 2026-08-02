@@ -4,6 +4,7 @@
 
 #include "typeinfo.h"
 #include "basic.h"
+#include "types.h"
 
 using namespace std;
 
@@ -175,4 +176,83 @@ TEST(TypeInfo, TypeInfoEqual) {
     Cpeq<EqualTest> cmp;
     EXPECT_TRUE(cmp.Equal(et1, et2));
     EXPECT_TRUE(Cpeq<Containers>().Equal(c1, c2));
+}
+
+
+template<typename T>
+struct LexCompare {
+    bool operator()(const T& a, const T& b) const {
+        return a < b;
+    }
+};
+
+template<>
+struct LexCompare<BasicArray> {
+    bool operator()(const BasicArray& a, const BasicArray& b) const {
+        return a.vint32[0] < b.vint32[0];
+    }
+};
+
+template<>
+struct LexCompare<BasicType> {
+    bool operator()(const BasicType& a, const BasicType& b) const {
+        return a.vint32 < b.vint32;
+    }
+};
+
+
+template<typename T, typename Compare = LexCompare<T>>
+struct ContainerT {
+    vector<T> vec;
+    list<T> lst;
+    set<T, Compare> sba;
+    map<string, T> mp;
+};
+
+template<typename T, typename Compare = LexCompare<T>>
+void TestContainerT() {
+    auto ti = TypeInfo::Create<ContainerT<T, Compare>>();
+    ContainerT<T, Compare> cba1, cba2, cba3;
+
+    T ba1, ba2;
+    Basic::rand(&ba1, sizeof(ba1));
+    std::memset(&ba2, 0, sizeof(ba2));
+
+    cba1.vec.push_back(ba1);
+    cba1.vec.push_back(ba2);
+    cba1.lst.push_back(ba1);
+    cba1.lst.push_back(ba2);
+    cba1.sba.insert(ba1);
+    cba1.sba.insert(ba2);
+    cba1.mp["hello"] = ba1;
+    cba1.mp["world"] = ba2;
+
+    Buffer buf;
+
+    EXPECT_FALSE(ti->MarshalTo(&cba1, buf));
+    buf.finish();
+    EXPECT_FALSE(ti->UnmarshalTo(buf, &cba2));
+    EXPECT_TRUE(ti->Equal(cba1, cba2));
+    Cpeq<ContainerT<T, Compare>> cmp;
+
+    cmp.Copy(cba1, cba3);
+    EXPECT_TRUE(cmp.Equal(cba3, cba2));
+}
+
+
+TEST(TypeInfo, ContainerT) {
+    TestContainerT<BasicArray>();
+    TestContainerT<int>();
+    TestContainerT<char>();
+    TestContainerT<unsigned char>();
+    TestContainerT<short>();
+    TestContainerT<unsigned short>();
+    TestContainerT<int32_t>();
+    TestContainerT<uint32_t>();
+    TestContainerT<int64_t>();
+    TestContainerT<uint64_t>();
+    TestContainerT<float>();
+    TestContainerT<double>();
+    TestContainerT<BasicType>();
+     TestContainerT<byte>();
 }
