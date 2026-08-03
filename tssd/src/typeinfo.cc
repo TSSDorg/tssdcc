@@ -14,6 +14,8 @@
 #include "typeinfo.h"
 #include "flat.h"
 
+namespace tssd {
+
 void
 TypeInfo::MakeTypes()
 {
@@ -308,5 +310,6 @@ arrayOper::equal(const std::byte *pl, const std::byte *pr) const
             return false;
     }
     return true;
-
 }
+
+} //end namespace tssd

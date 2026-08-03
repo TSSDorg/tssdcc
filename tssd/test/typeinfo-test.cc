@@ -11,7 +11,7 @@
 #include "types.h"
 
 using namespace std;
-
+using namespace tssd;
 
 TEST(TypeInfo, MarshalUnmarshaBasicTypeArray) {
     Buffer buf;

@@ -17,6 +17,8 @@
 #include "tssd.h"
 #include "buffer.h"
 
+namespace tssd {
+
 struct TypeInfo {
 
     struct Node {
@@ -762,4 +764,5 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
     }
 }
 
+} // end namespace tssd
 #endif

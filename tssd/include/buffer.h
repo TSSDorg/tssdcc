@@ -7,6 +7,7 @@
 
 #include "tssd.h"
 
+namespace tssd {
 
 class Buffer {
 private:
@@ -161,4 +162,5 @@ public:
     std::size_t wanted();
 };
 
+}  //end of namespace tssd
 #endif

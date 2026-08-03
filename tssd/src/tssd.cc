@@ -6,7 +6,7 @@
 #include "buffer.h"
 #include "flat.h"
 
-namespace {
+namespace tssd {
 
 TError merge_byte_slice_dump(VBytes input, int &len) {
     if (input.size() < 8) {
@@ -34,8 +34,6 @@ TError merge_byte_slice_dump(VBytes input, int &len) {
     len = arrayN;
     return OK;
 }
-
-} // namespace
 
 TError
 Schema::Marshal(Buffer &buf)
@@ -125,3 +123,4 @@ Fragment::Validate(VBytes input) const
     return OK;
 }
 
+} // namespace

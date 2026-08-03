@@ -12,6 +12,7 @@
 #include "buffer.h"
 #include "md5.h"
 
+namespace tssd {
 class Manager;
 class FlatInfo;
 class Flatable;
@@ -126,4 +127,5 @@ public:
     static TError UnmarshalTo(Buffer &buf, Flatable& flat);
 };
 
+}  //end namespace tssd
 #endif

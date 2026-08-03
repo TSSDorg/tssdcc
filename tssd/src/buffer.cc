@@ -5,6 +5,7 @@
 #include "buffer.h"
 #include "flat.h"
 
+namespace tssd {
 
 TError Buffer::prepare(Schema schema)
 {
@@ -221,3 +222,4 @@ std::size_t Buffer::wanted()
     }
     return i + 1;
 }
+} //end namespace tssd

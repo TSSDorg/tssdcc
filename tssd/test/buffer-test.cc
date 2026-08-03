@@ -9,10 +9,8 @@
 #include "buffer.h"
 #undef private
 
-
-
 using namespace std;
-
+using namespace tssd;
 std::vector<Bytes> getData(Buffer &buf)
 {
     std::vector<Bytes> result;
@@ -141,7 +139,7 @@ bool dumpTest(Buffer &buf, int n, Bytes expect)
 {
     byte bs[100];
     if (buf.dump(n, bs)) return false;
-    return Basic::BytesEqual(expect, std::span<byte>(bs, n));
+    return Basic::BytesEqual(&expect[0], expect.size(), bs, n);
 }
 
 TEST(Buffer, dump) {

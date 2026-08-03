@@ -42,7 +42,7 @@ struct BasicArray {
     double            f641[1];
 };
 
-struct BasicTypeFlat : public Flatable {
+struct BasicTypeFlat : public tssd::Flatable {
     BasicType basicType;
     std::string Group() const override {
         return "BasicFlat";
@@ -52,7 +52,7 @@ struct BasicTypeFlat : public Flatable {
     }
 };
 
-struct BasicArrayFlat : public Flatable {
+struct BasicArrayFlat : public tssd::Flatable {
     BasicArray basicArray;
     std::string Group() const override {
         return "BasicArrayFlat";

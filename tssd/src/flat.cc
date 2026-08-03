@@ -1,6 +1,7 @@
 #include "flat.h"
 #include "tssd.h"
 #include "buffer.h"
+namespace tssd {
 
 std::map<std::string, Manager::group> Manager::groups;
 std::shared_ptr<TypeInfo> Manager::schemaTypeInfo = TypeInfo::Create<Schema>();
@@ -61,3 +62,5 @@ TError Manager::UnmarshalTo(Buffer &buf, Flatable &flat)
 
     return group.versions[flat.Version()]->typeInfo->UnmarshalTo(buf, &flat);
 }
+
+} //end namespace tssd

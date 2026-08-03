@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+namespace tssd {
 
 enum class TType {
     //TSSD type 1 byte only
@@ -106,5 +107,7 @@ struct Fragment {
     }
 };
 using pFragment = std::shared_ptr<Fragment>;
+
+} //end namespace tssd
 
 #endif

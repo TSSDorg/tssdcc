@@ -10,6 +10,7 @@
 #include "flat.h"
 
 using namespace std;
+using namespace tssd;
 
 class Basic {
 public:
@@ -42,12 +43,12 @@ public:
         return sizeof(T) - sizeof(Flatable);
     }
 
-    static bool BytesEqual(const void *p1, std::size_t s1, const void *p2, std::size_t s2)
+    static bool BytesEqual(const void *p1, const std::size_t s1, const void *p2, const std::size_t s2)
     {
         return BytesEqual(std::span((std::byte*)p1, s1), std::span((std::byte*)p2, s2));
     }
 
-    static bool BytesEqual(VBytes s1, VBytes s2)
+    static bool BytesEqual(const VBytes s1, const VBytes s2)
     {
         if (s1.size() != s2.size()) {
             std::cout <<"diff s1: size:" << s1.size() << ", s2 size:" << s2.size() << std::endl;
@@ -65,7 +66,7 @@ public:
     }
 
     template<typename T>
-    static bool ListEqual(list<T> la, list<T> lb)
+    static bool ListEqual(const list<T> la, const list<T> lb)
     {
         if (la.size() != lb.size()) {
             std::cout <<"diff la: size:" << la.size() << ", lb size:" << lb.size() << std::endl;
@@ -84,15 +85,15 @@ template<typename T>
 class rander
 {
 private:
-    rander *_;
+    const rander &_;
 public:
-    rander() : _(this) {}
-    void *begin() { return &_;}
-    void rand_content(const void* p)
+    rander() : _(*this) {}
+    const void *begin() const { return &_;}
+    void rand_content(const void* p) const
     {
         //int p = 0;
-        std::cout << "sizeof(T):" << sizeof(T) << ",this:" << this << ", _:" << _ << ", &_" << &_ << ", p:" << p << std::endl;
-        Basic::rand(begin(), sizeof(T) - (size_t(_) - size_t(p)));
+        std::cout << "sizeof(T):" << sizeof(T) << ",this:" << this  << ", &_" << &_ << ", p:" << p << std::endl;
+        Basic::rand(begin(), sizeof(T) - (size_t(begin()) - size_t(p)));
     }
     //virtual ~rander() {};
 };

@@ -5,11 +5,13 @@
 #include "flat.h"
 #include "basic.h"
 #include "types.h"
-
+using namespace tssd;
+using namespace std;
 TEST(TSSD, MarshalUnmarshaBasicType) {
 
     BasicTypeFlat bta1;
     Basic::rand(&bta1.basicType.vbool, sizeof(BasicType));
+    //bta1.rand_content();
 
     Manager::Register<BasicTypeFlat>();
 
@@ -66,13 +68,6 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
     #undef CMP
 
 }
-
-
-TEST(TSSD, MarshalUnmarshaBasicSizeofFlat) {
-
-    EXPECT_EQ(Basic::SizeofFlat<BasicTypeFlat>(), 48);
-}
-
 
 TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
 
@@ -137,5 +132,37 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
     EXPECT_TRUE(CMP(bta1.basicArray.    f32,bta2.basicArray.    f32));
     EXPECT_TRUE(CMP(bta1.basicArray.    f64,bta2.basicArray.    f64));
     #undef CMP
-
 }
+
+struct CTestxxxx : public rander<CTestxxxx>, BasicType, Flatable {
+    char x;
+    std::string Group() const override {
+        return "CTestxxxx";
+    }
+
+    std::string Version() const override {
+        return "CTestxxxxGroup";
+    }
+};
+
+TEST(TSSD, rander) {
+
+    EXPECT_EQ(Basic::SizeofFlat<BasicTypeFlat>(), 48);
+
+    std::cout << "rander sizeof:" << sizeof(CTestxxxx) << ", rander sizeof "<< sizeof(rander<CTestxxxx>) << ", BasicType:" << sizeof(BasicType) << endl;
+
+    CTestxxxx ctest;
+    ctest.x = 'a';
+
+    std::cout << "ctest addr:" << std::addressof(ctest)
+              << ", ctest.x:" <<  std::addressof(ctest.x)
+              << ", BasicType:" << std::addressof(ctest.vbool)
+              << std::endl;
+    std::cout << ", ctest.begin addr:"<< std::hex << ctest.begin() << endl;
+    std::cout << ", ctest.x addr:"<< std::hex << &ctest.x << ", x:" << ctest.x << endl;
+    ctest.x = 'b';
+    std::cout << ", ctest.x addr:"<< std::hex << &ctest.x << ", x:" << ctest.x << endl;
+
+    ctest.rand_content(&ctest);
+}
+
