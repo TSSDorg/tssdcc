@@ -45,12 +45,21 @@ TypeInfo::MakeTypes()
 }
 
 void
-TypeInfo::UpdateMergedArray(std::shared_ptr<TypeInfo> child)
+TypeInfo::UpdateMergedArray()
 {
-    if (child->node_.tssd_type_ != TType::Tarray) return;
-    if (child->children_.size() != 1) return;
-    if (!child->children_[0]->node_.is_number_) return;
-    child->node_.tssd_type_ = TType::Tarraym;
+    if (this->node_.tssd_type_ != TType::Tarray) return;
+    if (this->children_.size() != 1) return;
+    if (this->children_[0]->node_.is_number_) {
+        this->node_.tssd_type_ = TType::Tarraym;
+        return;
+    }
+    const char *STD_BYTE = "std::byte";
+    // meta return std::byte not a number, we'll set it to number manully
+    if (std::string(this->children_[0]->node_.type_) == std::string(STD_BYTE)) {
+        this->children_[0]->node_.is_number_ = true;
+        this->children_[0]->node_.tssd_type_ = this->children_[0]->node_.local_type_ = TType::Tuint8;
+        this->node_.tssd_type_ = TType::Tarraym;
+    }
 }
 
 void
@@ -91,7 +100,7 @@ TypeInfo::parse(std::shared_ptr<TypeInfo> parent)
                 case TType::Tset:
                 case TType::Tlist:
                     it->node_.tssd_type_ = TType::Tarray;
-                    UpdateMergedArray(it);
+                    it->UpdateMergedArray();
                     it->parse(it);
                     break;
                 case TType::Tunordered_map:

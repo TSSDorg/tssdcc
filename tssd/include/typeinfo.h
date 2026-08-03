@@ -122,7 +122,7 @@ struct TypeInfo {
 
     void MakeTypes();
 
-    void UpdateMergedArray(std::shared_ptr<TypeInfo>);
+    void UpdateMergedArray();
 
 public:
     constexpr TypeInfo(
@@ -529,7 +529,7 @@ public:
         if (!*pshared_ptr1 && !*pshared_ptr2) {
             return true;
         }
-        if (*pshared_ptr1 && !*pshared_ptr2 || !*pshared_ptr1 && *pshared_ptr2)
+        if ((*pshared_ptr1 && !*pshared_ptr2) || (!*pshared_ptr1 && *pshared_ptr2))
             return false;
         return children_[0]->equal((const std::byte*)pshared_ptr1->get(), (const std::byte*)pshared_ptr2->get());
     }
