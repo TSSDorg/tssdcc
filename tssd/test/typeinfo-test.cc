@@ -12,30 +12,6 @@
 
 using namespace std;
 
-struct BasicArray {
-    bool            vbool[2];
-    std::int8_t     vint8[2];
-    std::uint8_t   vuint8[3];
-    std::int16_t   vint16[4];
-    std::uint16_t vuint16[5];
-    std::int32_t   vint32[6];
-    std::uint32_t vuint32[7];
-    std::int64_t   vint64[8];
-    std::uint64_t vuint64[9];
-    float             f32[3];
-    double            f64[2];
-    bool            vbool1[1];
-    std::int8_t     vint81[1];
-    std::uint8_t   vuint81[1];
-    std::int16_t   vint161[1];
-    std::uint16_t vuint161[1];
-    std::int32_t   vint321[1];
-    std::uint32_t vuint321[1];
-    std::int64_t   vint641[1];
-    std::uint64_t vuint641[1];
-    float             f321[1];
-    double            f641[1];
-};
 
 TEST(TypeInfo, MarshalUnmarshaBasicTypeArray) {
     Buffer buf;
@@ -211,7 +187,8 @@ struct ContainerT {
     list<T> lst;
     set<T, Compare> sba;
     map<string, T> mp;
-    unordered_map<int, T> ump;
+    unordered_map<string, T> ump;
+    std::shared_ptr<T> sp;
 };
 
 template<typename T, typename Compare = LexCompare<T>>
@@ -221,7 +198,7 @@ void TestContainerT() {
 
     T ba1, ba2;
     Basic::rand(&ba1, sizeof(ba1));
-    std::memset(&ba2, 0, sizeof(ba2));
+    Basic::rand(&ba2, sizeof(ba2));
 
     cba1.vec.push_back(ba1);
     cba1.vec.push_back(ba2);
@@ -231,8 +208,10 @@ void TestContainerT() {
     cba1.sba.insert(ba2);
     cba1.mp["hello"] = ba1;
     cba1.mp["world"] = ba2;
-    cba1.ump[1] = ba1;
-    cba1.ump[2] = ba2;
+    cba1.ump["foo"] = ba1;
+    cba1.ump[""] = ba2;
+    cba1.sp = make_shared<T>();
+    //Basic::rand(cba1.sp.get(), sizeof(T));
 
     Buffer buf;
 
@@ -263,3 +242,4 @@ TEST(TypeInfo, ContainerT) {
     TestContainerT<BasicType>();
     TestContainerT<byte>();
 }
+

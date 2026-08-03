@@ -8,11 +8,10 @@
 
 TEST(TSSD, MarshalUnmarshaBasicType) {
 
-    BasicType bta1;
-    Basic::rand(&bta1.vbool, Basic::SizeofFlat<BasicType>());
+    BasicTypeFlat bta1;
+    Basic::rand(&bta1.basicType.vbool, sizeof(BasicType));
 
-
-    Manager::Register<BasicType>();
+    Manager::Register<BasicTypeFlat>();
 
     Buffer buf;
     EXPECT_EQ(Manager::MarshalTo(bta1, buf.clear()), OK);
@@ -35,15 +34,15 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
 
     EXPECT_EQ(rbuf.wanted(),0);
 
-    BasicType bta2;
+    BasicTypeFlat bta2;
     //Basic::rand(&bt2.vbool, sizeof(BasicType));
-    std::memset(&bta2.vbool, 0, Basic::SizeofFlat<BasicType>());
+    std::memset(&bta2.basicType.vbool, 0, sizeof(BasicType));
 
-    EXPECT_TRUE(memcmp(&bta1, &bta2, Basic::SizeofFlat<BasicType>()) != 0);
+    EXPECT_TRUE(memcmp(&bta1, &bta2, Basic::SizeofFlat<BasicTypeFlat>()) != 0);
 
     EXPECT_EQ(Manager::UnmarshalTo(rbuf, bta2), OK);
 
-    EXPECT_TRUE(Cpeq<BasicType>().Equal(bta1, bta2));
+    EXPECT_TRUE(Cpeq<BasicTypeFlat>().Equal(bta1, bta2));
 
 
     std::span<std::byte> s1, s2;
@@ -51,62 +50,40 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
     #define CMP(x, y) Basic::BytesEqual(std::span((std::byte*)&x, sizeof(x)), std::span((std::byte*)&y, sizeof(y)))
 
     //EXPECT_TRUE(CMP(bta1. vint64,bta2. vint64));
-    EXPECT_TRUE(CMP(bta1.vbool, bta2.vbool));
-    EXPECT_TRUE(CMP(bta1.vbool, bta2.vbool));
-    EXPECT_TRUE(CMP(bta1.  vbool,bta2.  vbool));
-    EXPECT_TRUE(CMP(bta1.  vint8,bta2.  vint8));
-    EXPECT_TRUE(CMP(bta1. vuint8,bta2. vuint8));
-    EXPECT_TRUE(CMP(bta1. vint16,bta2. vint16));
-    EXPECT_TRUE(CMP(bta1.vuint16,bta2.vuint16));
-    EXPECT_TRUE(CMP(bta1. vint32,bta2. vint32));
-    EXPECT_TRUE(CMP(bta1.vuint32,bta2.vuint32));
-    EXPECT_TRUE(CMP(bta1. vint64,bta2. vint64));
-    EXPECT_TRUE(CMP(bta1.vuint64,bta2.vuint64));
-    EXPECT_TRUE(CMP(bta1.    f32,bta2.    f32));
-    EXPECT_TRUE(CMP(bta1.    f64,bta2.    f64));
+    EXPECT_TRUE(CMP(bta1.basicType.vbool,  bta2.basicType.vbool));
+    EXPECT_TRUE(CMP(bta1.basicType.vbool,  bta2.basicType.vbool));
+    EXPECT_TRUE(CMP(bta1.basicType.  vbool,bta2.basicType.  vbool));
+    EXPECT_TRUE(CMP(bta1.basicType.  vint8,bta2.basicType.  vint8));
+    EXPECT_TRUE(CMP(bta1.basicType. vuint8,bta2.basicType. vuint8));
+    EXPECT_TRUE(CMP(bta1.basicType. vint16,bta2.basicType. vint16));
+    EXPECT_TRUE(CMP(bta1.basicType.vuint16,bta2.basicType.vuint16));
+    EXPECT_TRUE(CMP(bta1.basicType. vint32,bta2.basicType. vint32));
+    EXPECT_TRUE(CMP(bta1.basicType.vuint32,bta2.basicType.vuint32));
+    EXPECT_TRUE(CMP(bta1.basicType. vint64,bta2.basicType. vint64));
+    EXPECT_TRUE(CMP(bta1.basicType.vuint64,bta2.basicType.vuint64));
+    EXPECT_TRUE(CMP(bta1.basicType.    f32,bta2.basicType.    f32));
+    EXPECT_TRUE(CMP(bta1.basicType.    f64,bta2.basicType.    f64));
     #undef CMP
 
 }
 
-struct BasicTypeArray : public Flatable {
-    bool            vbool[1];
-    std::int8_t     vint8[2];
-    std::uint8_t   vuint8[3];
-    std::int16_t   vint16[4];
-    std::uint16_t vuint16[5];
-    std::int32_t   vint32[6];
-    std::uint32_t vuint32[7];
-    std::int64_t   vint64[5];
-    std::uint64_t vuint64[9];
-    float             f32[3];
-    double            f64[2];
-
-    std::string Group() const override {
-        return "BasicType";
-    }
-
-    std::string Version() const override {
-        return "BasicTypeArray";
-    }
-};
-
 
 TEST(TSSD, MarshalUnmarshaBasicSizeofFlat) {
 
-    EXPECT_EQ(Basic::SizeofFlat<BasicType>(), 48);
+    EXPECT_EQ(Basic::SizeofFlat<BasicTypeFlat>(), 48);
 }
 
 
 TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
 
-    BasicTypeArray bta1;
-    Basic::rand(&bta1.vbool[0], Basic::SizeofFlat<BasicTypeArray>());
+    BasicArrayFlat bta1;
+    Basic::rand(&bta1.basicArray.vbool[0],  sizeof(BasicArray));
 
     std::cout << "bta1 addr:" << std::addressof(bta1)
-              << ", bt1.vint64 addr:" << std::addressof(bta1.vint64[0])
-              << ", value:" << bta1.vint64[0] << std::endl;
+              << ", bt1.vint64 addr:" << std::addressof(bta1.basicArray.vint64[0])
+              << ", value:" << bta1.basicArray.vint64[0] << std::endl;
 
-    Manager::Register<BasicTypeArray>();
+    Manager::Register<BasicArrayFlat>();
 
     Buffer buf(256);
     EXPECT_EQ(Manager::MarshalTo(bta1, buf.clear()), OK);
@@ -130,37 +107,35 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
 
     EXPECT_EQ(rbuf.wanted(),0);
 
-    BasicTypeArray bta2;
-    memset(&bta2.vbool[0], 0, Basic::SizeofFlat<BasicTypeArray>());
+    BasicArrayFlat bta2;
+    memset(&bta2.basicArray.vbool[0], 0, sizeof(BasicArray));
     //Basic::rand(&bt2.vint8, sizeof(BasicTypeArray));
     EXPECT_EQ(Manager::UnmarshalTo(rbuf, bta2), OK);
 
-    EXPECT_TRUE(Cpeq<BasicTypeArray>().Equal(bta1, bta2));
+    EXPECT_TRUE(Cpeq<BasicArrayFlat>().Equal(bta1, bta2));
 
 
-    Manager::print(bta1.vuint32, sizeof(bta1.vuint32), "bta1.vuint32:");
-    Manager::print(bta2.vuint32, sizeof(bta2.vuint32), "bta2.vuint32:");
-
-    Manager::print(bta1.vint64, sizeof(bta1.vint64), "bta1:");
-    Manager::print(bta2.vint64, sizeof(bta2.vint64), "bta2:");
+    Manager::print(bta1.basicArray.vuint32, sizeof(bta1.basicArray.vuint32), "bta1.vuint32:");
+    Manager::print(bta2.basicArray.vuint32, sizeof(bta2.basicArray.vuint32), "bta2.vuint32:");
+    Manager::print(bta1.basicArray.vint64,  sizeof(bta1.basicArray.vint64), "bta1:");
+    Manager::print(bta2.basicArray.vint64,  sizeof(bta2.basicArray.vint64), "bta2:");
 
     std::span<std::byte> s1, s2;
     bool ret;
     #define CMP(x, y) Basic::BytesEqual(std::span((std::byte*)&x[0], sizeof(x)), std::span((std::byte*)&y[0], sizeof(y)))
 
     //EXPECT_TRUE(CMP(bta1. vint64,bta2. vint64));
-    EXPECT_TRUE(CMP(bta1.vbool, bta2.vbool));
-    EXPECT_TRUE(CMP(bta1.  vbool,bta2.  vbool));
-    EXPECT_TRUE(CMP(bta1.  vint8,bta2.  vint8));
-    EXPECT_TRUE(CMP(bta1. vuint8,bta2. vuint8));
-    EXPECT_TRUE(CMP(bta1. vint16,bta2. vint16));
-    EXPECT_TRUE(CMP(bta1.vuint16,bta2.vuint16));
-    EXPECT_TRUE(CMP(bta1. vint32,bta2. vint32));
-    EXPECT_TRUE(CMP(bta1.vuint32,bta2.vuint32));
-    EXPECT_TRUE(CMP(bta1. vint64,bta2. vint64));
-    EXPECT_TRUE(CMP(bta1.vuint64,bta2.vuint64));
-    EXPECT_TRUE(CMP(bta1.    f32,bta2.    f32));
-    EXPECT_TRUE(CMP(bta1.    f64,bta2.    f64));
+    EXPECT_TRUE(CMP(bta1.basicArray.  vbool,bta2.basicArray.  vbool));
+    EXPECT_TRUE(CMP(bta1.basicArray.  vint8,bta2.basicArray.  vint8));
+    EXPECT_TRUE(CMP(bta1.basicArray. vuint8,bta2.basicArray. vuint8));
+    EXPECT_TRUE(CMP(bta1.basicArray. vint16,bta2.basicArray. vint16));
+    EXPECT_TRUE(CMP(bta1.basicArray.vuint16,bta2.basicArray.vuint16));
+    EXPECT_TRUE(CMP(bta1.basicArray. vint32,bta2.basicArray. vint32));
+    EXPECT_TRUE(CMP(bta1.basicArray.vuint32,bta2.basicArray.vuint32));
+    EXPECT_TRUE(CMP(bta1.basicArray. vint64,bta2.basicArray. vint64));
+    EXPECT_TRUE(CMP(bta1.basicArray.vuint64,bta2.basicArray.vuint64));
+    EXPECT_TRUE(CMP(bta1.basicArray.    f32,bta2.basicArray.    f32));
+    EXPECT_TRUE(CMP(bta1.basicArray.    f64,bta2.basicArray.    f64));
     #undef CMP
 
 }
