@@ -97,6 +97,14 @@ public:
     TError dump(std::size_t size, std::byte *dest);
     std::byte *dump(std::size_t size);
 
+    inline TError peekByte(std::byte &bt) {
+        if (size_ == 0) return ERR_INSUFFICIENT_DATA;
+
+        bt = fragments_[index_]->payload[offset_];
+        return OK;
+    }
+
+
     inline std::size_t size() { return size_; }
 
     inline int appendSize2(const int size) {

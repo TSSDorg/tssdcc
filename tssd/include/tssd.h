@@ -44,6 +44,7 @@ enum class TType {
     Tset,
     Tmap,
     Tunordered_map,
+    Tshared_ptr,
 };
 
 const char MINOR = 1;
