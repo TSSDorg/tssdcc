@@ -63,6 +63,54 @@ struct BasicArrayFlat : public tssd::Flatable {
     }
 };
 
+template <typename T>
+struct Struct1 {
+    T v1;
+};
+
+template <typename T1, typename T2>
+struct Struct2 {
+    T1 v1;
+    T2 v2;
+};
+
+template <typename T1, typename T2, typename T3>
+struct Struct3 {
+    T1 v1;
+    T2 v2;
+    T3 v3;
+};
+
+template<typename T>
+struct LexCompare {
+    bool operator()(const T& a, const T& b) const {
+        return a < b;
+    }
+};
+
+template<>
+struct LexCompare<BasicArray> {
+    bool operator()(const BasicArray& a, const BasicArray& b) const {
+        return a.vint32[0] < b.vint32[0];
+    }
+};
+
+template<>
+struct LexCompare<BasicType> {
+    bool operator()(const BasicType& a, const BasicType& b) const {
+        return a.vint32 < b.vint32;
+    }
+};
+
+template<typename T, typename Compare = LexCompare<T>>
+struct ContainerT {
+    vector<T> vec;
+    list<T> lst;
+    set<T, Compare> sba;
+    map<string, T> mp;
+    unordered_map<string, T> ump;
+    std::shared_ptr<T> sp;
+};
 
 
 #endif // __TSSD_TEST_TYPES_H__

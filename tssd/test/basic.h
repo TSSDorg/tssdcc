@@ -88,11 +88,10 @@ private:
     const rander &_;
 public:
     rander() : _(*this) {}
-    const void *begin() const { return &_;}
+    const void *begin() const { return this;}
     void rand_content(const void* p) const
     {
-        //int p = 0;
-        std::cout << "sizeof(T):" << sizeof(T) << ",this:" << this  << ", &_" << &_ << ", p:" << p << std::endl;
+        //std::cout << "sizeof(T):" << sizeof(T) << ",this:" << this  << ", p:" << p << std::endl;
         Basic::rand(begin(), sizeof(T) - (size_t(begin()) - size_t(p)));
     }
     //virtual ~rander() {};

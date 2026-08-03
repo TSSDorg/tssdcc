@@ -159,38 +159,6 @@ TEST(TypeInfo, TypeInfoEqual) {
 }
 
 
-template<typename T>
-struct LexCompare {
-    bool operator()(const T& a, const T& b) const {
-        return a < b;
-    }
-};
-
-template<>
-struct LexCompare<BasicArray> {
-    bool operator()(const BasicArray& a, const BasicArray& b) const {
-        return a.vint32[0] < b.vint32[0];
-    }
-};
-
-template<>
-struct LexCompare<BasicType> {
-    bool operator()(const BasicType& a, const BasicType& b) const {
-        return a.vint32 < b.vint32;
-    }
-};
-
-
-template<typename T, typename Compare = LexCompare<T>>
-struct ContainerT {
-    vector<T> vec;
-    list<T> lst;
-    set<T, Compare> sba;
-    map<string, T> mp;
-    unordered_map<string, T> ump;
-    std::shared_ptr<T> sp;
-};
-
 template<typename T, typename Compare = LexCompare<T>>
 void TestContainerT() {
     auto ti = TypeInfo::Create<ContainerT<T, Compare>>();
