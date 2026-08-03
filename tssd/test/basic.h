@@ -1,3 +1,6 @@
+#ifndef __BASIC_H__
+#define __BASIC_H__
+
 #include <cstdlib>
 #include <ctime>
 #include <span>
@@ -26,7 +29,7 @@ public:
         std::srand(std::time({})); // use current time as seed for random generator
         auto *p = (std::byte *)dest;
         std::memset(p, 0, n);
-        for (auto i=0; i<n; i++)
+        for (size_t i=0; i<n; i++)
         {
             const int random_value = bounded_rand(256);
             p[i] =  (std::byte) random_value;
@@ -51,7 +54,7 @@ public:
             return false;
         }
 
-        for (auto i = 0; i<s1.size(); i++)
+        for (size_t i = 0; i<s1.size(); i++)
         {
             if (s1[i] != s2[i]) {
                 std::cout <<"Basic::BytesEqual diff i:" << i << "\ts1[i]:" << int(s1[i]) << "\ts2[i]:" << int(s2[i]) << std::endl;
@@ -77,3 +80,22 @@ public:
     }
 };
 
+template<typename T>
+class rander
+{
+private:
+    rander *_;
+public:
+    rander() : _(this) {}
+    void *begin() { return &_;}
+    void rand_content(const void* p)
+    {
+        //int p = 0;
+        std::cout << "sizeof(T):" << sizeof(T) << ",this:" << this << ", _:" << _ << ", &_" << &_ << ", p:" << p << std::endl;
+        Basic::rand(begin(), sizeof(T) - (size_t(_) - size_t(p)));
+    }
+    //virtual ~rander() {};
+};
+
+
+#endif
