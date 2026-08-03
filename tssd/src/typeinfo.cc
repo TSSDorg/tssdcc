@@ -141,15 +141,15 @@ stringOper::dump(Buffer &buf, std::byte *dest) const
 bool
 stringOper::equal(const std::byte *pl, const std::byte *pr) const
 {
-    auto pstrl = (std::string *)pl;
-    auto pstrr = (std::string *)pr;
+    auto pstrl = (const std::string *)pl;
+    auto pstrr = (const std::string *)pr;
     return *pstrl == *pstrr;
 }
 
 void
 stringOper::copy(const std::byte *src, std::byte *dest) const
 {
-    auto psrc = (std::string *)src;
+    auto psrc = (const std::string *)src;
     auto pdest = (std::string *)dest;
     *pdest = *psrc;
 }

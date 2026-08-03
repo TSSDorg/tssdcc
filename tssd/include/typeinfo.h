@@ -734,13 +734,19 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
                 createContainer(sharedPtrOper, TType::Tshared_ptr);
 #undef createContainer
         }
-
-        //common class
         constexpr auto ctx = std::meta::access_context::unchecked();
         std::vector<std::shared_ptr<TypeInfo>> children;
+        // should parse parent info after stl container but before class itslef
+        if constexpr (std::meta::has_parent(^^T)) {
+            template for (constexpr auto parent : std::define_static_array(std::meta::bases_of(^^T, ctx))) {
+                using FieldT = [:std::meta::type_of(parent):];
+                children.push_back(parse2<FieldT>(std::meta::offset_of(parent).bytes, ""));
+            }
+        }
+
+        //common class
         template for (constexpr auto member : std::define_static_array(std::meta::nonstatic_data_members_of(^^T, ctx))) {
             using FieldT = [:std::meta::type_of(member):];
-
             constexpr auto name = std::meta::has_identifier(member) ? std::define_static_string(std::meta::identifier_of(member)) : "";
             //std::println("member: {} has id {} name {}", std::meta::display_string_of(std::meta::type_of(member)), std::meta::has_identifier(member), name);
             children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes, name));
