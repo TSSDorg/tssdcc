@@ -243,3 +243,44 @@ TEST(TypeInfo, ContainerT) {
     TestContainerT<byte>();
 }
 
+
+struct CTest : public BasicType {
+    int x;
+    string str;
+    //int32_t vint32;
+    //int64_t vint64;
+};
+
+struct CTest2 : public CTest {
+    int y;
+};
+
+
+TEST(TypeInfo, TypeInfoParent) {
+    auto ti = TypeInfo::Create<CTest2>();
+    ti->print();
+    CTest2 et1, et2, et3;
+
+    //et1.vint32 = 123;
+    et1.x = 456789;
+    //et1.vint64 = 456;
+    et1.y = 234;
+
+    Buffer buf;
+
+    EXPECT_FALSE(ti->MarshalTo(&et1, buf));
+    buf.finish();
+
+    std::memset(&et2, 0, sizeof(et2));
+    EXPECT_FALSE(ti->UnmarshalTo(buf, &et2));
+
+    EXPECT_EQ(et1.x, et2.x);
+    //EXPECT_EQ(et1.vint64, et2.vint64);
+    //EXPECT_EQ(et1.vint32, et2.vint32);
+    EXPECT_EQ(et1.y, et2.y);
+
+    EXPECT_TRUE(ti->Equal(et1, et2));
+    Cpeq<CTest2> cmp;
+    cmp.Copy(et2, et3);
+    EXPECT_TRUE(Cpeq<CTest2>().Equal(et3, et1));
+}
