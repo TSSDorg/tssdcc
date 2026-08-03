@@ -118,7 +118,7 @@ struct TypeInfo {
     void parse(std::shared_ptr<TypeInfo> parent);
 
     template <typename T>
-    static constexpr std::shared_ptr<TypeInfo> parse2(std::ptrdiff_t offset=0, const char *name = "");
+    static constexpr std::shared_ptr<TypeInfo> parse(std::ptrdiff_t offset=0, const char *name = "");
 
     void MakeTypes();
 
@@ -141,7 +141,7 @@ public:
     template <typename T>
     static auto Create() {
         static_assert(std::meta::is_class_type(^^T));
-        auto ti = TypeInfo::parse2<T>();
+        auto ti = TypeInfo::parse<T>();
         ti->node_.root_ = ti;
         ti->parse(ti);
         ti->MakeTypes();
@@ -632,9 +632,6 @@ public:
         typename Map::key_type key;
         typename Map::mapped_type value;
 
-        auto &knode = children_[0]->node_;
-        auto &vnode = children_[1]->node_;
-
         for (int i=0; i<sizea; ++i) {
             if (auto ret = CheckTType(buf, (std::int8_t)TType::Tdictk)) return ret;
             if (auto ret = children_[0]->dump(buf, (std::byte*)&key)) {
@@ -653,7 +650,7 @@ public:
 
 template <typename T>
 constexpr std::shared_ptr<TypeInfo>
-TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
+TypeInfo::parse(std::ptrdiff_t offset, const char *name)
 {
     if constexpr (!std::is_class_v<T>)
     {
@@ -665,7 +662,7 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
                         offset,
                         std::meta::size_of(^^T)/std::meta::size_of(real),   //arrayN
                         TType::Tarray,
-                        std::vector<std::shared_ptr<TypeInfo>>{parse2<FieldT>()});
+                        std::vector<std::shared_ptr<TypeInfo>>{parse<FieldT>()});
 
         }
         //if constexpr (std::meta::is_arithmetic_type(^^T)) {
@@ -707,7 +704,7 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
                     offset, \
                     std::meta::size_of(^^T), \
                     y, \
-                    std::vector<std::shared_ptr<TypeInfo>>{parse2<KeyT>(), parse2<ValueT>()} \
+                    std::vector<std::shared_ptr<TypeInfo>>{parse<KeyT>(), parse<ValueT>()} \
                 ); }
 
             if  constexpr (std::meta::template_of(^^T) == ^^std::map)
@@ -723,7 +720,7 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
                     offset, \
                     std::meta::size_of(^^T), \
                     y, \
-                    std::vector<std::shared_ptr<TypeInfo>>{parse2<FieldT>()} \
+                    std::vector<std::shared_ptr<TypeInfo>>{parse<FieldT>()} \
                 ); }
 
             if  constexpr (std::meta::template_of(^^T) == ^^std::vector)
@@ -742,7 +739,7 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
         if constexpr (std::meta::has_parent(^^T)) {
             template for (constexpr auto parent : std::define_static_array(std::meta::bases_of(^^T, ctx))) {
                 using FieldT = [:std::meta::type_of(parent):];
-                children.push_back(parse2<FieldT>(std::meta::offset_of(parent).bytes, ""));
+                children.push_back(parse<FieldT>(std::meta::offset_of(parent).bytes, ""));
             }
         }
 
@@ -751,7 +748,7 @@ TypeInfo::parse2(std::ptrdiff_t offset, const char *name)
             using FieldT = [:std::meta::type_of(member):];
             constexpr auto name = std::meta::has_identifier(member) ? std::define_static_string(std::meta::identifier_of(member)) : "";
             //std::println("member: {} has id {} name {}", std::meta::display_string_of(std::meta::type_of(member)), std::meta::has_identifier(member), name);
-            children.push_back(parse2<FieldT>(std::meta::offset_of(member).bytes, name));
+            children.push_back(parse<FieldT>(std::meta::offset_of(member).bytes, name));
         }
         return std::make_shared<objectOper>(
             std::define_static_string(std::meta::display_string_of(^^T)),

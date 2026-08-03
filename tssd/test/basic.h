@@ -89,7 +89,7 @@ private:
 public:
     rander() : _(*this) {}
     const void *begin() const { return this;}
-    void rand_content(const void* p) const
+    void rand_content(void* p) const
     {
         //std::cout << "sizeof(T):" << sizeof(T) << ",this:" << this  << ", p:" << p << std::endl;
         Basic::rand(begin(), sizeof(T) - (size_t(begin()) - size_t(p)));
