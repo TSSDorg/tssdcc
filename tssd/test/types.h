@@ -118,7 +118,7 @@ template<typename T, typename Compare = LexCompare<T>>
 struct ContainerT {
     vector<T> vec;
     list<T> lst;
-    set<T, Compare> sba;
+    set<T, Compare> st;
     map<string, T> mp;
     unordered_map<string, T> ump;
     std::shared_ptr<T> sp;

@@ -172,8 +172,8 @@ void TestContainerT() {
     cba1.vec.push_back(ba2);
     cba1.lst.push_back(ba1);
     cba1.lst.push_back(ba2);
-    cba1.sba.insert(ba1);
-    cba1.sba.insert(ba2);
+    cba1.st.insert(ba1);
+    cba1.st.insert(ba2);
     cba1.mp["hello"] = ba1;
     cba1.mp["world"] = ba2;
     cba1.ump["foo"] = ba1;
@@ -281,4 +281,37 @@ TEST(TypeInfo, TypeInfoBytes) {
     using array = Array1<std::byte, 2>;
     EXPECT_TRUE(Cpeq<array>().Equal(et3, et1));
     EXPECT_TRUE((Cpeq<Array1<std::byte, 2>>()).Equal(et3, et1));
+}
+
+TEST(TypeInfo, TypeInfoContainerBytes) {
+
+    auto ti = TypeInfo::Create<ContainerT<std::byte>>();
+    ti->print();
+    EXPECT_EQ(ti->children_[0]->node_.tssd_type_, TType::Tarraym);
+    EXPECT_EQ(ti->children_[0]->children_[0]->node_.tssd_type_, TType::Tuint8);
+    EXPECT_TRUE(ti->children_[0]->children_[0]->node_.is_number_);
+    EXPECT_EQ(ti->children_[1]->node_.tssd_type_, TType::Tarraym);
+    EXPECT_EQ(ti->children_[2]->node_.tssd_type_, TType::Tarraym);
+
+    ContainerT<std::byte> et1, et2, et3;
+    et1.vec.push_back(byte('a'));
+    et1.vec.push_back(byte('b'));
+    et1.lst.push_back(byte('c'));
+    et1.st.insert(byte('d'));
+
+    Buffer buf;
+    EXPECT_FALSE(ti->MarshalTo(&et1, buf));
+    buf.finish();
+    buf.print("TypeInfoContainerBytes: ");
+
+    //std::memset(&et2, 0, sizeof(et2));
+    EXPECT_FALSE(ti->UnmarshalTo(buf, &et2));
+
+    EXPECT_TRUE(ti->Equal(et1, et2));
+    Cpeq<ContainerT<std::byte>> cmp;
+    cmp.Copy(et2, et3);
+    EXPECT_TRUE(cmp.Equal(et3, et1));
+    using array = ContainerT<std::byte>;
+    EXPECT_TRUE(Cpeq<array>().Equal(et3, et1));
+    EXPECT_TRUE((Cpeq<ContainerT<std::byte>>()).Equal(et3, et1));
 }
