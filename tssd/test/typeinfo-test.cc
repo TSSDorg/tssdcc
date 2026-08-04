@@ -252,3 +252,33 @@ TEST(TypeInfo, TypeInfoParent) {
     cmp.Copy(et2, et3);
     EXPECT_TRUE(Cpeq<CTest2>().Equal(et3, et1));
 }
+
+
+TEST(TypeInfo, TypeInfoBytes) {
+
+    auto ti = TypeInfo::Create<Array1<std::byte, 2>>();
+    ti->print();
+    EXPECT_EQ(ti->children_[0]->node_.tssd_type_, TType::Tarraym);
+    EXPECT_EQ(ti->children_[0]->children_[0]->node_.tssd_type_, TType::Tuint8);
+    EXPECT_TRUE(ti->children_[0]->children_[0]->node_.is_number_);
+    Array1<std::byte, 2> et1, et2, et3;
+
+    et1.v1[0] = byte(1);
+    et1.v1[1] = byte(2);
+
+    Buffer buf;
+    EXPECT_FALSE(ti->MarshalTo(&et1, buf));
+    buf.finish();
+    buf.print("CByte: ");
+
+    std::memset(&et2, 0, sizeof(et2));
+    EXPECT_FALSE(ti->UnmarshalTo(buf, &et2));
+
+    EXPECT_TRUE(ti->Equal(et1, et2));
+    Cpeq<Array1<std::byte, 2>> cmp;
+    cmp.Copy(et2, et3);
+    EXPECT_TRUE(cmp.Equal(et3, et1));
+    using array = Array1<std::byte, 2>;
+    EXPECT_TRUE(Cpeq<array>().Equal(et3, et1));
+    EXPECT_TRUE((Cpeq<Array1<std::byte, 2>>()).Equal(et3, et1));
+}

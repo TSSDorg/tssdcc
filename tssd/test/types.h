@@ -74,6 +74,18 @@ struct Struct2 {
     T2 v2;
 };
 
+template <typename T, std::size_t N>
+struct Array1 {
+    T v1[N];
+};
+
+template <typename T1, typename T2, std::size_t N>
+struct Array2 {
+    T1 v1[N];
+    T2 v2[N];
+};
+
+
 template <typename T1, typename T2, typename T3>
 struct Struct3 {
     T1 v1;
