@@ -33,13 +33,13 @@ struct TypeInfo {
         bool is_float_ = false;
         bool is_signed_ = true;
 
-        TType tssd_type_ = TType::Tobject;
+        TType tssd_type_ = TType::Tunknown;
         TType local_type_ = tssd_type_;
         std::shared_ptr<TypeInfo> parent_;
         std::shared_ptr<TypeInfo> root_;
         std::vector<std::byte> types_;
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, TType local_type)
-            : name_(name), type_(type), offset_(offset), size_(size), local_type_(local_type) {}
+            : name_(name), type_(type), offset_(offset), size_(size), local_type_(local_type), tssd_type_(local_type) {}
 
         constexpr Node(char const *type, char const *name, ptrdiff_t offset, std::size_t size, bool is_number, bool is_float, bool is_signed)
             : name_(name), type_(type), offset_(offset), size_(size), is_number_(is_number), is_float_(is_float), is_signed_(is_signed) {}
@@ -93,25 +93,14 @@ struct TypeInfo {
         return sizet;
     }
 
-    virtual TError save(const std::byte *src, Buffer &buf) const {
-        buf.append(node_.tssd_type_);
-        buf.append(src, node_.size_);
-        return OK;
-    }
+    virtual TError save(const std::byte *src, Buffer &buf) const {return OK;}
 
-    virtual TError dump(Buffer &buf, std::byte *dest) const {
-        if (auto ret = CheckTType(buf))
-            return ret;
+    virtual TError dump(Buffer &buf, std::byte *dest) const { return OK; }
 
-        return buf.dump(node_.size_, dest);
-    }
-
-    virtual void copy(const std::byte *src, std::byte *dest) const {
-        std::memcpy(dest, src, node_.size_);
-    }
+    virtual void copy(const std::byte *src, std::byte *dest) const {}
 
     virtual bool equal(const std::byte *pl, const std::byte *pr) const {
-        return !std::memcmp(pl, pr, node_.size_);
+        return false;
     }
 
     //set tssd_type, total offset, save, dump by the reflect type
@@ -132,8 +121,12 @@ public:
         node_(type, name, 0, 0, TType::Tobject),
         children_(ch) {}
 
-    void print() const {
-        std::println("result type:{} name:{} offset:{} size:{} total_offset:{}", node_.type_, node_.name_?node_.name_:"annonymous", node_.offset_, node_.size_, node_.total_offset_);
+    void print(const std::string prefix="") const {
+        std::println("{} cpp type:{} local type: {} tssd type: {} name:{} offset:{} size:{} total_offset:{}",
+            prefix,
+            node_.type_,
+            (int)node_.local_type_, (int)node_.tssd_type_,
+            node_.name_?node_.name_:"annonymous", node_.offset_, node_.size_, node_.total_offset_);
         for (auto &it : children_)
             it->print();
     }
@@ -165,6 +158,16 @@ public:
     bool Equal(const T &obj1, const T &obj2) const {
         return equal((const std::byte *)&obj1, (const std::byte *)&obj2);
     }
+};
+
+class memOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+
+    TError save(const std::byte *src, Buffer &buf) const override;
+    TError dump(Buffer &buf, std::byte *dest) const override;
+    void   copy(const std::byte *src, std::byte *dest) const override;
+    bool   equal(const std::byte *pl, const std::byte *pr) const override;
 };
 
 class stringOper : public TypeInfo {
@@ -665,17 +668,28 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
                         std::vector<std::shared_ptr<TypeInfo>>{parse<FieldT>()});
 
         }
-        //if constexpr (std::meta::is_arithmetic_type(^^T)) {
-        return std::make_shared<TypeInfo>(
-            std::define_static_string(std::meta::display_string_of(^^T)),
-            name,
-            offset,
-            std::meta::size_of(^^T),
-            std::meta::is_arithmetic_type(^^T),
-            std::meta::is_floating_point_type(^^T),
-            std::meta::is_signed_type(^^T)
-        );
 
+#define createTypeInfo(x, y)   \
+            return std::make_shared<x>(  \
+                std::define_static_string(std::meta::display_string_of(^^T)), \
+                name, \
+                offset, \
+                std::meta::size_of(^^T), \
+                (y),  \
+                std::meta::is_floating_point_type(^^T), \
+                std::meta::is_signed_type(^^T) \
+            );
+
+        if constexpr (std::meta::is_arithmetic_type(^^T)) {
+            createTypeInfo(memOper, std::meta::is_arithmetic_type(^^T));
+        }
+        if constexpr (std::is_same_v<T, std::byte>) {
+            createTypeInfo(memOper, true);
+        }
+        // unknow type
+        createTypeInfo(TypeInfo, std::meta::is_arithmetic_type(^^T));
+
+#undef createTypeInfo
     } else {
 
         //string
@@ -733,6 +747,7 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
                 createContainer(sharedPtrOper, TType::Tshared_ptr);
 #undef createContainer
         }
+
         constexpr auto ctx = std::meta::access_context::unchecked();
         std::vector<std::shared_ptr<TypeInfo>> children;
         // should parse parent info after stl container but before class itslef

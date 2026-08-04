@@ -19,11 +19,13 @@ namespace tssd {
 void
 TypeInfo::MakeTypes()
 {
-    node_.root_->node_.types_.push_back(std::byte(node_.tssd_type_));
-    if (node_.tssd_type_ == TType::Tobject) {
-        int size = children_.size();
-        auto sp = std::span((std::byte*)&size, sizeof(size));
-        node_.root_->node_.types_.append_range(sp);
+    if (node_.tssd_type_ != TType::Tshared_ptr) {
+        node_.root_->node_.types_.push_back(std::byte(node_.tssd_type_));
+        if (node_.tssd_type_ == TType::Tobject) {
+            int size = children_.size();
+            auto sp = std::span((std::byte*)&size, sizeof(size));
+            node_.root_->node_.types_.append_range(sp);
+        }
     }
     /*
     switch (node_.tssd_type_) {
@@ -49,17 +51,8 @@ TypeInfo::UpdateMergedArray()
 {
     if (this->node_.tssd_type_ != TType::Tarray) return;
     if (this->children_.size() != 1) return;
-    if (this->children_[0]->node_.is_number_) {
-        this->node_.tssd_type_ = TType::Tarraym;
-        return;
-    }
-    const char *STD_BYTE = "std::byte";
-    // meta return std::byte not a number, we'll set it to number manully
-    if (std::string(this->children_[0]->node_.type_) == std::string(STD_BYTE)) {
-        this->children_[0]->node_.is_number_ = true;
-        this->children_[0]->node_.tssd_type_ = this->children_[0]->node_.local_type_ = TType::Tuint8;
-        this->node_.tssd_type_ = TType::Tarraym;
-    }
+    if (!this->children_[0]->node_.is_number_)  return;
+    this->node_.tssd_type_ = TType::Tarraym;
 }
 
 void
@@ -108,11 +101,39 @@ TypeInfo::parse(std::shared_ptr<TypeInfo> parent)
                     it->node_.tssd_type_ = TType::Tdict;
                     it->parse(it);
                     break;
-                default:
+                case TType::Tobject:
+                case TType::Tshared_ptr:
                     it->parse(it);  //Tobject is the default, just walk throuth children
+                    break;
+                default:  //Tunknow, do nothing
+                    std::println("known type:", it->node_.type_);
             }
         }
     }
+}
+
+TError
+memOper::save(const std::byte *src, Buffer &buf) const {
+    buf.append(node_.tssd_type_);
+    buf.append(src, node_.size_);
+    return OK;
+}
+
+TError
+memOper::dump(Buffer &buf, std::byte *dest) const {
+    if (auto ret = CheckTType(buf))
+        return ret;
+
+    return buf.dump(node_.size_, dest);
+}
+
+void
+memOper::copy(const std::byte *src, std::byte *dest) const {
+    std::memcpy(dest, src, node_.size_);
+}
+
+bool memOper::equal(const std::byte *pl, const std::byte *pr) const {
+    return !std::memcmp(pl, pr, node_.size_);
 }
 
 TError

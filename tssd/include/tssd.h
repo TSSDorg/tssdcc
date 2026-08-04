@@ -40,7 +40,8 @@ enum class TType {
     Tuser = 127, //user define data
 
     //local type
-    Tvector = 1000,
+    Tunknown = 1000,
+    Tvector,
     Tlist,
     Tset,
     Tmap,
