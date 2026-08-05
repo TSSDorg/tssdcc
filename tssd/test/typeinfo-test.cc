@@ -311,7 +311,8 @@ struct CRefTest{
     int ii_;
     int &ref_;
     string &str;
-    CRefTest(int i, string &s) : ii_(i), ref_(ii_), str(s) {}
+    list<string> &lst;
+    CRefTest(int i, string &s, list<string> lt) : ii_(i), ref_(ii_), str(s), lst(lt) {}
 };
 
 
@@ -322,7 +323,11 @@ TEST(TypeInfo, TypeInfoRefTest) {
 
     string str("hello tssd"), str2;
 
-    CRefTest et1(5, str), et2(6, str2), et3(7, str2);
+    list<string> l1, l2;
+
+    CRefTest et1(5, str, l1), et2(6, str2, l2), et3(7, str2, l2);
+    et1.lst.push_back("hello");
+    et1.lst.push_back("fooo");
 
     Buffer buf;
     EXPECT_FALSE(ti->MarshalTo(&et1, buf));
@@ -331,9 +336,11 @@ TEST(TypeInfo, TypeInfoRefTest) {
 
     //std::memset(&et2, 0, sizeof(et2));
     EXPECT_FALSE(ti->UnmarshalTo(buf, &et2));
-
+    EXPECT_TRUE(et2.str==str);
     EXPECT_TRUE(ti->Equal(et1, et2));
+    //str2 = "xxxx";
     Cpeq<CRefTest> cmp;
     cmp.Copy(et2, et3);
     EXPECT_TRUE(cmp.Equal(et3, et1));
+    EXPECT_TRUE(str == str2);
 }

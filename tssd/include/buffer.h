@@ -139,6 +139,10 @@ public:
         offset = woffset_;
     }
 
+    inline void rewind() {
+        index_ = offset_ = 0;
+    }
+
     inline void print(const std::string &prefix="", int n = 0) {
         if (!prefix.empty())
             std::cout << prefix << " size:" << fragments_.size() << std::endl;
@@ -160,6 +164,8 @@ public:
     //  0 : Buffer is complete, all fragments arrive
     //  n(>0): missing n-th fragment
     std::size_t wanted();
+
+    void merge();
 };
 
 }  //end of namespace tssd

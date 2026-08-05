@@ -109,7 +109,7 @@ Buffer& Buffer::append(const std::span<std::byte> bs)
             auto fra = std::make_shared<Fragment>(mtu_);
             fragments_[windex_] = fra;
             if (!heads_.empty()) {
-                memcpy(&fra->data[0], &heads_[0], heads_.size());
+                std::memcpy(&fra->data[0], &heads_[0], heads_.size());
                 updateFragmentID(windex_, windex_+1);
                 woffset_ += heads_.size();
             }
@@ -222,4 +222,32 @@ std::size_t Buffer::wanted()
     }
     return i + 1;
 }
+
+void Buffer::merge()
+{
+    if (fragments_.size() < 2) return;
+
+    std::size_t total = this->size() + fragments_[0]->heads.size() + fragments_[0]->checksum.size();
+
+    auto frag = std::make_shared<Fragment>(total);
+
+    if (!fragments_[0]->heads.empty())
+        std::memcpy(&frag->data[0], &fragments_[0]->heads[0], fragments_[0]->heads.size());
+
+    std::unordered_map<std::size_t, std::shared_ptr<Fragment>> nfrags;
+    nfrags[0] = frag;
+
+    std::swap(fragments_, nfrags);
+    mtu_ = total;
+    windex_ = 0;
+    woffset_ = 0;
+    rewind();
+
+    for (std::size_t i=0; i<nfrags.size(); ++i)
+    {
+        this->append(nfrags[i]->payload);
+    }
+    this->finish();
+}
+
 } //end namespace tssd
