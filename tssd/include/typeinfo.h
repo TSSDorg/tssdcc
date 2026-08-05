@@ -650,6 +650,16 @@ public:
     }
 };
 
+#define CREATE_CONTAINER_TYPE(cls, ttype, ...)  \
+                    return std::make_shared<cls<^^T>>( \
+                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
+                    name, \
+                    offset, \
+                    std::meta::size_of(^^T), \
+                    ttype, \
+                    std::vector<std::shared_ptr<TypeInfo>>{__VA_ARGS__} \
+                );
+
 
 template <typename T>
 constexpr std::shared_ptr<TypeInfo>
@@ -668,6 +678,12 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
                         std::vector<std::shared_ptr<TypeInfo>>{parse<FieldT>()});
 
         }
+        /*
+        if constexpr (std::meta::is_pointer_type(^^T)) {
+            constexpr auto real = std::meta::remove_pointer(std::meta::decay(^^T));
+            using FieldT = [:real:];
+            CREATE_CONTAINER_TYPE(sharedPtrOper, TType::Tpointer, parse<FieldT>());
+        }*/
 
 #define createTypeInfo(x, y)   \
             return std::make_shared<x>(  \
@@ -686,6 +702,7 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
         if constexpr (std::is_same_v<T, std::byte>) {
             createTypeInfo(memOper, true);
         }
+
         // unknow type
         createTypeInfo(TypeInfo, std::meta::is_arithmetic_type(^^T));
 
@@ -706,46 +723,35 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
         }
 
         if constexpr(std::meta::has_template_arguments(^^T)) {
-            //vector
-            //std::println("parse template {}", std::meta::display_string_of(std::meta::template_of(member)));
 
-#define createMap(x, y) { \
-                using KeyT = [:std::meta::template_arguments_of(^^T)[0]:]; \
-                using ValueT = [:std::meta::template_arguments_of(^^T)[1]:]; \
-                return std::make_shared<x<^^T>>( \
-                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
-                    name, \
-                    offset, \
-                    std::meta::size_of(^^T), \
-                    y, \
-                    std::vector<std::shared_ptr<TypeInfo>>{parse<KeyT>(), parse<ValueT>()} \
-                ); }
 
-            if  constexpr (std::meta::template_of(^^T) == ^^std::map)
-                createMap(mapOper, TType::Tmap);
-            if constexpr (std::meta::template_of(^^T) == ^^std::unordered_map)
-                createMap(mapOper, TType::Tunordered_map);
-#undef createMap
-#define createContainer(x, y) { \
-                using FieldT = [:std::meta::template_arguments_of(^^T)[0]:]; \
-                return std::make_shared<x<^^T>>( \
-                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
-                    name, \
-                    offset, \
-                    std::meta::size_of(^^T), \
-                    y, \
-                    std::vector<std::shared_ptr<TypeInfo>>{parse<FieldT>()} \
-                ); }
+            if  constexpr (std::meta::template_of(^^T) == ^^std::map) {
+                using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
+                using ValueT = [:std::meta::template_arguments_of(^^T)[1]:];
+                CREATE_CONTAINER_TYPE(mapOper, TType::Tmap, parse<ItemT>(), parse<ValueT>());
+            }
+            if constexpr (std::meta::template_of(^^T) == ^^std::unordered_map) {
+                using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
+                using ValueT = [:std::meta::template_arguments_of(^^T)[1]:];
+                CREATE_CONTAINER_TYPE(mapOper, TType::Tunordered_map, parse<ItemT>(), parse<ValueT>());
+            }
 
-            if  constexpr (std::meta::template_of(^^T) == ^^std::vector)
-                createContainer(vectorOper, TType::Tvector);
-            if  constexpr (std::meta::template_of(^^T) == ^^std::list)
-                createContainer(listOper, TType::Tlist);
-            if  constexpr (std::meta::template_of(^^T) == ^^std::set)
-                createContainer(setOper, TType::Tset);
-            if  constexpr (std::meta::template_of(^^T) == ^^std::shared_ptr)
-                createContainer(sharedPtrOper, TType::Tshared_ptr);
-#undef createContainer
+            if  constexpr (std::meta::template_of(^^T) == ^^std::vector) {
+                using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
+                CREATE_CONTAINER_TYPE(vectorOper, TType::Tvector, parse<ItemT>());
+            }
+            if  constexpr (std::meta::template_of(^^T) == ^^std::list) {
+                using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
+                CREATE_CONTAINER_TYPE(listOper, TType::Tlist, parse<ItemT>());
+            }
+            if  constexpr (std::meta::template_of(^^T) == ^^std::set) {
+                using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
+                CREATE_CONTAINER_TYPE(setOper, TType::Tset, parse<ItemT>());
+            }
+            if  constexpr (std::meta::template_of(^^T) == ^^std::shared_ptr) {
+                using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
+                CREATE_CONTAINER_TYPE(sharedPtrOper, TType::Tshared_ptr, parse<ItemT>());
+            }
         }
 
         constexpr auto ctx = std::meta::access_context::unchecked();
