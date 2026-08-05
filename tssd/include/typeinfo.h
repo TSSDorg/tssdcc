@@ -568,6 +568,39 @@ public:
     }
 };
 
+
+template <std::meta::info T>
+class forwardOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+    using Object = [:T:];
+    TError save(const std::byte *src, Buffer &buf) const override
+    {
+        auto p = (const std::byte **)src;
+        return children_[0]->save(*p, buf);
+    }
+
+    bool equal(const std::byte *pl, const std::byte *pr) const override
+    {
+        auto p1 = (const std::byte **)pl;
+        auto p2 = (const std::byte **)pr;
+        return children_[0]->equal(*p1, *p2);
+    }
+
+    void copy(const std::byte *src, std::byte *dest) const override
+    {
+        auto p1 = (const std::byte **)src;
+        auto p2 = (std::byte **)dest;
+        children_[0]->copy(*p1, *p2);
+    }
+
+    TError dump(Buffer &buf, std::byte *dest) const override {
+        auto p = (std::byte **)dest;
+        return children_[0]->dump(buf, *p);
+    }
+};
+
+
 template <std::meta::info T>
 class mapOper : public TypeInfo {
 public:
@@ -650,17 +683,6 @@ public:
     }
 };
 
-#define CREATE_CONTAINER_TYPE(cls, ttype, ...)  \
-                    return std::make_shared<cls<^^T>>( \
-                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
-                    name, \
-                    offset, \
-                    std::meta::size_of(^^T), \
-                    ttype, \
-                    std::vector<std::shared_ptr<TypeInfo>>{__VA_ARGS__} \
-                );
-
-
 template <typename T>
 constexpr std::shared_ptr<TypeInfo>
 TypeInfo::parse(std::ptrdiff_t offset, const char *name)
@@ -678,12 +700,6 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
                         std::vector<std::shared_ptr<TypeInfo>>{parse<FieldT>()});
 
         }
-        /*
-        if constexpr (std::meta::is_pointer_type(^^T)) {
-            constexpr auto real = std::meta::remove_pointer(std::meta::decay(^^T));
-            using FieldT = [:real:];
-            CREATE_CONTAINER_TYPE(sharedPtrOper, TType::Tpointer, parse<FieldT>());
-        }*/
 
 #define createTypeInfo(x, y)   \
             return std::make_shared<x>(  \
@@ -703,10 +719,23 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
             createTypeInfo(memOper, true);
         }
 
+        if constexpr (std::meta::is_reference_type(^^T)) {
+            constexpr auto real = std::meta::remove_reference(std::meta::decay(^^T));
+            using FieldT = [:real:];
+            return std::make_shared<forwardOper<^^T>>(
+                "ref_",
+                name,
+                offset,
+                std::meta::size_of(^^T),
+                TType::Tref,
+                std::vector<std::shared_ptr<TypeInfo>>{parse<FieldT>()}
+            );
+        }
+
         // unknow type
         createTypeInfo(TypeInfo, std::meta::is_arithmetic_type(^^T));
-
 #undef createTypeInfo
+
     } else {
 
         //string
@@ -722,9 +751,17 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
             );
         }
 
+#define CREATE_CONTAINER_TYPE(cls, ttype, ...)  \
+                    return std::make_shared<cls<^^T>>( \
+                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
+                    name, \
+                    offset, \
+                    std::meta::size_of(^^T), \
+                    ttype, \
+                    std::vector<std::shared_ptr<TypeInfo>>{__VA_ARGS__} \
+                );
+
         if constexpr(std::meta::has_template_arguments(^^T)) {
-
-
             if  constexpr (std::meta::template_of(^^T) == ^^std::map) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
                 using ValueT = [:std::meta::template_arguments_of(^^T)[1]:];
@@ -753,6 +790,7 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
                 CREATE_CONTAINER_TYPE(sharedPtrOper, TType::Tshared_ptr, parse<ItemT>());
             }
         }
+#undef CREATE_CONTAINER_TYPE
 
         constexpr auto ctx = std::meta::access_context::unchecked();
         std::vector<std::shared_ptr<TypeInfo>> children;

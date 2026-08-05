@@ -19,7 +19,7 @@ namespace tssd {
 void
 TypeInfo::MakeTypes()
 {
-    if (node_.tssd_type_ != TType::Tshared_ptr) {
+    if (node_.tssd_type_ != TType::Tshared_ptr || node_.tssd_type_ != TType::Tref) {
         node_.root_->node_.types_.push_back(std::byte(node_.tssd_type_));
         if (node_.tssd_type_ == TType::Tobject) {
             int size = children_.size();
@@ -103,6 +103,7 @@ TypeInfo::parse(std::shared_ptr<TypeInfo> parent)
                     break;
                 case TType::Tobject:
                 case TType::Tshared_ptr:
+                case TType::Tref:
                     it->parse(it);  //Tobject is the default, just walk throuth children
                     break;
                 default:  //Tunknow, do nothing
