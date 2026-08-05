@@ -228,20 +228,21 @@ void Buffer::merge()
     if (fragments_.size() < 2) return;
 
     std::size_t total = this->size() + fragments_[0]->heads.size() + fragments_[0]->checksum.size();
+    mtu_ = total;
+    size_ = 0;
+    windex_ = index_ = 0;
+    woffset_ = offset_ = 0;
 
     auto frag = std::make_shared<Fragment>(total);
 
-    if (!fragments_[0]->heads.empty())
+    if (!fragments_[0]->heads.empty()) {
         std::memcpy(&frag->data[0], &fragments_[0]->heads[0], fragments_[0]->heads.size());
+        woffset_ = fragments_[0]->heads.size();
+    }
 
     std::unordered_map<std::size_t, std::shared_ptr<Fragment>> nfrags;
     nfrags[0] = frag;
-
     std::swap(fragments_, nfrags);
-    mtu_ = total;
-    windex_ = 0;
-    woffset_ = 0;
-    rewind();
 
     for (std::size_t i=0; i<nfrags.size(); ++i)
     {

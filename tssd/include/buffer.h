@@ -140,7 +140,9 @@ public:
     }
 
     inline void rewind() {
-        index_ = offset_ = 0;
+        index_ = offset_ = size_ = 0;
+        for (std::size_t i=0; i<fragments_.size(); ++i)
+            size_ += fragments_[i]->payload.size();
     }
 
     inline void print(const std::string &prefix="", int n = 0) {
