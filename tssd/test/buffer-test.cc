@@ -144,8 +144,10 @@ bool dumpTest(Buffer &buf, int n, Bytes expect)
 
 TEST(Buffer, dump) {
     Buffer buf(5);
+    buf.mtu_ = 5;
     append(buf, 14);
-
+    EXPECT_EQ(buf.size(), 14);
+    EXPECT_EQ(buf.fragments_.size(), 3);
     EXPECT_TRUE(dumpTest(buf, 1, Bytes{byte(100)}));
     EXPECT_TRUE(dumpTest(buf, 2, Bytes{byte(101), byte(102)}));
     EXPECT_TRUE(dumpTest(buf, 2, Bytes{byte(103), byte(104)}));
@@ -157,14 +159,33 @@ TEST(Buffer, dump) {
 
 TEST(Buffer, dump2) {
     Buffer buf(5);
+    buf.mtu_ = 5;
     append(buf, 16);
+    EXPECT_EQ(buf.size(), 16);
+    EXPECT_EQ(buf.fragments_.size(), 4);
     EXPECT_TRUE(dumpTest(buf, 1, Bytes{byte(100)}));
     EXPECT_TRUE(dumpTest(buf, 9, Bytes{byte(101), byte(102), byte(103), byte(104), byte(105), byte(106), byte(107), byte(108), byte(109)}));
 }
 
 TEST(Buffer, dump3) {
     Buffer buf(5);
+    buf.mtu_ = 5;
     append(buf, 16);
+    EXPECT_EQ(buf.size(), 16);
+    EXPECT_EQ(buf.fragments_.size(), 4);
+    EXPECT_TRUE(dumpTest(buf, 1, Bytes{byte(100)}));
+    EXPECT_TRUE(dumpTest(buf, 10, Bytes{byte(101), byte(102), byte(103), byte(104), byte(105), byte(106), byte(107), byte(108), byte(109), byte(110)}));
+}
+
+TEST(Buffer, merge) {
+    Buffer buf(5);
+    buf.mtu_ = 5;
+    append(buf, 16);
+    EXPECT_EQ(buf.size(), 16);
+    EXPECT_EQ(buf.fragments_.size(), 4);
+    buf.merge();
+    EXPECT_EQ(buf.mtu_, 16);
+    EXPECT_EQ(buf.fragments_.size(), 1);
     EXPECT_TRUE(dumpTest(buf, 1, Bytes{byte(100)}));
     EXPECT_TRUE(dumpTest(buf, 10, Bytes{byte(101), byte(102), byte(103), byte(104), byte(105), byte(106), byte(107), byte(108), byte(109), byte(110)}));
 }
