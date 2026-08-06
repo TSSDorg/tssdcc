@@ -232,7 +232,7 @@ void Buffer::merge()
 
 void Buffer::split(std::size_t mtu)
 {
-    if (fragments_.empty() || mtu <= heads_.size()) return;
+    if (fragments_.empty() || mtu <= heads_.size() + checksum_len_) return;
     mtu_ = mtu;
     size_ = 0;
     windex_ = index_ = 0;
