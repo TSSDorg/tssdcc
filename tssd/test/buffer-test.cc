@@ -191,6 +191,19 @@ TEST(Buffer, merge) {
     EXPECT_TRUE(dumpTest(buf, 10, Bytes{byte(101), byte(102), byte(103), byte(104), byte(105), byte(106), byte(107), byte(108), byte(109), byte(110)}));
 }
 
+TEST(Buffer, split) {
+    Buffer buf(5);
+    buf.mtu_ = 5;
+    append(buf, 16);
+    EXPECT_EQ(buf.size(), 16);
+    EXPECT_EQ(buf.fragments_.size(), 4);
+    buf.split(7);
+    EXPECT_EQ(buf.mtu_, 7);
+    EXPECT_EQ(buf.fragments_.size(), 3);
+    EXPECT_TRUE(dumpTest(buf, 1, Bytes{byte(100)}));
+    EXPECT_TRUE(dumpTest(buf, 10, Bytes{byte(101), byte(102), byte(103), byte(104), byte(105), byte(106), byte(107), byte(108), byte(109), byte(110)}));
+}
+
 TEST(Buffer, MergeWithHeads) {
     BasicArrayFlat bta1;
     Basic::rand(&bta1.basicArray.vbool[0], sizeof(BasicArray));
@@ -215,6 +228,38 @@ TEST(Buffer, MergeWithHeads) {
     buf.merge();
     EXPECT_EQ(buf.mtu_, pre_size + buf.heads_.size() + buf.checksum_len_);
     EXPECT_EQ(buf.fragments_.size(), 1);
+
+    BasicArrayFlat bta3;
+    Basic::rand(&bta3.basicArray.vbool[0], sizeof(BasicArray));
+
+    EXPECT_EQ(Manager::UnmarshalTo(buf, bta3), OK);
+    EXPECT_TRUE(Cpeq<BasicArrayFlat>().Equal(bta2, bta3));
+}
+
+TEST(Buffer, SplitWithHeads) {
+    BasicArrayFlat bta1;
+    Basic::rand(&bta1.basicArray.vbool[0], sizeof(BasicArray));
+
+    Manager::Register<BasicArrayFlat>();
+
+    Buffer buf;
+
+    EXPECT_EQ(Manager::MarshalTo(bta1, buf.clear()), OK);
+    auto pre_size = buf.size();
+    buf.print("after MarshalTo:");
+    BasicArrayFlat bta2;
+
+    EXPECT_EQ(Manager::UnmarshalTo(buf, bta2), OK);
+
+    EXPECT_TRUE(Cpeq<BasicArrayFlat>().Equal(bta1, bta2));
+
+    buf.rewind();
+    auto pre_frags = buf.fragments_.size();
+    EXPECT_TRUE(pre_frags>1);
+
+    buf.split(384);
+    EXPECT_EQ(buf.mtu_, 384);
+    EXPECT_EQ(buf.fragments_.size(), 2);
 
     BasicArrayFlat bta3;
     Basic::rand(&bta3.basicArray.vbool[0], sizeof(BasicArray));

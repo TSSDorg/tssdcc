@@ -167,7 +167,11 @@ public:
     //  n(>0): missing n-th fragment
     std::size_t wanted();
 
+    // merge all fragments into one, useful for storage
     void merge();
+
+    // split fragments with specify mtu
+    void split(std::size_t mtu);
 };
 
 }  //end of namespace tssd
