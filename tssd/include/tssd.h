@@ -46,19 +46,23 @@ enum class TType {
     Tset,
     Tmap,
     Tunordered_map,
-    Tshared_ptr,
     Tref,
+    Tshared_ptr,
+    Tunique_ptr,
 };
 
 const char MINOR = 1;
 const char MAJOR = 0;
 const char TSSD_VERSION[2] = {MINOR, MAJOR};
+const std::size_t TSSD_FRAGMENT_MIN_HEADER_SIZE = 64;
 const std::size_t TSSD_BUFFER_MIN_MTU = 256;
-const std::size_t TSSD_BUFFER_MTU = 3072;
+const std::size_t TSSD_BUFFER_MTU = 2048;
+const std::size_t TSSD_TARRAYM_HEAD_LENGTH      = 8;  // [Tarraym][Tuint8][sizet/4B][sizea/2B]
 const std::size_t TSSD_SIZET_LENGTH = 4;
 const std::size_t TSSD_SIZEA_LENGTH = 2;
 
 using TError = std::int16_t;
+const TError ERR_IO = -6;
 const TError ERR_SCHEMA_NOT_MATCH = -3;
 const TError ERR_CHECKSUM_FAILURE = -5;
 const TError ERR_TSSD_MTU_TOO_SMALL = -4;
@@ -88,18 +92,34 @@ struct Schema {
 };
 
 
-struct Fragment {
+class Fragment {
+    friend class Buffer;
+private:
+    VBytes heads;    // header's byte stream, including payload's Tarraym header
+    VBytes payload;  // user payload, excluding itself Tarraym header
+    VBytes checksum; // checksum, including itself Tarraym header
+public:
     Header header;
     Schema schema;
     Bytes data;
-    VBytes heads;
-    VBytes payload;
-    VBytes checksum;
-    Fragment(std::size_t mtu) : data(mtu){}
+    Fragment(std::size_t mtu=0) : data(mtu){}
     Fragment(VBytes bs) : payload(bs) {}
 
-    TError Unmarshal(VBytes input, int &remain_pos);
-    TError Validate(VBytes input) const;
+    // return heads excluding payload's Tarraym header
+    VBytes Heads() const {
+        return heads.subspan(0, heads.size() - TSSD_TARRAYM_HEAD_LENGTH);
+    }
+
+    VBytes Payload() const { return payload; }
+    VBytes Checksum() const { return checksum.subspan(TSSD_TARRAYM_HEAD_LENGTH); }
+
+    TError Unmarshal(VBytes input, std::size_t &remain_pos, std::size_t &more);
+    TError Unmarshal(Bytes input, std::size_t &remain_pos, std::size_t &more) {
+        auto sp = std::span<std::byte>(input.data(), input.size());
+        return Unmarshal(sp, remain_pos, more);
+    }
+    TError Read(int fd);
+    TError Validate(VBytes input, VBytes checksum) const;
 
     void print(int offset) {
         std::cout << "Fragment size:" << data.size() << '[';

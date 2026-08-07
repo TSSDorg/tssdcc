@@ -64,7 +64,6 @@ void Buffer::finish()
     //this->print("finish 1:", heads_.size() + size_);
     if (heads_.empty()) {
         auto size = this->size();
-        if (size == 0) return;
         for (std::size_t i=0; i<windex_; ++i)
         {
             auto csize = fragments_[i]->data.size();
@@ -113,6 +112,7 @@ Buffer& Buffer::append(const std::span<std::byte> bs)
                 updateFragmentID(windex_, windex_+1);
                 woffset_ += heads_.size();
             }
+            fra->heads = std::span<std::byte>(&fra->data[0], heads_.size());
         }
 
         auto fra = fragments_[windex_];

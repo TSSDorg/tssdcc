@@ -172,6 +172,16 @@ public:
 
     // split fragments with specify mtu
     void split(std::size_t mtu);
+
+    TError ReadFragments(int fd) {
+        while (wanted()) {
+            pFragment frag = std::make_shared<Fragment>();
+            if (auto ret = frag->Read(fd)) return ret;
+            auto ret = push(frag);
+            if (ret <= 0) return ret;
+        }
+        return OK;
+    }
 };
 
 }  //end of namespace tssd
