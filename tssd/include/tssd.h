@@ -54,7 +54,7 @@ enum class TType {
 const char MINOR = 1;
 const char MAJOR = 0;
 const char TSSD_VERSION[2] = {MINOR, MAJOR};
-const std::size_t TSSD_FRAGMENT_MIN_HEADER_SIZE = 64;
+const std::size_t TSSD_FRAGMENT_MIN_HEADER_SIZE = 41;
 const std::size_t TSSD_BUFFER_MIN_MTU = 256;
 const std::size_t TSSD_BUFFER_MTU = 2048;
 const std::size_t TSSD_TARRAYM_HEAD_LENGTH      = 8;  // [Tarraym][Tuint8][sizet/4B][sizea/2B]
@@ -81,6 +81,7 @@ struct Header {
 };
 
 class Buffer;
+class FBuffer;
 struct Schema {
     std::int16_t fragment;    //fragment id: [1,2, ... -n]
     std::string  hash;
@@ -94,6 +95,7 @@ struct Schema {
 
 class Fragment {
     friend class Buffer;
+    friend class FBuffer;
 private:
     VBytes heads;    // header's byte stream, including payload's Tarraym header
     VBytes payload;  // user payload, excluding itself Tarraym header
@@ -113,6 +115,7 @@ public:
     VBytes Payload() const { return payload; }
     VBytes Checksum() const { return checksum.subspan(TSSD_TARRAYM_HEAD_LENGTH); }
 
+
     TError Unmarshal(VBytes input, std::size_t &remain_pos, std::size_t &more);
     TError Unmarshal(Bytes input, std::size_t &remain_pos, std::size_t &more) {
         auto sp = std::span<std::byte>(input.data(), input.size());
@@ -129,6 +132,74 @@ public:
     }
 };
 using pFragment = std::shared_ptr<Fragment>;
+
+
+
+class FBuffer {
+private:
+    std::shared_ptr<Bytes>  buffer_;
+    Header header;
+    Schema schema;
+    int magic_  = -1;     //magic_pos, heads begin
+    int heads_len_ =  -1;  // heads len
+    int payload_ = -1;    // payload begin pos
+    int payload_len_ = -1;
+    int checksum_ = -1;   // checksum begin
+    int checksum_len_ = -1;
+
+public:
+    static constexpr std::string MAGIC = "TSSDV";
+    FBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
+        buffer_->resize(0);
+    }
+
+    inline void append(const Bytes &data)
+    {
+        append(data, data.size());
+    }
+    inline void append(const Bytes &data, const std::size_t nsize)
+    {
+        append(data.data(), nsize);
+    }
+    void append(const std::byte *data, const std::size_t nsize);
+
+    inline int findMagic(const Bytes &data, const std::size_t skip=0) {
+        auto view = std::string_view(reinterpret_cast<const char*>(&data[skip]), data.size());
+        auto pos = view.find(MAGIC);
+        return pos == view.npos ? -1 : pos;
+    }
+    inline std::size_t size() const { return buffer_->size() - std::max(0, magic_); }
+
+    inline std::byte &operator[](const std::size_t pos) {
+        //skip the magic_
+        auto npos = pos + std::max(0, magic_);
+        return (*buffer_)[npos];
+    }
+    inline void reset()
+    {
+        //clear all status
+        magic_ = heads_len_ = payload_ = payload_len_ = checksum_ = checksum_len_ = -1;
+    }
+
+    inline bool ready() const { return checksum_len_ >= 0;}
+
+    //4 step to parse Fragment
+    // 0. DetectMagic, set magic_
+    // 1. ParseHeads,  set heads_len_
+    // 2. ParsePayload, set payload_ and payload_len_
+    // 3. ParseChecksum, set checksum_ and checksum_len;
+    // if meet fmt error, we need goto step 0
+    TError DetectMagic(const Bytes &data, std::size_t &more, const std::size_t skip = 0);
+    TError DumpMergeArrayHeader(const std::size_t pos, int &len, std::size_t &more);
+    TError ParseHeads(std::size_t &more);
+    TError ParsePayload(std::size_t &more);
+    TError ParseChecksum(std::size_t more);
+    TError Feed(const Bytes &data, std::size_t &more);
+
+    // Feed got OK, then we can call it to get a Fragment;
+    pFragment Fragment();
+};
+
 
 } //end namespace tssd
 
