@@ -19,30 +19,32 @@ namespace tssd {
 void
 TypeInfo::MakeTypes()
 {
-    if (node_.tssd_type_ != TType::Tshared_ptr
-        || node_.tssd_type_ != TType::Tunique_ptr
-        || node_.tssd_type_ != TType::Tref) {
-        node_.root_->node_.types_.push_back(std::byte(node_.tssd_type_));
-        if (node_.tssd_type_ == TType::Tobject) {
-            int size = children_.size();
-            auto sp = std::span((std::byte*)&size, sizeof(size));
-            node_.root_->node_.types_.append_range(sp);
-        }
-    }
-    /*
+    int size = children_.size();
+    auto sp = std::span((std::byte*)&size, sizeof(size));
     switch (node_.tssd_type_) {
+        case TType::Tshared_ptr:
+        case TType::Tunique_ptr:
+        case TType::Tref:
+            break;
         case TType::Tobject:
-            int size = children_.size();
-            auto sp = std::span((std::byte*)&size, sizeof(size));
+            node_.root_->node_.types_.emplace_back(std::byte(TType::Tobject));
             node_.root_->node_.types_.append_range(sp);
             break;
-        case TType::Tarraym:
-            break;
+        case TType::Tdict:
+            node_.root_->node_.types_.emplace_back(std::byte(TType::Tdict));
+            node_.root_->node_.types_.emplace_back(std::byte(TType::Tdictk));
+            children_[0]->MakeTypes();
+            node_.root_->node_.types_.emplace_back(std::byte(TType::Tdictv));
+            children_[1]->MakeTypes();
+            return;
         case TType::Ttime:
+            node_.root_->node_.types_.emplace_back(std::byte(TType::Ttime));
+            node_.root_->node_.types_.emplace_back(std::byte(TType::Tstring));
             break;
         default:
+            node_.root_->node_.types_.emplace_back(std::byte(node_.tssd_type_));
             break;
-    }*/
+    }
     for (auto &it : children_) {
         it->MakeTypes();
     }
