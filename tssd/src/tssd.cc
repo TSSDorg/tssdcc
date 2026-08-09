@@ -122,7 +122,7 @@ Fragment::Unmarshal(VBytes input, std::size_t &remain_pos, std::size_t &more)
 }
 
 TError
-Fragment::Validate(VBytes input, VBytes checksum) const
+Fragment::Validate(VBytes input, VBytes checksum)
 {
     if (!checksum.empty()) {
         auto expected = Manager::checksum(input.data(), static_cast<int>(input.size()));
@@ -353,13 +353,14 @@ AGAIN:
         }
         return ret;
     }
+    auto frag =  fragment();
+    if (ret = frag->Validate()) return ret;
+    frag_ = frag;
     return OK;
 }
 
-pFragment FBuffer::Fragment()
+pFragment FBuffer::fragment()
 {
-    if (!ready()) return nullptr;
-
     std::size_t remain = this->size() - heads_len_ - payload_len_ - checksum_len_;
     pFragment frag = std::make_shared<tssd::Fragment>(std::max(TSSD_BUFFER_MTU, remain));
     frag->data.resize(0);

@@ -122,7 +122,10 @@ public:
         return Unmarshal(sp, remain_pos, more);
     }
     TError Read(int fd);
-    TError Validate(VBytes input, VBytes checksum) const;
+    inline TError Validate() {
+        return Validate(VBytes(&this->data[0], heads.size() + payload.size()), Checksum());
+    }
+    static TError Validate(VBytes input, VBytes checksum);
 
     void print(int offset) {
         std::cout << "Fragment size:" << data.size() << '[';
@@ -146,6 +149,7 @@ private:
     int payload_len_ = -1;
     int checksum_ = -1;   // checksum begin
     int checksum_len_ = -1;
+    pFragment frag_;
 
     static constexpr std::string MAGIC = "TSSDV";
     inline void append(const Bytes &data)
@@ -181,6 +185,7 @@ private:
     TError ParseHeads(std::size_t &more);
     TError ParsePayload(std::size_t &more);
     TError ParseChecksum(std::size_t more);
+    pFragment fragment();
 public:
     FBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
         buffer_->resize(0);
@@ -190,11 +195,11 @@ public:
     inline std::byte &operator[](const std::size_t pos) {
         return (*buffer_)[pos];
     }
-    inline bool ready() const { return checksum_len_ >= 0;}
+    inline bool ready() const { return frag_ != nullptr;}
     TError Feed(const Bytes &data, std::size_t &more);
 
     // Feed got OK, then we can call it to get a Fragment;
-    pFragment Fragment();
+    pFragment Fragment() const { return frag_; }
 };
 
 
