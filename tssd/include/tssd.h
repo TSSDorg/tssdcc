@@ -163,7 +163,7 @@ private:
     void append(const std::byte *data, const std::size_t nsize);
 
     inline int findMagic(const Bytes &data, const std::size_t skip=0) {
-        auto view = std::string_view(reinterpret_cast<const char*>(&data[skip]), data.size());
+        auto view = std::string_view(reinterpret_cast<const char*>(&data[skip]), data.size()-skip);
         auto pos = view.find(MAGIC);
         return pos == view.npos ? -1 : pos;
     }

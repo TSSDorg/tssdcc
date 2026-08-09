@@ -135,3 +135,53 @@ TEST(FBuffer, DetechMagic2) {
 
     EXPECT_TRUE(Basic::BytesEqual(fbuf.buffer(), Bytes{byte('c'), byte('d'), byte('e'), byte('f')}));
 }
+
+TEST(FBuffer, DetechMagic3) {
+    FBuffer fbuf;
+    TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-11,
+        1, Bytes{byte('a'), byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('1'), byte('2'), byte('3'), byte('4'), byte('5'), byte('b')});
+
+    auto bs = getTestBytes();
+    size_t more(0);
+    EXPECT_EQ(fbuf.DetectMagic(bs, more), OK);
+    EXPECT_EQ(fbuf.size(), 11 + bs.size());
+    EXPECT_EQ(more, 0);
+
+    EXPECT_EQ(fbuf.ParseHeads(more), ERR_FORMAT_ERROR);
+    EXPECT_EQ(more, 0);
+    EXPECT_EQ(fbuf.magic_, 0);
+    EXPECT_EQ(fbuf.size(), 11 + bs.size());
+    fbuf.reset();
+    EXPECT_EQ(fbuf.DetectMagic(Bytes(), more, 5), OK);
+    EXPECT_EQ(more, 0);
+    EXPECT_EQ(fbuf.magic_, 0);
+    EXPECT_EQ(fbuf.size(), bs.size());
+    EXPECT_EQ(fbuf.Feed(Bytes(), more), OK);
+    EXPECT_EQ(fbuf.ready(), true);
+}
+
+TEST(FBuffer, DetechMagic4) {
+    FBuffer fbuf;
+    TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-11,
+        1, Bytes{byte('a'), byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('1'), byte('2'), byte('3'), byte('4'), byte('5'), byte('b')});
+
+    auto bs = getTestBytes();
+    bs[0] = byte('x');
+    size_t more(0);
+    EXPECT_EQ(fbuf.DetectMagic(bs, more), OK);
+    EXPECT_EQ(fbuf.size(), 11 + bs.size());
+    EXPECT_EQ(more, 0);
+
+    EXPECT_EQ(fbuf.ParseHeads(more), ERR_FORMAT_ERROR);
+    EXPECT_EQ(more, 0);
+    EXPECT_EQ(fbuf.magic_, 0);
+    EXPECT_EQ(fbuf.size(), 11 + bs.size());
+    fbuf.reset();
+
+    EXPECT_EQ(fbuf.DetectMagic(Bytes(), more, 5), ERR_INSUFFICIENT_DATA);
+    EXPECT_EQ(more, TSSD_FRAGMENT_MIN_HEADER_SIZE-4);
+    EXPECT_EQ(fbuf.magic_, -1);
+    EXPECT_EQ(fbuf.size(), 4);
+    EXPECT_EQ(fbuf.Feed(Bytes(), more), ERR_INSUFFICIENT_DATA);
+    EXPECT_EQ(fbuf.ready(), false);
+}
