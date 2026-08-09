@@ -178,25 +178,32 @@ void FBuffer::append(const std::byte *data, const std::size_t nsize)
     std::memcpy(&(*buffer_)[size], data, nsize);
 }
 
+void
+FBuffer::MoveFront(const size_t pos, int n)
+{
+    for (int i=0; i<n; ++i)
+        (*buffer_)[i] = (*buffer_)[pos+i];
+}
+
 // return OK if we found magic
 // otherwise return ERR_INSUFFICIENT_DATA
 TError
 FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t skip)
 {
+    auto pre_size = buffer_->size();
+    auto cpsize = std::min((std::size_t)4, data.size());
     if (magic_ >= 0) {
         append(data);
-        return OK;
+        goto RETURN;
     }
-    auto pre_size = buffer_->size();
     if (pre_size >= MAGIC.length()) {
         if ((magic_ = findMagic(*buffer_, skip)) >= 0 ) {
             append(data);
-            return OK;
+            goto RETURN;
         }
         // if got "TSSDVTSSDV...", we met fmt err, need skip 5
         // when FMT_ERR,  size >= 8(Tschema), it is safe copy 4 to front
-        for (std::size_t i=0; i<4; i++)
-            (*buffer_)[i] = (*buffer_)[pre_size-4+i];
+        MoveFront(pre_size-4, 4);
         buffer_->resize(4);
     }
     pre_size = buffer_->size();
@@ -205,29 +212,26 @@ FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t ski
         more = TSSD_FRAGMENT_MIN_HEADER_SIZE - buffer_->size();
         return ERR_INSUFFICIENT_DATA;
     }
-    append(data, std::min(data.size(), (std::size_t)4));
+
+    append(data, cpsize);
     if ((magic_ = findMagic(*buffer_)) < 0 ) {
         auto pos = findMagic(data);
         if (pos < 0) {
-            auto size = data.size();
-            buffer_->resize(0);
-            append(&data[size-4], 4);
+            MoveFront(pre_size-(4-cpsize), 4-cpsize);
+            buffer_->resize(4-cpsize);
+            append(&data[data.size()-cpsize], cpsize);
             more = TSSD_FRAGMENT_MIN_HEADER_SIZE - buffer_->size();
             return ERR_INSUFFICIENT_DATA;
         }
         buffer_->resize(0);
         append(&data[pos], data.size() - pos);
-        if (size() < TSSD_FRAGMENT_MIN_HEADER_SIZE)
-            more = TSSD_FRAGMENT_MIN_HEADER_SIZE - size();
-        magic_ = 0;
-        return OK;
+        goto RETURN;
     }
-    if (magic_ > 0) {
-        for (auto i=0; i<4-magic_; ++i)
-            (*buffer_)[i] = (*buffer_)[magic_+i];
-    }
+
+    MoveFront(magic_, 4-magic_);
     buffer_->resize(4-magic_);
     append(data);
+RETURN:
     if (size() < TSSD_FRAGMENT_MIN_HEADER_SIZE)
         more = TSSD_FRAGMENT_MIN_HEADER_SIZE - size();
     magic_ = findMagic(*buffer_);

@@ -188,6 +188,8 @@ private:
     TError ParsePayload(std::size_t &more);
     TError ParseChecksum(std::size_t more);
     pFragment fragment();
+    void MoveFront(const std::size_t pos, const int n);
+
 public:
     FBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
         buffer_->resize(0);

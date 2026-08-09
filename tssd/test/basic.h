@@ -25,7 +25,7 @@ public:
     }
 
     //produce random value
-    static void rand(void *dest, std::size_t n)
+    static void rand(void *dest, const std::size_t n)
     {
         std::srand(std::time({})); // use current time as seed for random generator
         auto *p = (std::byte *)dest;
@@ -48,7 +48,23 @@ public:
         return BytesEqual(std::span((std::byte*)p1, s1), std::span((std::byte*)p2, s2));
     }
 
-    static bool BytesEqual(const VBytes s1, const VBytes s2)
+    static bool BytesEqual(VBytes s1, VBytes s2)
+    {
+        if (s1.size() != s2.size()) {
+            std::cout <<"diff s1: size:" << s1.size() << ", s2 size:" << s2.size() << std::endl;
+            return false;
+        }
+
+        for (size_t i = 0; i<s1.size(); i++)
+        {
+            if (s1[i] != s2[i]) {
+                std::cout <<"Basic::BytesEqual diff i:" << i << "\ts1[i]:" << int(s1[i]) << "\ts2[i]:" << int(s2[i]) << std::endl;
+                return false;
+            }
+        }
+        return true;
+    }
+    static bool BytesEqual(const Bytes &s1, const Bytes &s2)
     {
         if (s1.size() != s2.size()) {
             std::cout <<"diff s1: size:" << s1.size() << ", s2 size:" << s2.size() << std::endl;
@@ -88,8 +104,8 @@ private:
     const rander &_;
 public:
     rander() : _(*this) {}
-    const void *begin() const { return this;}
-    void rand_content(void* p) const
+    void *begin() { return this;}
+    void rand_content(void* p)
     {
         //std::cout << "sizeof(T):" << sizeof(T) << ",this:" << this  << ", p:" << p << std::endl;
         Basic::rand(begin(), sizeof(T) - (size_t(begin()) - size_t(p)));

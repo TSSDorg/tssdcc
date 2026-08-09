@@ -63,6 +63,7 @@ struct BasicArrayFlat : public tssd::Flatable {
     }
 };
 
+
 template <typename T>
 struct Struct1 {
     T v1;
@@ -123,6 +124,20 @@ struct ContainerT {
     unordered_map<string, T> ump;
     std::shared_ptr<T> sp;
 };
+
+template<typename T>
+struct Struct1Flat : public tssd::Flatable {
+    Struct1<T> struct1;
+    //std::string type_;
+    //Struct1Flat(T v, const string type="") : struct1.v1(v), type_(type){}
+    std::string Group() const override {
+        return "Struct1Flat-";
+    }
+    std::string Version() const override {
+        return "Struct1FlatGroup";
+    }
+};
+
 
 
 #endif // __TSSD_TEST_TYPES_H__

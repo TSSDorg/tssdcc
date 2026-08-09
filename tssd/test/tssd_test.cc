@@ -7,6 +7,7 @@
 #include "types.h"
 using namespace tssd;
 using namespace std;
+
 TEST(TSSD, MarshalUnmarshaBasicType) {
 
     BasicTypeFlat bta1;
@@ -26,9 +27,9 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
     auto list = buf.Fragments();
 
     for (int i=0; i<list.size(); i++) {
-        int remain_pos = 0;
+        std::size_t remain_pos = 0, more = 0;
         std::span sp(list[0]->data.data(), list[0]->data.size());
-        if (auto ret = frag->Unmarshal(sp, remain_pos)) {
+        if (auto ret = frag->Unmarshal(sp, remain_pos, more)) {
             std::println("Unarshal frag error", ret);
         }
         rbuf.push(frag);
@@ -92,9 +93,9 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
 
     for (int i=0; i<list.size(); i++) {
         pFragment frag=std::make_shared<Fragment>(2048);  ///read fragment
-        int remain_pos = 0;
+        std::size_t remain_pos = 0, more(0);
         std::span sp(list[i]->data.data(), list[i]->data.size());
-        if (auto ret = frag->Unmarshal(sp, remain_pos)) {
+        if (auto ret = frag->Unmarshal(sp, remain_pos, more)) {
             std::println("Unarshal frag error", ret);
         }
         rbuf.push(frag);
@@ -158,7 +159,7 @@ TEST(TSSD, rander) {
               << ", ctest.x:" <<  std::addressof(ctest.x)
               << ", BasicType:" << std::addressof(ctest.vbool)
               << std::endl;
-    std::cout << ", ctest.begin addr:"<< std::hex << ctest.begin() << endl;
+    std::cout << ", ctest.begin addr:"<< std::hex << (uint64_t)ctest.begin() << endl;
     std::cout << ", ctest.x addr:"<< std::hex << &ctest.x << ", x:" << ctest.x << endl;
     ctest.x = 'b';
     std::cout << ", ctest.x addr:"<< std::hex << &ctest.x << ", x:" << ctest.x << endl;
