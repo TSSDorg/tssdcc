@@ -178,6 +178,8 @@ void FBuffer::append(const std::byte *data, const std::size_t nsize)
     std::memcpy(&(*buffer_)[size], data, nsize);
 }
 
+// return OK if we found magic
+// otherwise return ERR_INSUFFICIENT_DATA
 TError
 FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t skip)
 {
@@ -186,7 +188,7 @@ FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t ski
         return OK;
     }
     auto pre_size = buffer_->size();
-    if (pre_size >= 5) {
+    if (pre_size >= MAGIC.length()) {
         if ((magic_ = findMagic(*buffer_, skip)) >= 0 ) {
             append(data);
             return OK;
@@ -198,7 +200,7 @@ FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t ski
         buffer_->resize(4);
     }
     pre_size = buffer_->size();
-    if (pre_size + data.size() < 8) {
+    if (pre_size + data.size() < MAGIC.length()) {
         append(data);
         more = TSSD_FRAGMENT_MIN_HEADER_SIZE - buffer_->size();
         return ERR_INSUFFICIENT_DATA;
@@ -208,13 +210,15 @@ FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t ski
         auto pos = findMagic(data);
         if (pos < 0) {
             auto size = data.size();
-            buffer_->resize(4);
+            buffer_->resize(0);
             append(&data[size-4], 4);
             more = TSSD_FRAGMENT_MIN_HEADER_SIZE - buffer_->size();
             return ERR_INSUFFICIENT_DATA;
         }
         buffer_->resize(0);
         append(&data[pos], data.size() - pos);
+        if (size() < TSSD_FRAGMENT_MIN_HEADER_SIZE)
+            more = TSSD_FRAGMENT_MIN_HEADER_SIZE - size();
         magic_ = 0;
         return OK;
     }
@@ -224,6 +228,8 @@ FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t ski
     }
     buffer_->resize(4-magic_);
     append(data);
+    if (size() < TSSD_FRAGMENT_MIN_HEADER_SIZE)
+        more = TSSD_FRAGMENT_MIN_HEADER_SIZE - size();
     magic_ = findMagic(*buffer_);
     return OK;
 }

@@ -168,10 +168,12 @@ private:
         return pos == view.npos ? -1 : pos;
     }
 
+    // reset doesn't clear data, clear does.
     inline void reset()
     {
         //clear all status
         magic_ = heads_len_ = payload_ = payload_len_ = checksum_ = checksum_len_ = -1;
+        frag_.reset();
     }
 
     //4 step to parse Fragment
@@ -191,6 +193,7 @@ public:
         buffer_->resize(0);
     }
     inline Bytes buffer() const { return *buffer_; }
+    inline void clear() { buffer_->resize(0); reset(); }
     inline std::size_t size() const { return buffer_->size(); }
     inline std::byte &operator[](const std::size_t pos) {
         return (*buffer_)[pos];
