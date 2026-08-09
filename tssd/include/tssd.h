@@ -147,12 +147,7 @@ private:
     int checksum_ = -1;   // checksum begin
     int checksum_len_ = -1;
 
-public:
     static constexpr std::string MAGIC = "TSSDV";
-    FBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
-        buffer_->resize(0);
-    }
-
     inline void append(const Bytes &data)
     {
         append(data, data.size());
@@ -168,20 +163,12 @@ public:
         auto pos = view.find(MAGIC);
         return pos == view.npos ? -1 : pos;
     }
-    inline std::size_t size() const { return buffer_->size() - std::max(0, magic_); }
 
-    inline std::byte &operator[](const std::size_t pos) {
-        //skip the magic_
-        auto npos = pos + std::max(0, magic_);
-        return (*buffer_)[npos];
-    }
     inline void reset()
     {
         //clear all status
         magic_ = heads_len_ = payload_ = payload_len_ = checksum_ = checksum_len_ = -1;
     }
-
-    inline bool ready() const { return checksum_len_ >= 0;}
 
     //4 step to parse Fragment
     // 0. DetectMagic, set magic_
@@ -194,6 +181,16 @@ public:
     TError ParseHeads(std::size_t &more);
     TError ParsePayload(std::size_t &more);
     TError ParseChecksum(std::size_t more);
+public:
+    FBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
+        buffer_->resize(0);
+    }
+    inline Bytes buffer() const { return *buffer_; }
+    inline std::size_t size() const { return buffer_->size(); }
+    inline std::byte &operator[](const std::size_t pos) {
+        return (*buffer_)[pos];
+    }
+    inline bool ready() const { return checksum_len_ >= 0;}
     TError Feed(const Bytes &data, std::size_t &more);
 
     // Feed got OK, then we can call it to get a Fragment;
