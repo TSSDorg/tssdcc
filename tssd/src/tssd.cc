@@ -88,13 +88,13 @@ Fragment::Unmarshal(VBytes input, std::size_t &remain_pos, std::size_t &more)
 
     std::size_t cursor = 8; // 5-byte magic + 2-byte version + 1-byte Tschema
     Buffer schema_buf(data.subspan(cursor));
-    const auto schema_size = schema_buf.size();
+    const auto schema_size = schema_buf.Size();
     if (auto ret = schema.Unmarshal(schema_buf)) {
         if (ret==ERR_INSUFFICIENT_DATA)
             more = TSSD_FRAGMENT_MIN_HEADER_SIZE - schema_size;
         return ret;
     }
-    cursor += schema_size - schema_buf.size();
+    cursor += schema_size - schema_buf.Size();
 
     std::size_t payload_begin = cursor + TSSD_TARRAYM_HEAD_LENGTH;
     std::size_t payload_len(0);
@@ -279,7 +279,7 @@ TError FBuffer::parseHeads(std::size_t &more)
 
     std::size_t cursor = magic_ + 8; // 5-byte magic + 2-byte version + 1-byte Tschema
     tssd::Buffer schema_buf(VBytes(&(*buffer_)[cursor], buffer_->size() - cursor));
-    const auto schema_size = schema_buf.size();
+    const auto schema_size = schema_buf.Size();
     if (auto ret = schema.Unmarshal(schema_buf)) {
         if (ret == ERR_INSUFFICIENT_DATA) {
             more = TSSD_FRAGMENT_MIN_HEADER_SIZE - this->Size();
@@ -287,7 +287,7 @@ TError FBuffer::parseHeads(std::size_t &more)
         return ret;
     }
 
-    cursor += schema_size - schema_buf.size();
+    cursor += schema_size - schema_buf.Size();
     std::size_t payload_begin = cursor + TSSD_TARRAYM_HEAD_LENGTH;
     if (auto ret = dumpMergeArrayHeader(cursor, payload_len_, more)) {
         return ret;

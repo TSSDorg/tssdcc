@@ -54,10 +54,10 @@ TEST(FBuffer, unmarshal) {
         std::size_t more = 0;
         EXPECT_TRUE(!fbuf.Feed(list[0]->data, more));
         EXPECT_TRUE(fbuf.Ready());
-        EXPECT_EQ(rbuf.push(fbuf.Fragment()), 0);
+        EXPECT_EQ(rbuf.Push(fbuf.Fragment()), 0);
         EXPECT_EQ(fbuf.Size(), 0);
     }
-    EXPECT_EQ(rbuf.wanted(),0);
+    EXPECT_EQ(rbuf.Wanted(),0);
 
 
     Struct1Flat<char> bta2; //('b', "uint8");

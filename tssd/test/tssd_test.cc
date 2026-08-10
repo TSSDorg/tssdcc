@@ -17,7 +17,7 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
     Manager::Register<BasicTypeFlat>();
 
     Buffer buf;
-    EXPECT_EQ(Manager::MarshalTo(bta1, buf.clear()), OK);
+    EXPECT_EQ(Manager::MarshalTo(bta1, buf.Clear()), OK);
 
     buf.print("after MarshalTo:");
 
@@ -32,10 +32,10 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
         if (auto ret = frag->Unmarshal(sp, remain_pos, more)) {
             std::println("Unarshal frag error", ret);
         }
-        rbuf.push(frag);
+        rbuf.Push(frag);
     }
 
-    EXPECT_EQ(rbuf.wanted(),0);
+    EXPECT_EQ(rbuf.Wanted(),0);
 
     BasicTypeFlat bta2;
     //Basic::rand(&bt2.vbool, sizeof(BasicType));
@@ -82,7 +82,7 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
     Manager::Register<BasicArrayFlat>();
 
     Buffer buf(256);
-    EXPECT_EQ(Manager::MarshalTo(bta1, buf.clear()), OK);
+    EXPECT_EQ(Manager::MarshalTo(bta1, buf.Clear()), OK);
 
     buf.print("after MarshalTo:");
 
@@ -98,10 +98,10 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
         if (auto ret = frag->Unmarshal(sp, remain_pos, more)) {
             std::println("Unarshal frag error", ret);
         }
-        rbuf.push(frag);
+        rbuf.Push(frag);
     }
 
-    EXPECT_EQ(rbuf.wanted(),0);
+    EXPECT_EQ(rbuf.Wanted(),0);
 
     BasicArrayFlat bta2;
     memset(&bta2.basicArray.vbool[0], 0, sizeof(BasicArray));

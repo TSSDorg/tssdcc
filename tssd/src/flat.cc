@@ -42,7 +42,7 @@ TError Manager::MarshalTo(const Flatable &flat, Buffer &buf)
     auto &group = groups[flat.Group()];
     if (!groups[flat.Group()].versions.contains(flat.Version())) return ERR_SCHEMA_NOT_FOUND;
 
-    buf.prepare(flat.Schema());
+    buf.Prepare(flat.Schema());
     if (auto ret = group.versions[flat.Version()]->typeInfo->MarshalTo(&flat, buf)) {
         return ret;
     }

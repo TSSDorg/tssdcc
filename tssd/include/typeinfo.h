@@ -86,8 +86,8 @@ struct TypeInfo {
     inline int CheckDumpTS(Buffer &buf) const {
         if (auto ret = CheckTType(buf))
             return ret;
-        auto sizet = buf.dumpSize4();
-        if (sizet < 0 || buf.size() < (std::size_t)sizet) {
+        auto sizet = buf.DumpSize4();
+        if (sizet < 0 || buf.Size() < (std::size_t)sizet) {
             return ERR_INSUFFICIENT_DATA;
         }
         return sizet;
@@ -211,12 +211,12 @@ public:
             buf.append(children_[0]->node_.tssd_type_);
 
         int index(0), offset(0);
-        buf.ftell(index, offset);
-        std::size_t pos = buf.appendSize4(0);   //sizet reserve
+        buf.Ftell(index, offset);
+        std::size_t pos = buf.AppendSize4(0);   //sizet reserve
 
         auto pcontainer = (const Container*)src;
         auto real_size = pcontainer->size();
-        buf.appendSize2(real_size);
+        buf.AppendSize2(real_size);
 
         if (node_.tssd_type_ == TType::Tarraym) {
             buf.append(pcontainer->data(), real_size * children_[0]->node_.size_);
@@ -228,7 +228,7 @@ public:
                 return ret;
         }
 UPDATE:
-       buf.updateSize(index, offset, buf.size() - pos);
+       buf.UpdateSize(index, offset, buf.Size() - pos);
         return OK;
     }
 
@@ -294,13 +294,13 @@ UPDATE:
         } else if ( t != (std::int8_t)TType::Tarray)
             return ERR_FORMAT_ERROR;
 
-        auto sizet = buf.dumpSize4();
-        if (sizet < 0 || buf.size() < (std::size_t)sizet) {
+        auto sizet = buf.DumpSize4();
+        if (sizet < 0 || buf.Size() < (std::size_t)sizet) {
             return ERR_INSUFFICIENT_DATA;
         }
 
         //sizea
-        auto sizea = buf.dumpSize2();
+        auto sizea = buf.DumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
 
         auto pcontainer = (Container*)dest;
@@ -336,10 +336,10 @@ public:
             buf.append(children_[0]->node_.tssd_type_);
 
         int index(0), offset(0);
-        buf.ftell(index, offset);
-        std::size_t pos = buf.appendSize4(0);   //sizet reserve
+        buf.Ftell(index, offset);
+        std::size_t pos = buf.AppendSize4(0);   //sizet reserve
         auto pcontainer = (const Container*)src;
-        buf.appendSize2(pcontainer->size());
+        buf.AppendSize2(pcontainer->size());
 
         if (node_.tssd_type_ == TType::Tarraym) {
             for (const auto& it : *pcontainer) {
@@ -353,7 +353,7 @@ public:
                 return ret;
         }
 UPDATE:
-       buf.updateSize(index, offset, buf.size() - pos);
+       buf.UpdateSize(index, offset, buf.Size() - pos);
         return OK;
     }
 
@@ -407,13 +407,13 @@ UPDATE:
         } else if ( t != (std::int8_t)TType::Tarray)
             return ERR_FORMAT_ERROR;
 
-        auto sizet = buf.dumpSize4();
-        if (sizet < 0 || buf.size() < (std::size_t)sizet) {
+        auto sizet = buf.DumpSize4();
+        if (sizet < 0 || buf.Size() < (std::size_t)sizet) {
             return ERR_INSUFFICIENT_DATA;
         }
 
         //sizea
-        auto sizea = buf.dumpSize2();
+        auto sizea = buf.DumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
         auto pcontainer = (Container*)dest;
         pcontainer->clear();
@@ -448,18 +448,18 @@ public:
     TError save(const std::byte *src, Buffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
         int index(0), offset(0);
-        buf.ftell(index, offset);
-        std::size_t pos = buf.appendSize4(0);   //sizet reserve
+        buf.Ftell(index, offset);
+        std::size_t pos = buf.AppendSize4(0);   //sizet reserve
 
         auto pset = (const Set*)src;
-        buf.appendSize2(pset->size());
+        buf.AppendSize2(pset->size());
 
         for (const auto& key : *pset) {
             if (auto ret = children_[0]->save((const std::byte*)&key,  buf))
                 return ret;
         }
 
-        buf.updateSize(index, offset, buf.size() - pos);
+        buf.UpdateSize(index, offset, buf.Size() - pos);
         return OK;
     }
 
@@ -493,7 +493,7 @@ public:
         int sizet = CheckDumpTS(buf);
         if (sizet<0) return sizet;
         //sizea
-        auto sizea = buf.dumpSize2();
+        auto sizea = buf.DumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
 
         auto pset = (Set*)dest;
@@ -552,7 +552,7 @@ public:
     TError dump(Buffer &buf, std::byte *dest) const override {
         std::int8_t t(0);
         auto pshared_ptr = (SharedPtr*)dest;
-        if (auto ret = buf.peekByte((std::byte&)t)) return ret;
+        if (auto ret = buf.PeekByte((std::byte&)t)) return ret;
         if (-t == (std::int8_t)children_[0]->node_.tssd_type_) {  //null pointer
             buf.dump(sizeof(t), (std::byte*)&t);  //consume the null pointer type
             if (*pshared_ptr)
@@ -609,7 +609,7 @@ public:
     TError dump(Buffer &buf, std::byte *dest) const override {
         std::int8_t t(0);
         auto pshared_ptr = (SharedPtr*)dest;
-        if (auto ret = buf.peekByte((std::byte&)t)) return ret;
+        if (auto ret = buf.PeekByte((std::byte&)t)) return ret;
         if (-t == (std::int8_t)children_[0]->node_.tssd_type_) {  //null pointer
             buf.dump(sizeof(t), (std::byte*)&t);  //consume the null pointer type
             if (*pshared_ptr)
@@ -664,12 +664,12 @@ public:
     TError save(const std::byte *src, Buffer &buf) const override {
         buf.append(node_.tssd_type_);   //T
         int index(0), offset(0);
-        buf.ftell(index, offset);
-        std::size_t pos = buf.appendSize4(0);   //sizet reserve
+        buf.Ftell(index, offset);
+        std::size_t pos = buf.AppendSize4(0);   //sizet reserve
 
         auto pmap = (const Map*)src;
         auto real_size = pmap->size();
-        buf.appendSize2(real_size);
+        buf.AppendSize2(real_size);
 
         for (const auto& [key, value] : *pmap) {
             buf.append(TType::Tdictk);
@@ -680,7 +680,7 @@ public:
                 return ret;
         }
 
-        buf.updateSize(index, offset, buf.size() - pos);
+        buf.UpdateSize(index, offset, buf.Size() - pos);
         return OK;
     }
 
@@ -715,7 +715,7 @@ public:
         if (sizet<0) return sizet;
 
         //sizea
-        auto sizea = buf.dumpSize2();
+        auto sizea = buf.DumpSize2();
         if (sizea < 0) return ERR_FORMAT_ERROR;
         auto pmap = (Map*)dest;
         pmap->clear();
