@@ -115,13 +115,6 @@ public:
     VBytes Payload() const { return payload; }
     VBytes Checksum() const { return checksum.subspan(TSSD_TARRAYM_HEAD_LENGTH); }
 
-
-    TError Unmarshal(VBytes input, std::size_t &remain_pos, std::size_t &more);
-    TError Unmarshal(Bytes input, std::size_t &remain_pos, std::size_t &more) {
-        auto sp = std::span<std::byte>(input.data(), input.size());
-        return Unmarshal(sp, remain_pos, more);
-    }
-    TError Read(int fd);
     inline TError Validate() {
         return Validate(VBytes(&this->data[0], heads.size() + payload.size()), Checksum());
     }

@@ -172,7 +172,7 @@ public:
 
     // split fragments with specify mtu
     void Split(std::size_t mtu);
-
+/*
     TError ReadFragments(int fd) {
         while (Wanted()) {
             pFragment frag = std::make_shared<Fragment>();
@@ -181,7 +181,7 @@ public:
             if (ret <= 0) return ret;
         }
         return OK;
-    }
+    }*/
 };
 
 }  //end of namespace tssd

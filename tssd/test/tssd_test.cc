@@ -26,13 +26,14 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
 
     auto list = buf.Fragments();
 
+
     for (int i=0; i<list.size(); i++) {
-        std::size_t remain_pos = 0, more = 0;
-        std::span sp(list[0]->data.data(), list[0]->data.size());
-        if (auto ret = frag->Unmarshal(sp, remain_pos, more)) {
-            std::println("Unarshal frag error", ret);
-        }
-        rbuf.Push(frag);
+        FBuffer fbuf;
+        std::size_t more = 0;
+        EXPECT_TRUE(!fbuf.Feed(list[i]->data, more));
+        EXPECT_TRUE(fbuf.Ready());
+        EXPECT_EQ(rbuf.Push(fbuf.Fragment()), 0);
+        EXPECT_EQ(fbuf.Size(), 0);
     }
 
     EXPECT_EQ(rbuf.Wanted(),0);
@@ -88,17 +89,15 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
 
     Buffer rbuf;  ///read/receive/unmarshal buf
 
-
     auto list = buf.Fragments();
 
     for (int i=0; i<list.size(); i++) {
-        pFragment frag=std::make_shared<Fragment>(2048);  ///read fragment
-        std::size_t remain_pos = 0, more(0);
-        std::span sp(list[i]->data.data(), list[i]->data.size());
-        if (auto ret = frag->Unmarshal(sp, remain_pos, more)) {
-            std::println("Unarshal frag error", ret);
-        }
-        rbuf.Push(frag);
+        FBuffer fbuf;
+        std::size_t more = 0;
+        EXPECT_TRUE(!fbuf.Feed(list[i]->data, more));
+        EXPECT_TRUE(fbuf.Ready());
+        rbuf.Push(fbuf.Fragment());
+        EXPECT_EQ(fbuf.Size(), 0);
     }
 
     EXPECT_EQ(rbuf.Wanted(),0);
