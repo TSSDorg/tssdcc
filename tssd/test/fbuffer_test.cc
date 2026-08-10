@@ -142,6 +142,8 @@ TEST(FBuffer, DetechMagic3) {
         1, Bytes{byte('a'), byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('1'), byte('2'), byte('3'), byte('4'), byte('5'), byte('b')});
 
     auto bs = getTestBytes();
+    bs.push_back(byte('a'));
+    bs.push_back(byte('b'));
     size_t more(0);
     EXPECT_EQ(fbuf.DetectMagic(bs, more), OK);
     EXPECT_EQ(fbuf.size(), 11 + bs.size());
@@ -157,7 +159,12 @@ TEST(FBuffer, DetechMagic3) {
     EXPECT_EQ(fbuf.magic_, 0);
     EXPECT_EQ(fbuf.size(), bs.size());
     EXPECT_EQ(fbuf.Feed(Bytes(), more), OK);
+    EXPECT_EQ(more, 0);
     EXPECT_EQ(fbuf.ready(), true);
+
+    EXPECT_EQ(fbuf.size(), 2);
+    EXPECT_TRUE(Basic::BytesEqual(fbuf.buffer(), Bytes{byte('a'), byte('b')}));
+
 }
 
 TEST(FBuffer, DetechMagic4) {
@@ -183,5 +190,53 @@ TEST(FBuffer, DetechMagic4) {
     EXPECT_EQ(fbuf.magic_, -1);
     EXPECT_EQ(fbuf.size(), 4);
     EXPECT_EQ(fbuf.Feed(Bytes(), more), ERR_INSUFFICIENT_DATA);
+    EXPECT_EQ(more, TSSD_FRAGMENT_MIN_HEADER_SIZE-4);
     EXPECT_EQ(fbuf.ready(), false);
+}
+
+TEST(FBuffer, DetechMagic5) {
+    FBuffer fbuf;
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-1,
+        1, Bytes{byte('a')});
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-4,
+        1, Bytes{byte('b'), byte('c'), byte('d'), byte('e')});
+    EXPECT_TRUE(Basic::BytesEqual(fbuf.buffer(), Bytes{byte('b'), byte('c'), byte('d'), byte('e')}));
+    fbuf.clear();
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-2,
+        1, Bytes{byte('a'), byte('b')});
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-4,
+        1, Bytes{byte('c'), byte('d'), byte('e')});
+    EXPECT_TRUE(Basic::BytesEqual(fbuf.buffer(), Bytes{byte('b'), byte('c'), byte('d'), byte('e')}));
+    fbuf.clear();
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-3,
+        1, Bytes{byte('a'), byte('b'), byte('c')});
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-4,
+        1, Bytes{byte('d'), byte('e'),});
+    EXPECT_TRUE(Basic::BytesEqual(fbuf.buffer(), Bytes{byte('b'), byte('c'), byte('d'), byte('e')}));
+    fbuf.clear();
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-3,
+        1, Bytes{byte('a'), byte('b'), byte('c')});
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-4,
+        1, Bytes{byte('d'), byte('e'),byte('f')});
+    EXPECT_TRUE(Basic::BytesEqual(fbuf.buffer(), Bytes{byte('c'), byte('d'), byte('e'), byte('f')}));
+    fbuf.clear();
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-3,
+        1, Bytes{byte('a'), byte('T'), byte('S')});
+    TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-5,
+        1, Bytes{byte('S'), byte('D'),byte('V')});
+    EXPECT_TRUE(Basic::BytesEqual(fbuf.buffer(), Bytes{byte('T'), byte('S'), byte('S'), byte('D'), byte('V')}));
+    fbuf.clear();
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-2,
+        1, Bytes{byte('a'), byte('T')});
+    TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-5,
+        1, Bytes{byte('S'), byte('S'), byte('D'),byte('V')});
+    EXPECT_TRUE(Basic::BytesEqual(fbuf.buffer(), Bytes{byte('T'), byte('S'), byte('S'), byte('D'), byte('V')}));
+
+    fbuf.clear();
+    TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-4,
+        1, Bytes{byte('a'), byte('T'), byte('S'), byte('S')});
+    TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-6,
+        1, Bytes{byte('D'),byte('V'), byte('a')});
+    EXPECT_TRUE(Basic::BytesEqual(fbuf.buffer(), Bytes{byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('a')}));
+
 }

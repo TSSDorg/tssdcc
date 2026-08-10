@@ -228,7 +228,7 @@ FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t ski
         goto RETURN;
     }
 
-    MoveFront(magic_, 4-magic_);
+    MoveFront(magic_, pre_size-magic_);
     append(data);
 RETURN:
     if (size() < TSSD_FRAGMENT_MIN_HEADER_SIZE)
