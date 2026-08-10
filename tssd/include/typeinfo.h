@@ -846,7 +846,7 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
             }
             if  constexpr (std::meta::template_of(^^T) == ^^std::unique_ptr) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
-                CREATE_CONTAINER_TYPE(uniquePtrOper, TType::Tunique_ptr, parse<ItemT>);
+                CREATE_CONTAINER_TYPE(uniquePtrOper, TType::Tunique_ptr, parse<ItemT>());
             }
         }
 #undef CREATE_CONTAINER_TYPE

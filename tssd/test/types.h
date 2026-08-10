@@ -1,6 +1,8 @@
 #ifndef __TSSD_TEST_TYPES_H__
 #define __TSSD_TEST_TYPES_H__
 
+//////////////this file is define struct/class for test///////////////////////
+
 #include "flat.h"
 
 struct BasicType {
@@ -123,6 +125,7 @@ struct ContainerT {
     map<string, T> mp;
     unordered_map<string, T> ump;
     std::shared_ptr<T> sp;
+    std::unique_ptr<T> up;
 };
 
 template<typename T>

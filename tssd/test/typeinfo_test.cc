@@ -6,6 +6,7 @@
 #include <map>
 #include <unordered_map>
 
+
 #include "typeinfo.h"
 #include "basic.h"
 #include "types.h"
@@ -161,26 +162,22 @@ TEST(TypeInfo, TypeInfoEqual) {
 
 
 template<typename T, typename Compare = LexCompare<T>>
-void TestContainerT() {
+void TestContainerT(T ba1) {
     auto ti = TypeInfo::Create<ContainerT<T, Compare>>();
     ContainerT<T, Compare> cba1, cba2, cba3;
 
-    T ba1, ba2;
-    Basic::rand(&ba1, sizeof(ba1));
-    Basic::rand(&ba2, sizeof(ba2));
-
     cba1.vec.push_back(ba1);
-    cba1.vec.push_back(ba2);
+    cba1.vec.push_back(ba1);
     cba1.lst.push_back(ba1);
-    cba1.lst.push_back(ba2);
+    cba1.lst.push_back(ba1);
     cba1.st.insert(ba1);
-    cba1.st.insert(ba2);
+    //cba1.st.insert(ba1);
     cba1.mp["hello"] = ba1;
-    cba1.mp["world"] = ba2;
+    cba1.mp["world"] = ba1;
     cba1.ump["foo"] = ba1;
-    cba1.ump[""] = ba2;
-    cba1.sp = make_shared<T>();
-    //Basic::rand(cba1.sp.get(), sizeof(T));
+    cba1.ump[""] = ba1;
+    cba1.sp = make_shared<T>(ba1);
+    cba1.up = make_unique<T>(ba1);
 
     Buffer buf;
 
@@ -196,20 +193,29 @@ void TestContainerT() {
 
 
 TEST(TypeInfo, ContainerT) {
-    TestContainerT<BasicArray>();
-    TestContainerT<int>();
-    TestContainerT<char>();
-    TestContainerT<unsigned char>();
-    TestContainerT<short>();
-    TestContainerT<unsigned short>();
-    TestContainerT<int32_t>();
-    TestContainerT<uint32_t>();
-    TestContainerT<int64_t>();
-    TestContainerT<uint64_t>();
-    TestContainerT<float>();
-    TestContainerT<double>();
-    TestContainerT<BasicType>();
-    TestContainerT<byte>();
+    BasicArray ba1;
+    Basic::rand(&ba1, sizeof(ba1));
+    TestContainerT<BasicArray>(ba1);
+    TestContainerT<int>(Basic::rand<int>());
+    TestContainerT<char>(Basic::rand<char>());
+    TestContainerT<unsigned char>(Basic::urand<unsigned char>());
+    TestContainerT<short>(Basic::rand<short>());
+    TestContainerT<unsigned short>(Basic::urand<unsigned short>());
+    TestContainerT<int32_t>(Basic::rand<int32_t>());
+    TestContainerT<uint32_t>(Basic::urand<uint32_t>());
+    TestContainerT<int64_t>(Basic::rand<int64_t>());
+    TestContainerT<uint64_t>(Basic::urand<uint64_t>());
+    float f;
+    Basic::rand(&f, sizeof(f));
+    double d;
+    Basic::rand(&d, sizeof(d));
+    TestContainerT<float>(f);
+    TestContainerT<double>(d);
+    BasicType bt1;
+    Basic::rand(&bt1, sizeof(bt1));
+    TestContainerT<BasicType>(bt1);
+    TestContainerT<byte>((byte)Basic::urand<unsigned char>());
+    TestContainerT<string>(Basic::RandomString());
 }
 
 
@@ -344,3 +350,4 @@ TEST(TypeInfo, TypeInfoRefTest) {
     EXPECT_TRUE(cmp.Equal(et3, et1));
     EXPECT_TRUE(str == str2);
 }
+

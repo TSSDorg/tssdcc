@@ -5,6 +5,7 @@
 #include <ctime>
 #include <span>
 #include <list>
+#include <limits>
 
 #include "tssd.h"
 #include "flat.h"
@@ -24,6 +25,21 @@ public:
         }
     }
 
+
+    template<typename T>
+    inline static unsigned urand()
+    {
+        return bounded_rand(std::numeric_limits<T>::max());
+    }
+
+    template<typename T>
+    inline static int rand()
+    {
+        auto v = bounded_rand(std::numeric_limits<T>::max());
+        int arr[2] = {v, -v};
+        return arr[std::rand()%2];
+    }
+
     //produce random value
     static void rand(void *dest, const std::size_t n)
     {
@@ -35,6 +51,17 @@ public:
             const int random_value = bounded_rand(256);
             p[i] =  (std::byte) random_value;
         }
+    }
+
+    static std::string RandomString(int length=-1) {
+        const std::string CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        std::string random_string;
+        if (length < 0)
+            length = bounded_rand(128);
+        for (int i = 0; i < length; ++i) {
+            random_string += CHARACTERS[bounded_rand(CHARACTERS.length())];
+        }
+        return random_string;
     }
 
     template<typename T>
