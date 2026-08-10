@@ -50,8 +50,10 @@ void FBuffer::append(const std::byte *data, const std::size_t nsize)
 void
 FBuffer::moveFront(const size_t pos, int n)
 {
-    for (int i=0; i<n; ++i)
-        (*buffer_)[i] = (*buffer_)[pos+i];
+    if (pos > 0) {
+        for (int i=0; i<n; ++i)
+            (*buffer_)[i] = (*buffer_)[pos+i];
+    }
     buffer_->resize(n);
 }
 

@@ -113,6 +113,8 @@ struct TypeInfo {
 
     void UpdateMergedArray();
 
+    void removeFlatable();
+
 public:
     constexpr TypeInfo(
         const char *type,

@@ -19,7 +19,7 @@ namespace tssd {
 void
 TypeInfo::MakeTypes()
 {
-    int size = children_.size();
+    std::uint16_t size = (std::uint16_t)children_.size();
     auto sp = std::span((std::byte*)&size, sizeof(size));
     switch (node_.tssd_type_) {
         case TType::Tshared_ptr:
@@ -59,14 +59,33 @@ TypeInfo::UpdateMergedArray()
     this->node_.tssd_type_ = TType::Tarraym;
 }
 
+void TypeInfo::removeFlatable() {
+    std::vector<std::shared_ptr<TypeInfo>> children(children_.size());
+    children.resize(0);
+    for (auto &it : children_) {
+        if (std::string(it->node_.type_) != std::string("tssd::Flatable")) {
+            children.emplace_back(it);
+        }
+    }
+    if (children.size() != children_.size())
+        children_.swap(children);
+}
+
+
 void
 TypeInfo::parse(std::shared_ptr<TypeInfo> parent)
 {
     node_.root_ = parent->node_.root_;
+    //remove tssd.Flatable
+    removeFlatable();
     for (auto &it : children_) {
         it->node_.parent_ = parent;
         it->node_.root_ = node_.root_;
         it->node_.total_offset_ = parent->node_.total_offset_ + it->node_.offset_;
+        if (std::string(it->node_.type_) == std::string("bool")) {
+            it->node_.local_type_ = it->node_.tssd_type_ = TType::Tbool;
+            continue;
+        }
         if (it->node_.is_number_) {
             if (it->node_.is_float_)
                 it->node_.tssd_type_ = (it->node_.size_ == 4) ? TType::Tfloat32 : TType::Tfloat64;
