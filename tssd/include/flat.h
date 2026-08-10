@@ -25,7 +25,7 @@ class Flatable {
 public:
     virtual ~Flatable() = 0;
     //virtual pFlatable Build() const = 0;
-    virtual Schema schema() const;
+    virtual tssd::Schema Schema() const;
     virtual std::string Group() const = 0;
     virtual std::string Version() const = 0;
     virtual std::string TID() const;
@@ -80,8 +80,9 @@ class Manager {
     static std::shared_ptr<TypeInfo> schemaTypeInfo;
     static std::function<std::string(const void*, int)> hash;
     static std::function<std::string(const void*, int)> checksum;
-    static constexpr std::string MAGIC = "TSSDV";
+
 public:
+    static constexpr std::string MAGIC = "TSSDV";
     static inline void print(const void *data, int size, const std::string &prefix="")
     {
         auto p = (const std::byte *)data;
@@ -119,7 +120,7 @@ public:
             TypeInfo::Create<T>());
 
         group.versions[flat.Version()] = fi;
-        fi->schema = flat.schema();
+        fi->schema = flat.Schema();
         group.hashes[fi->schema.hash] = fi;
     }
 
