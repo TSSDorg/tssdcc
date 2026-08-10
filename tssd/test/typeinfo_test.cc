@@ -25,7 +25,7 @@ TEST(TypeInfo, MarshalUnmarshaBasicTypeArray) {
 
     tmp->MarshalTo(&bta1, buf);
     buf.print();
-    buf.finish();
+    buf.Finish();
 
     buf.print("after finish");
     EXPECT_FALSE(tmp->UnmarshalTo(buf, &bta2));
@@ -97,7 +97,7 @@ TEST(TypeInfo, MarshalUnmarshaContainer) {
 
     tmp->MarshalTo(&bta1, buf);
     buf.print();
-    buf.finish();
+    buf.Finish();
 
     buf.print("after finish");
     bta2.vstr.emplace_back("======");
@@ -149,7 +149,7 @@ TEST(TypeInfo, TypeInfoEqual) {
     Containers c1, c2;
 
     EXPECT_FALSE(ti->MarshalTo(&et1, buf));
-    buf.finish();
+    buf.Finish();
 
     EXPECT_FALSE(ti->UnmarshalTo(buf, &et2));
 
@@ -185,7 +185,7 @@ void TestContainerT() {
     Buffer buf;
 
     EXPECT_FALSE(ti->MarshalTo(&cba1, buf));
-    buf.finish();
+    buf.Finish();
     EXPECT_FALSE(ti->UnmarshalTo(buf, &cba2));
     EXPECT_TRUE(ti->Equal(cba1, cba2));
     Cpeq<ContainerT<T, Compare>> cmp;
@@ -230,7 +230,7 @@ TEST(TypeInfo, TypeInfoParent) {
     Buffer buf;
 
     EXPECT_FALSE(ti->MarshalTo(&et1, buf));
-    buf.finish();
+    buf.Finish();
 
     EXPECT_FALSE(ti->UnmarshalTo(buf, &et2));
 
@@ -259,7 +259,7 @@ TEST(TypeInfo, TypeInfoBytes) {
 
     Buffer buf;
     EXPECT_FALSE(ti->MarshalTo(&et1, buf));
-    buf.finish();
+    buf.Finish();
     buf.print("CByte: ");
 
     std::memset(&et2, 0, sizeof(et2));
@@ -292,7 +292,7 @@ TEST(TypeInfo, TypeInfoContainerBytes) {
 
     Buffer buf;
     EXPECT_FALSE(ti->MarshalTo(&et1, buf));
-    buf.finish();
+    buf.Finish();
     buf.print("TypeInfoContainerBytes: ");
 
     //std::memset(&et2, 0, sizeof(et2));
@@ -331,7 +331,7 @@ TEST(TypeInfo, TypeInfoRefTest) {
 
     Buffer buf;
     EXPECT_FALSE(ti->MarshalTo(&et1, buf));
-    buf.finish();
+    buf.Finish();
     buf.print("TypeInfoRefTest: ");
 
     //std::memset(&et2, 0, sizeof(et2));

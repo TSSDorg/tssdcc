@@ -29,11 +29,11 @@ void append(Buffer &buf, int n) {
 
     auto rd = Basic::bounded_rand(n);
 
-    buf.append(&vin[0], rd);
+    buf.Append(&vin[0], rd);
 
-    buf.append(&vin[rd], n-rd);
+    buf.Append(&vin[rd], n-rd);
 
-    buf.finish();
+    buf.Finish();
 }
 
 bool appendTest(size_t mtu, int n,  std::vector<Bytes> expect)
@@ -139,7 +139,7 @@ TEST(Buffer, append) {
 bool dumpTest(Buffer &buf, int n, Bytes expect)
 {
     byte bs[100];
-    if (buf.dump(n, bs)) return false;
+    if (buf.Dump(n, bs)) return false;
     return Basic::BytesEqual(&expect[0], expect.size(), bs, n);
 }
 

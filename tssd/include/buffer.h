@@ -26,7 +26,7 @@ private:
     template<typename T>
     int appendSize(T n)
     {
-        append((const std::byte *)&n, sizeof(T));
+        Append((const std::byte *)&n, sizeof(T));
         return size_;
     }
 
@@ -34,7 +34,7 @@ private:
     int dumpSize()
     {
         T size(0);
-        if (auto ret = dump(sizeof(T), (std::byte *)&size))
+        if (auto ret = Dump(sizeof(T), (std::byte *)&size))
             return ret;
         return size;
     }
@@ -64,7 +64,7 @@ public:
     }
 
     TError Prepare(Schema schema);
-    void finish();
+    void Finish();
 
     //convert to a vector ordered by the fragment id(last fragment is -n)
     inline std::vector<pFragment> Fragments()
@@ -78,25 +78,25 @@ public:
         return result;
     }
 
-    Buffer& append(const std::span<std::byte> bs);
-    Buffer& append(const std::byte bt);
-    Buffer& append(const TType bt);
+    Buffer& Append(const std::span<std::byte> bs);
+    Buffer& Append(const std::byte bt);
+    Buffer& Append(const TType bt);
 
-    inline Buffer& append(const Bytes &bs) {
-        return append(bs.data(), bs.size());
+    inline Buffer& Append(const Bytes &bs) {
+        return Append(bs.data(), bs.size());
     }
 
-    inline Buffer& append(const void* ptr, const std::size_t size) {
-        return append((const std::byte*)ptr, size);
+    inline Buffer& Append(const void* ptr, const std::size_t size) {
+        return Append((const std::byte*)ptr, size);
     }
 
-    inline Buffer& append(const std::byte* ptr, const std::size_t size) {
+    inline Buffer& Append(const std::byte* ptr, const std::size_t size) {
         auto span = std::span<std::byte>((std::byte*)ptr, size);
-        return append(span);
+        return Append(span);
     }
 
-    TError dump(std::size_t size, std::byte *dest);
-    std::byte *dump(std::size_t size);
+    TError Dump(std::size_t size, std::byte *dest);
+    std::byte *Dump(std::size_t size);
 
     inline TError PeekByte(std::byte &bt) {
         if (size_ == 0) return ERR_INSUFFICIENT_DATA;

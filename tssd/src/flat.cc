@@ -47,7 +47,7 @@ TError Manager::MarshalTo(const Flatable &flat, Buffer &buf)
         return ret;
     }
 
-    buf.finish();
+    buf.Finish();
     return OK;
 }
 

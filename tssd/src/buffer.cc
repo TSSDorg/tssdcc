@@ -15,15 +15,15 @@ TError Buffer::Prepare(Schema schema)
     this->schema_ = schema;
 
     Buffer nbuf(mtu_/3);
-    nbuf.append((std::byte *)Manager::MAGIC.c_str(), Manager::MAGIC.length());
-    nbuf.append(std::byte(MINOR));
-    nbuf.append(std::byte(MAJOR));
-    nbuf.append(std::byte(TType::Tschema));
+    nbuf.Append((std::byte *)Manager::MAGIC.c_str(), Manager::MAGIC.length());
+    nbuf.Append(std::byte(MINOR));
+    nbuf.Append(std::byte(MAJOR));
+    nbuf.Append(std::byte(TType::Tschema));
     if (auto ret = schema.Marshal(nbuf)) return ret;
 
 
-    nbuf.append(std::byte(TType::Tarraym));
-    nbuf.append(std::byte(TType::Tuint8));
+    nbuf.Append(std::byte(TType::Tarraym));
+    nbuf.Append(std::byte(TType::Tuint8));
 
     checksum_len_ = 8 + Manager::checksum(Manager::MAGIC.c_str(), Manager::MAGIC.length()).length(); //8 bytes for [Tarraym][Tuint8][sizet/4B][sizea/2B]
     int avail = mtu_ - nbuf.Size() - TSSD_SIZET_LENGTH - TSSD_SIZEA_LENGTH - checksum_len_;
@@ -58,7 +58,7 @@ void Buffer::appendChecksum(int index, int pos)
     memcpy(&fragments_[index]->data[pos+8], bs.c_str(), bs.length());
 }
 
-void Buffer::finish()
+void Buffer::Finish()
 {
     if (size_ == 0) return;
     //this->print("finish 1:", heads_.size() + size_);
@@ -98,7 +98,7 @@ void Buffer::finish()
     }
 }
 
-Buffer& Buffer::append(const std::span<std::byte> bs)
+Buffer& Buffer::Append(const std::span<std::byte> bs)
 {
     if (bs.empty()) return *this;
     std::size_t written = 0;
@@ -138,7 +138,7 @@ Buffer& Buffer::append(const std::span<std::byte> bs)
 }
 
 
-TError Buffer::dump(std::size_t size, std::byte *dest) {
+TError Buffer::Dump(std::size_t size, std::byte *dest) {
     if (size > size_) return ERR_INSUFFICIENT_DATA;
 
     std::size_t read = 0;
@@ -166,14 +166,14 @@ TError Buffer::dump(std::size_t size, std::byte *dest) {
 }
 
 
-Buffer& Buffer::append(const std::byte bt)
+Buffer& Buffer::Append(const std::byte bt)
 {
-    return this->append(&bt, 1);
+    return this->Append(&bt, 1);
 }
 
-Buffer& Buffer::append(const TType bt)
+Buffer& Buffer::Append(const TType bt)
 {
-    return append(std::byte(bt));
+    return Append(std::byte(bt));
 }
 
 int Buffer::DumpSize2()
@@ -242,8 +242,8 @@ void Buffer::Split(std::size_t mtu)
     std::swap(fragments_, nfrags);
 
     for (std::size_t i=0; i<nfrags.size(); ++i)
-        this->append(nfrags[i]->payload);
-    this->finish();
+        this->Append(nfrags[i]->payload);
+    this->Finish();
 }
 
 } //end namespace tssd

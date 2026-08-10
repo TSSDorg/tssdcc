@@ -120,8 +120,8 @@ TypeInfo::parse(std::shared_ptr<TypeInfo> parent)
 
 TError
 memOper::save(const std::byte *src, Buffer &buf) const {
-    buf.append(node_.tssd_type_);
-    buf.append(src, node_.size_);
+    buf.Append(node_.tssd_type_);
+    buf.Append(src, node_.size_);
     return OK;
 }
 
@@ -130,7 +130,7 @@ memOper::dump(Buffer &buf, std::byte *dest) const {
     if (auto ret = CheckTType(buf))
         return ret;
 
-    return buf.dump(node_.size_, dest);
+    return buf.Dump(node_.size_, dest);
 }
 
 void
@@ -145,12 +145,12 @@ bool memOper::equal(const std::byte *pl, const std::byte *pr) const {
 TError
 stringOper::save(const std::byte *src, Buffer &buf) const
 {
-    buf.append(node_.tssd_type_);
+    buf.Append(node_.tssd_type_);
     auto pstr = (const std::string *)src;
 
     buf.AppendSize4(pstr->size()); //sizet
 
-    buf.append((const std::byte*)pstr->c_str(), pstr->size());
+    buf.Append((const std::byte*)pstr->c_str(), pstr->size());
     return OK;
 }
 
@@ -168,7 +168,7 @@ stringOper::dump(Buffer &buf, std::byte *dest) const
 
     Bytes bs(size);
 
-    if (auto ret = buf.dump(size, &bs[0]))
+    if (auto ret = buf.Dump(size, &bs[0]))
         return ret;
 
     pstr->assign(bs.begin(), bs.end());
@@ -195,7 +195,7 @@ stringOper::copy(const std::byte *src, std::byte *dest) const
 TError
 objectOper::save(const std::byte *src, Buffer &buf) const
 {
-    buf.append(node_.tssd_type_);   //T
+    buf.Append(node_.tssd_type_);   //T
     int index(0), offset(0);
     buf.Ftell(index, offset);
     std::size_t pos = buf.AppendSize4(0);   //sizet reserve
@@ -249,14 +249,14 @@ objectOper::equal(const std::byte *pl, const std::byte *pr) const
 //array
 TError arrayOper::save(const std::byte *src, Buffer &buf) const
 {
-    buf.append(node_.tssd_type_);   //T
+    buf.Append(node_.tssd_type_);   //T
     auto &child = children_[0]->node_;
     if (node_.tssd_type_ == TType::Tarraym) {
-        buf.append(child.tssd_type_);
+        buf.Append(child.tssd_type_);
         auto sizet = child.size_ * node_.size_;
         buf.AppendSize4(sizet + TSSD_SIZEA_LENGTH); // real sizet need another TSSD_SIZEA_LENGTH
         buf.AppendSize2(node_.size_);
-        buf.append(src, sizet);
+        buf.Append(src, sizet);
         return OK;
     }
     int index(0), offset(0);
@@ -280,13 +280,13 @@ TError arrayOper::save(const std::byte *src, Buffer &buf) const
 TError arrayOper::dump(Buffer &buf, std::byte *dest) const
 {
     std::int8_t t(0);
-    if (auto ret = buf.dump(sizeof(t), (std::byte*)&t))
+    if (auto ret = buf.Dump(sizeof(t), (std::byte*)&t))
             return ret;
 
     auto &child = children_[0]->node_;
     if (t == (std::int8_t)TType::Tarraym) {
         std::int8_t t2(0);
-        if (auto ret = buf.dump(sizeof(t2), (std::byte*)&t2))
+        if (auto ret = buf.Dump(sizeof(t2), (std::byte*)&t2))
             return ret;
 
         if (t2 != (std::int8_t)child.tssd_type_) {
@@ -307,7 +307,7 @@ TError arrayOper::dump(Buffer &buf, std::byte *dest) const
     if (t == (std::int8_t)TType::Tarraym) {
         if ((std::size_t)sizet != child.size_ * sizea + TSSD_SIZEA_LENGTH)
             return ERR_FORMAT_ERROR;
-        return buf.dump(sizet-TSSD_SIZEA_LENGTH, dest);
+        return buf.Dump(sizet-TSSD_SIZEA_LENGTH, dest);
     }
 
     for (int i=0; i<sizea; ++i) {
