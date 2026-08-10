@@ -1,38 +1,130 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <unistd.h>
+#include <arpa/inet.h> // inet_addr()
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h> // bzero()
+#include <sys/socket.h>
+#include <unistd.h> // read(), write(), close()
+#define MAX 80
+#define PORT 8080
+#define SA struct sockaddr
 #include "flat.h"
 #include "tssd.h"
+#include "types.h"
 
 using namespace std;
 
-struct Course {
-    string title;
-    string teacher;
-    float  score;
-};
-
-struct Contact {
-    string name;
-    string relation;
-    string phone;
-    string address;
-};
-
-class Student : public tssd::Flatable {
-    uint64_t ID;
-public:
-    string   name;
-    int16_t  age;
-    bool     IsMale;
-
-    vector<Contact> contacts;
-    map<string, Course> courses;
-
-    Student(uint16_t id) : ID(id) {}
-    void print() {
-        cout << "Student ID" << ID << ", name:" << name << endl;
-    }
-};
-
-vector<byte> ToBytes()
+void recvStudent(int sockfd)
 {
+    tssd::Manager::Register<Student>();
+    tssd::FBuffer fbuf;  // FBuffer to process raw input data to Fragment
+    tssd::Buffer dbuf;   // dbuf for unmarshal tssd data;
+    Student student;   // object to receive
 
+    size_t more(0);
+    do {
+        std::vector<std::byte> bs(1024);
+        int ret = read(sockfd, bs.data(), bs.size());
+        if (ret <= 0 ) {
+            cout << "recv err: " << ret << endl;
+            return;
+        }
+        bs.resize(ret);
+        do {
+            if (fbuf.Feed(bs, more)!=tssd::OK) break;
+
+            //dbuf return 0 means complete
+            if (dbuf.Push(fbuf.Fragment()) !=0) {
+                bs.resize(0);
+                continue;
+            }
+        } while (fbuf.Size());
+        if (dbuf.Wanted()) continue;
+
+        if (tssd::Manager::UnmarshalTo(dbuf, student) != tssd::OK) {
+            cout << "unmarshal err:" << endl;
+            return;
+        }
+
+        // process your data
+        student.print();
+
+    } while(0);
 }
+
+bool sendRequest(int sockfd, int16_t fid)
+{
+    Request request;
+    request.fid = fid;
+    tssd::Manager::Register<Request>();
+
+    tssd::Buffer buf(256);
+    if (auto ret = tssd::Manager::MarshalTo(request, buf)) {
+        cout << "tssd Marshal error:" << ret << endl;
+        return false;
+    }
+    buf.print();
+
+    auto frags  = buf.Fragments();
+    for (int i=0; i<frags.size(); i++) {
+        //std::span<std::byte> sp(frags[i]->data.data(), frags[i]->data.size());
+        int n = write(sockfd, frags[i]->data.data(), frags[i]->data.size());
+        if (n<=0) {
+            cout << "tcp client send fail" << endl;
+            return false;
+        }
+        cout << "send " << n << " bytes" << endl;
+    }
+
+    return true;
+}
+
+
+int main(int argc, char *argv[])
+{
+    if (argc != 4) {
+        cout << "usage:" << argv[0] << " addr port fid" << endl;
+        return -1;
+    }
+    int sockfd, connfd;
+    struct sockaddr_in servaddr, cli;
+
+    // socket create and verification
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        printf("socket creation failed...\n");
+        exit(0);
+    }
+    else
+        printf("Socket successfully created..\n");
+    bzero(&servaddr, sizeof(servaddr));
+
+    // assign IP, PORT
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = inet_addr(argv[1]);
+    servaddr.sin_port = htons((short)std::stoi(argv[2]));
+
+    // connect the client socket to server socket
+    if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr))
+        != 0) {
+        printf("connection with the server failed...\n");
+        exit(0);
+    }
+    else
+        printf("connected to the server..\n");
+
+    // function for chat
+    sendRequest(sockfd, std::stoi(argv[3]));
+    recvStudent(sockfd);
+
+    // close the socket
+    close(sockfd);
+    return 0;
+}
+
+
