@@ -2,6 +2,13 @@
 #define __TSSD_TEST_TYPES_H__
 
 //////////////this file is define struct/class for test///////////////////////
+#include<string>
+#include<map>
+#include<vector>
+#include<unordered_map>
+#include<memory>
+#include<list>
+#include<set>
 
 #include "flat.h"
 
@@ -119,11 +126,11 @@ struct LexCompare<BasicType> {
 
 template<typename T, typename Compare = LexCompare<T>>
 struct ContainerT {
-    vector<T> vec;
-    list<T> lst;
-    set<T, Compare> st;
-    map<string, T> mp;
-    unordered_map<string, T> ump;
+    std::vector<T> vec;
+    std::list<T> lst;
+    std::set<T, Compare> st;
+    std::map<std::string, T> mp;
+    std::unordered_map<std::string, T> ump;
     std::shared_ptr<T> sp;
     std::unique_ptr<T> up;
 };
@@ -141,6 +148,62 @@ struct Struct1Flat : public tssd::Flatable {
     }
 };
 
+struct Course {
+    std::string title;
+    std::string teacher;
+    float  score;
+};
+
+struct Contact {
+    std::string name;
+    std::string relation;
+    std::string phone;
+    std::string address;
+};
+
+struct Paper {
+    std::string title;
+    std::string tags[3];
+    std::string content;
+};
+
+class Student : public tssd::Flatable {
+    std::uint64_t ID;
+public:
+    std::string   name;
+    std::int16_t  age;
+    bool     IsMale;
+
+    std::vector<Contact> contacts;
+    std::map<std::string, Course> courses;
+    std::list<Paper> papers;
+
+    Student(std::uint16_t id=0) : ID(id) {}
+    void print() {
+        std::cout << "Student ID" << ID << ", name:" << name << std::endl;
+    }
+
+    std::string Group() const override {
+        return "Student-";
+    }
+    std::string Version() const override {
+        return "StudentGroup";
+    }
+};
+
+// request to  server to get a specify(fid, types, tid) Fragment
+class Request : public tssd::Flatable {
+public:
+    std::int16_t fid;
+    std::string types;
+    std::string tid;
+    std::string Group() const override {
+        return "Request-";
+    }
+    std::string Version() const override {
+        return "RequestGroup";
+    }
+};
 
 
 #endif // __TSSD_TEST_TYPES_H__
