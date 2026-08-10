@@ -177,30 +177,30 @@ private:
     }
 
     //4 step to parse Fragment
-    // 0. DetectMagic, set magic_
-    // 1. ParseHeads,  set heads_len_
-    // 2. ParsePayload, set payload_ and payload_len_
-    // 3. ParseChecksum, set checksum_ and checksum_len;
+    // 0. detectMagic, set magic_
+    // 1. parseHeads,  set heads_len_
+    // 2. parsePayload, set payload_ and payload_len_
+    // 3. parseChecksum, set checksum_ and checksum_len;
     // if meet fmt error, we need goto step 0
-    TError DetectMagic(const Bytes &data, std::size_t &more, const std::size_t skip = 0);
-    TError DumpMergeArrayHeader(const std::size_t pos, int &len, std::size_t &more);
-    TError ParseHeads(std::size_t &more);
-    TError ParsePayload(std::size_t &more);
-    TError ParseChecksum(std::size_t more);
+    TError detectMagic(const Bytes &data, std::size_t &more, const std::size_t skip = 0);
+    TError dumpMergeArrayHeader(const std::size_t pos, int &len, std::size_t &more);
+    TError parseHeads(std::size_t &more);
+    TError parsePayload(std::size_t &more);
+    TError parseChecksum(std::size_t more);
     pFragment fragment();
-    void MoveFront(const std::size_t pos, const int n);
+    void moveFront(const std::size_t pos, const int n);
 
 public:
     FBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
         buffer_->resize(0);
     }
-    inline Bytes buffer() const { return *buffer_; }
-    inline void clear() { buffer_->resize(0); reset(); }
-    inline std::size_t size() const { return buffer_->size(); }
+    inline Bytes Buffer() const { return *buffer_; }
+    inline void Clear() { buffer_->resize(0); reset(); }
+    inline std::size_t Size() const { return buffer_->size(); }
     inline std::byte &operator[](const std::size_t pos) {
         return (*buffer_)[pos];
     }
-    inline bool ready() const { return frag_ != nullptr;}
+    inline bool Ready() const { return frag_ != nullptr;}
     TError Feed(const Bytes &data, std::size_t &more);
 
     // Feed got OK, then we can call it to get a Fragment;

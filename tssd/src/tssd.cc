@@ -179,7 +179,7 @@ void FBuffer::append(const std::byte *data, const std::size_t nsize)
 }
 
 void
-FBuffer::MoveFront(const size_t pos, int n)
+FBuffer::moveFront(const size_t pos, int n)
 {
     for (int i=0; i<n; ++i)
         (*buffer_)[i] = (*buffer_)[pos+i];
@@ -189,7 +189,7 @@ FBuffer::MoveFront(const size_t pos, int n)
 // return OK if we found magic
 // otherwise return ERR_INSUFFICIENT_DATA
 TError
-FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t skip)
+FBuffer::detectMagic(const Bytes &data, std::size_t &more, const std::size_t skip)
 {
     auto pre_size = buffer_->size();
     auto cpsize = std::min((std::size_t)4, data.size());
@@ -199,18 +199,18 @@ FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t ski
     }
     if (pre_size >= MAGIC.length()) {
         if ((magic_ = findMagic(*buffer_, skip)) >= 0 ) {
-            MoveFront(skip+magic_, pre_size - skip -magic_);
+            moveFront(skip+magic_, pre_size - skip -magic_);
             append(data);
             goto RETURN;
         }
         // if got "TSSDVTSSDV...", we met fmt err, need skip 5
         // when FMT_ERR,  size >= 8(Tschema), it is safe copy 4 to front
-        MoveFront(pre_size-4, 4);
+        moveFront(pre_size-4, 4);
     }
     pre_size = buffer_->size();
     if (pre_size + data.size() < MAGIC.length()) {
         append(data);
-        more = TSSD_FRAGMENT_MIN_HEADER_SIZE - buffer_->size();
+        more = TSSD_FRAGMENT_MIN_HEADER_SIZE - Size();
         return ERR_INSUFFICIENT_DATA;
     }
 
@@ -218,9 +218,9 @@ FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t ski
     if ((magic_ = findMagic(*buffer_)) < 0 ) {
         auto pos = findMagic(data);
         if (pos < 0) {
-            MoveFront(pre_size-(4-cpsize), 4-cpsize);
+            moveFront(pre_size-(4-cpsize), 4-cpsize);
             append(&data[data.size()-cpsize], cpsize);
-            more = TSSD_FRAGMENT_MIN_HEADER_SIZE - buffer_->size();
+            more = TSSD_FRAGMENT_MIN_HEADER_SIZE - Size();
             return ERR_INSUFFICIENT_DATA;
         }
         buffer_->resize(0);
@@ -228,19 +228,19 @@ FBuffer::DetectMagic(const Bytes &data, std::size_t &more, const std::size_t ski
         goto RETURN;
     }
 
-    MoveFront(magic_, pre_size-magic_);
+    moveFront(magic_, pre_size-magic_);
     append(data);
 RETURN:
-    if (size() < TSSD_FRAGMENT_MIN_HEADER_SIZE)
-        more = TSSD_FRAGMENT_MIN_HEADER_SIZE - size();
+    if (Size() < TSSD_FRAGMENT_MIN_HEADER_SIZE)
+        more = TSSD_FRAGMENT_MIN_HEADER_SIZE - Size();
     magic_ = findMagic(*buffer_);
     return OK;
 }
 
-TError FBuffer::DumpMergeArrayHeader(const std::size_t pos, int &len, std::size_t &more)
+TError FBuffer::dumpMergeArrayHeader(const std::size_t pos, int &len, std::size_t &more)
 {
-    if (pos + TSSD_TARRAYM_HEAD_LENGTH > this->size()) {
-        more = TSSD_TARRAYM_HEAD_LENGTH - this->size() - pos;
+    if (pos + TSSD_TARRAYM_HEAD_LENGTH > this->Size()) {
+        more = TSSD_TARRAYM_HEAD_LENGTH - this->Size() - pos;
         return ERR_INSUFFICIENT_DATA;
     }
 
@@ -262,11 +262,11 @@ TError FBuffer::DumpMergeArrayHeader(const std::size_t pos, int &len, std::size_
     return OK;
 }
 
-TError FBuffer::ParseHeads(std::size_t &more)
+TError FBuffer::parseHeads(std::size_t &more)
 {
     if (heads_len_>=0) return OK;
-    if (this->size() < TSSD_FRAGMENT_MIN_HEADER_SIZE) {
-        more =  TSSD_FRAGMENT_MIN_HEADER_SIZE - this->size();
+    if (this->Size() < TSSD_FRAGMENT_MIN_HEADER_SIZE) {
+        more =  TSSD_FRAGMENT_MIN_HEADER_SIZE - this->Size();
         return ERR_INSUFFICIENT_DATA;
     }
 
@@ -278,48 +278,48 @@ TError FBuffer::ParseHeads(std::size_t &more)
     std::memcpy(header.version, &(*this)[5], 2);
 
     std::size_t cursor = magic_ + 8; // 5-byte magic + 2-byte version + 1-byte Tschema
-    Buffer schema_buf(VBytes(&(*buffer_)[cursor], buffer_->size() - cursor));
+    tssd::Buffer schema_buf(VBytes(&(*buffer_)[cursor], buffer_->size() - cursor));
     const auto schema_size = schema_buf.size();
     if (auto ret = schema.Unmarshal(schema_buf)) {
         if (ret == ERR_INSUFFICIENT_DATA) {
-            more = TSSD_FRAGMENT_MIN_HEADER_SIZE - this->size();
+            more = TSSD_FRAGMENT_MIN_HEADER_SIZE - this->Size();
         }
         return ret;
     }
 
     cursor += schema_size - schema_buf.size();
     std::size_t payload_begin = cursor + TSSD_TARRAYM_HEAD_LENGTH;
-    if (auto ret = DumpMergeArrayHeader(cursor, payload_len_, more)) {
+    if (auto ret = dumpMergeArrayHeader(cursor, payload_len_, more)) {
         return ret;
     }
     heads_len_ = payload_begin - magic_;
     return OK;
 }
 
-TError FBuffer::ParsePayload(std::size_t &more)
+TError FBuffer::parsePayload(std::size_t &more)
 {
     if (payload_>=0) return OK;
 
-    if (heads_len_ + TSSD_TARRAYM_HEAD_LENGTH + payload_len_ > this->size()) {
-        more = heads_len_ + TSSD_TARRAYM_HEAD_LENGTH + payload_len_ - this->size();
+    if (heads_len_ + TSSD_TARRAYM_HEAD_LENGTH + payload_len_ > this->Size()) {
+        more = heads_len_ + TSSD_TARRAYM_HEAD_LENGTH + payload_len_ - this->Size();
         return ERR_INSUFFICIENT_DATA;
     }
     payload_ = magic_ + heads_len_;
     return OK;
 }
 
-TError FBuffer::ParseChecksum(std::size_t more)
+TError FBuffer::parseChecksum(std::size_t more)
 {
     if (checksum_ >=0) return OK;
-    if (auto ret = DumpMergeArrayHeader(payload_+payload_len_, checksum_len_, more)) {
+    if (auto ret = dumpMergeArrayHeader(payload_+payload_len_, checksum_len_, more)) {
         if (ret == ERR_FORMAT_ERROR) {
             reset();
         }
         return ret;
     }
     // check checksum leng
-    if (heads_len_ + payload_len_ + TSSD_TARRAYM_HEAD_LENGTH + checksum_len_ > this->size()) {
-        more = heads_len_ + payload_len_ + TSSD_TARRAYM_HEAD_LENGTH + checksum_len_ - this->size();
+    if (heads_len_ + payload_len_ + TSSD_TARRAYM_HEAD_LENGTH + checksum_len_ > this->Size()) {
+        more = heads_len_ + payload_len_ + TSSD_TARRAYM_HEAD_LENGTH + checksum_len_ - this->Size();
         return ERR_INSUFFICIENT_DATA;
     }
     checksum_len_ += TSSD_TARRAYM_HEAD_LENGTH;
@@ -329,34 +329,34 @@ TError FBuffer::ParseChecksum(std::size_t more)
 
 TError FBuffer::Feed(const Bytes &data, std::size_t &more)
 {
-    if (auto ret = DetectMagic(data, more))
+    if (auto ret = detectMagic(data, more))
         return ret;
 AGAIN:
-    auto ret = ParseHeads(more);
+    auto ret = parseHeads(more);
     if (ret) {
         if (ret==ERR_FORMAT_ERROR) {
             reset();
-            if (auto ret2 =DetectMagic(Bytes(), more, 5))
+            if (auto ret2 =detectMagic(Bytes(), more, 5))
                 return ret2;
             goto AGAIN;
         }
         return ret;
     }
-    ret = ParsePayload(more);
+    ret = parsePayload(more);
     if (ret) {
         if (ret==ERR_FORMAT_ERROR) {
             reset();
-            if (auto ret2 =DetectMagic(Bytes(), more, 5))
+            if (auto ret2 =detectMagic(Bytes(), more, 5))
                 return ret2;
             goto AGAIN;
         }
         return ret;
     }
-    ret = ParseChecksum(more);
+    ret = parseChecksum(more);
     if (ret) {
         if (ret==ERR_FORMAT_ERROR) {
             reset();
-            if (auto ret2 =DetectMagic(Bytes(), more, 5))
+            if (auto ret2 =detectMagic(Bytes(), more, 5))
                 return ret2;
             goto AGAIN;
         }
@@ -370,7 +370,7 @@ AGAIN:
 
 pFragment FBuffer::fragment()
 {
-    std::size_t remain = this->size() - heads_len_ - payload_len_ - checksum_len_;
+    std::size_t remain = this->Size() - heads_len_ - payload_len_ - checksum_len_;
     pFragment frag = std::make_shared<tssd::Fragment>(std::max(TSSD_BUFFER_MTU, remain));
     frag->data.resize(0);
     if (remain>0) {
