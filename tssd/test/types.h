@@ -54,21 +54,21 @@ struct BasicArray {
 struct BasicTypeFlat : public tssd::Flatable {
     BasicType basicType;
     std::string Group() const override {
-        return "BasicFlat";
+        return "BasicFlatGroup";
     }
     std::string Version() const override {
-        return "BasicFlatGroup";
+        return "BasicFlat-V1";
     }
 };
 
 struct BasicArrayFlat : public tssd::Flatable {
     BasicArray basicArray;
     std::string Group() const override {
-        return "BasicArrayFlat";
+        return "BasicArrayFlatGroup";
     }
 
     std::string Version() const override {
-        return "BasicArrayFlatGroup";
+        return "BasicArrayFlat-V1";
     }
 };
 
@@ -141,10 +141,10 @@ struct Struct1Flat : public tssd::Flatable {
     //std::string type_;
     //Struct1Flat(T v, const string type="") : struct1.v1(v), type_(type){}
     std::string Group() const override {
-        return "Struct1Flat-";
+        return "Struct1FlatGroup";
     }
     std::string Version() const override {
-        return "Struct1FlatGroup";
+        return "Struct1Flat-V1";
     }
 };
 
@@ -184,10 +184,10 @@ public:
     }
 
     std::string Group() const override {
-        return "Student-";
+        return "StudentGroup";
     }
     std::string Version() const override {
-        return "StudentGroup";
+        return "StudentV1";
     }
 };
 
@@ -198,10 +198,10 @@ public:
     std::string types;
     std::string tid;
     std::string Group() const override {
-        return "Request-";
+        return "RequestGroup";
     }
     std::string Version() const override {
-        return "RequestGroup";
+        return "RequestV1";
     }
 };
 
