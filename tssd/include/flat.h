@@ -82,7 +82,6 @@ class Manager {
     static std::function<std::string(const void*, int)> checksum;
 
 public:
-    static constexpr std::string MAGIC = "TSSDV";
     static inline void print(const void *data, int size, const std::string &prefix="")
     {
         auto p = (const std::byte *)data;
@@ -90,12 +89,6 @@ public:
         for (int i=0; i<size; i++)
             std::cout <<(int)p[i] << ' ';
         std::cout << ']' << std::endl;
-    }
-
-    static int findMagic(VBytes bs) {
-        auto view = std::string_view(reinterpret_cast<const char*>(bs.data()), bs.size());
-        auto pos = view.find(MAGIC);
-        return pos == view.npos ? -1 : pos;
     }
 
     template<typename T>

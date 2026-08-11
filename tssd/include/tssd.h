@@ -144,7 +144,6 @@ private:
     int checksum_len_ = -1;
     pFragment frag_;
 
-    static constexpr std::string MAGIC = "TSSDV";
     inline void append(const Bytes &data)
     {
         append(data, data.size());
@@ -184,6 +183,7 @@ private:
     void moveFront(const std::size_t pos, const int n);
 
 public:
+    static constexpr std::string MAGIC = "TSSDV";
     FBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
         buffer_->resize(0);
     }
