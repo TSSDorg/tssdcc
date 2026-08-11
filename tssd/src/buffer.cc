@@ -189,19 +189,19 @@ int Buffer::DumpSize4()
 
 int Buffer::Push(pFragment fragment)
 {
-    if (schema_.hash.empty()) {
+    if (schema_.Types.empty()) {
         schema_ = fragment->schema;
         heads_.assign(fragment->heads.begin(), fragment->heads.end());
         checksum_len_ = fragment->checksum.size();
     }
-    if (schema_.hash != fragment->schema.hash || schema_.tid != fragment->schema.tid) {
+    if (schema_.Types != fragment->schema.Types || schema_.TID != fragment->schema.TID) {
         return ERR_SCHEMA_NOT_MATCH;
     }
-    if (fragment->schema.fragment == 0) {
+    if (fragment->schema.FID == 0) {
         return ERR_FORMAT_ERROR;
     }
 
-    int fid = fragment->schema.fragment;
+    int fid = fragment->schema.FID;
     fid = fid < 0 ? -fid : fid;
     if (!fragments_.contains(fid-1)) {
         size_ +=  fragment->payload.size();
@@ -217,7 +217,7 @@ std::size_t Buffer::Wanted()
     for (; i<fragments_.size(); i++) {
         if (!fragments_.contains(i))
             return i+1;
-        if (fragments_[i]->schema.fragment < 0) {
+        if (fragments_[i]->schema.FID < 0) {
             return 0;
         }
     }

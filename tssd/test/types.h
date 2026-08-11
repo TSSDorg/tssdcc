@@ -53,8 +53,8 @@ struct BasicArray {
 
 struct BasicTypeFlat : public tssd::Flatable {
     BasicType basicType;
-    std::string Group() const override {
-        return "BasicFlatGroup";
+    std::string Family() const override {
+        return "BasicFlatFamily";
     }
     std::string Version() const override {
         return "BasicFlat-V1";
@@ -63,8 +63,8 @@ struct BasicTypeFlat : public tssd::Flatable {
 
 struct BasicArrayFlat : public tssd::Flatable {
     BasicArray basicArray;
-    std::string Group() const override {
-        return "BasicArrayFlatGroup";
+    std::string Family() const override {
+        return "BasicArrayFlatFamily";
     }
 
     std::string Version() const override {
@@ -140,8 +140,8 @@ struct Struct1Flat : public tssd::Flatable {
     Struct1<T> struct1;
     //std::string type_;
     //Struct1Flat(T v, const string type="") : struct1.v1(v), type_(type){}
-    std::string Group() const override {
-        return "Struct1FlatGroup";
+    std::string Family() const override {
+        return "Struct1FlatFamily";
     }
     std::string Version() const override {
         return "Struct1Flat-V1";
@@ -183,8 +183,8 @@ public:
         std::cout << "Student ID" << ID << ", name:" << name << std::endl;
     }
 
-    std::string Group() const override {
-        return "StudentGroup";
+    std::string Family() const override {
+        return "StudentFamily";
     }
     std::string Version() const override {
         return "StudentV1";
@@ -197,8 +197,8 @@ public:
     std::int16_t fid;
     std::string types;
     std::string tid;
-    std::string Group() const override {
-        return "RequestGroup";
+    std::string Family() const override {
+        return "RequestFamily";
     }
     std::string Version() const override {
         return "RequestV1";

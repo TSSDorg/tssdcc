@@ -83,10 +83,11 @@ struct Header {
 class Buffer;
 class FBuffer;
 struct Schema {
-    std::int16_t fragment;    //fragment id: [1,2, ... -n]
-    std::string  hash;
-    std::string  tid;
-    std::string  extent;
+    std::int16_t FID;    //fragment id: [1,2, ... -n]
+    std::string  TID;
+    std::string  Types;
+    std::string  family;
+    std::string  info;
 
     TError Marshal(Buffer &buf);
     TError Unmarshal(Buffer &buf);
@@ -128,6 +129,7 @@ public:
     }
 };
 using pFragment = std::shared_ptr<Fragment>;
+using pBuffer = std::shared_ptr<Buffer>;
 
 
 
@@ -143,6 +145,7 @@ private:
     int checksum_ = -1;   // checksum begin
     int checksum_len_ = -1;
     pFragment frag_;
+    //std::unordered_map<std::string, pBuffer> results_;  //(family, pBuffer)
 
     inline void append(const Bytes &data)
     {

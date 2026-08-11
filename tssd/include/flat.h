@@ -26,10 +26,11 @@ public:
     virtual ~Flatable() = 0;
     //virtual pFlatable Build() const = 0;
     virtual tssd::Schema Schema() const;
-    virtual std::string Group() const = 0;
+    virtual std::string Family() const = 0;
     virtual std::string Version() const = 0;
     virtual std::string TID() const;
-    virtual std::string Progeny() const { return "";}
+    virtual std::string Info() const { return ""; }
+    virtual std::string Progeny() const { return ""; }
     virtual Flatable &Decorate(Flatable &other) { return *this;};
     Bytes Types() const;
 };
@@ -70,13 +71,13 @@ class Manager {
         return str.substr(0, LEN) + str.substr(str.length()-LEN, LEN);
     }
 
-    struct group {
+    struct family {
         std::string current;
         std::map<std::string, pFlatInfo> versions;  //query by version;
         std::map<std::string, pFlatInfo> hashes;  //query by schema's hash;
     };
 
-    static std::map<std::string, group> groups;
+    static std::map<std::string, family> families;
     static std::shared_ptr<TypeInfo> schemaTypeInfo;
     static std::function<std::string(const void*, int)> hash;
     static std::function<std::string(const void*, int)> checksum;
@@ -94,16 +95,16 @@ public:
     template<typename T>
     static void Register() {
         T flat;
-        if (!groups.contains(flat.Group())) {
-            groups[flat.Group()] = group {
+        if (!families.contains(flat.Family())) {
+            families[flat.Family()] = family {
                 flat.Version(),
                 std::map<std::string, pFlatInfo>(),
                 std::map<std::string, pFlatInfo>()
             };
         }
 
-        auto &group = groups[flat.Group()];
-        if (group.versions.contains(flat.Version()))
+        auto &family = families[flat.Family()];
+        if (family.versions.contains(flat.Version()))
             return;
 
         pFlatInfo fi = std::make_shared<FlatInfo>(
@@ -112,9 +113,9 @@ public:
             Schema{},
             TypeInfo::Create<T>());
 
-        group.versions[flat.Version()] = fi;
+        family.versions[flat.Version()] = fi;
         fi->schema = flat.Schema();
-        group.hashes[fi->schema.hash] = fi;
+        family.hashes[fi->schema.Types] = fi;
     }
 
     static TError MarshalTo(const Flatable& flat, Buffer &buf);

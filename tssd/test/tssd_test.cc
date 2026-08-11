@@ -136,12 +136,12 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
 
 struct CTestxxxx : public rander<CTestxxxx>, BasicType, Flatable {
     char x;
-    std::string Group() const override {
-        return "CTestxxxx";
+    std::string Family() const override {
+        return "CTestxxxxFamily";
     }
 
     std::string Version() const override {
-        return "CTestxxxxGroup";
+        return "CTestxxxx-v1";
     }
 };
 
