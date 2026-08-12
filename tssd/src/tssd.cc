@@ -240,6 +240,7 @@ AGAIN:
         moveFront(magic_+len, this->Size() - len);
         reset();
     }
+    more = 0;
     return ret;
 }
 
@@ -271,15 +272,17 @@ bool FBuffer::Ready(const std::string &family, const std::string &version){
 TError FBuffer::Feed(const Reader &reader)
 {
     Bytes bs(TSSD_BUFFER_MTU);
-    bs.resize(0);
-    std::size_t more(0);
+    //bs.resize(0);
+    std::size_t more(TSSD_BUFFER_MTU);
     do {
-        auto ret = Feed(bs, more);
-        if (ret==ERR_INSUFFICIENT_DATA) {
+        if (more) {
             int n = reader.Read(bs.data(), more);
             if (!n) return ERR_IO;
             if (n<0) return n;
             bs.resize(n);
+        }
+        auto ret = Feed(bs, more);
+        if (ret==ERR_INSUFFICIENT_DATA) {
             continue;
         }
         if (ret) return ret;
@@ -303,12 +306,13 @@ TError FBuffer::Feed(const Reader &reader)
         auto &bufs = results_[version->family];
 
         if (!bufs.contains(version->version))
-            bufs[types] = std::make_shared<tssd::Buffer>();
-        if (bufs[types]->Push(frag)) {
+            bufs[version->version] = std::make_shared<tssd::Buffer>();
+        if (bufs[version->version]->Push(frag)) {
             bs.resize(0);
             continue;
         }
-    } while(0);
+        return OK;
+    } while(1);
     return OK;
 }
 

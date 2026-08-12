@@ -200,18 +200,22 @@ public:
     inline std::byte &operator[](const std::size_t pos) {
         return (*buffer_)[pos];
     }
-    bool Ready(const std::string &family, const std::string &version);
+
     TError Feed(const Bytes &data, std::size_t &more);
+    // Feed got OK, then we can call it to get a Fragment;
     pFragment Fragment();
 
-    // Feed got OK, then we can call it to get a Fragment;
-    // pFragment Fragment(const Flatable *flat) const;
+    TError Feed(const Reader &reader);
+    bool Ready(const std::string &family, const std::string &version);
+    // after Ready true, call Buffer to get a TSSD Buffer
     pBuffer Buffer(const std::string &family, const std::string &version) {
         if (!Ready(family, version)) return nullptr;
         return results_[family][version];
     }
-
-    TError Feed(const Reader &reader);
+    void ResetBuffer(const std::string &family, const std::string &version) {
+        if (!Ready(family, version)) return;
+        results_[family][version].reset();
+    }
 };
 
 
