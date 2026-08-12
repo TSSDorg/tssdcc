@@ -137,6 +137,13 @@ public:
     virtual int Read(void *dest, std::size_t numb) const = 0;
 };
 
+class Writer {
+public:
+    virtual ~Writer() = 0;
+    virtual int Write(void *dest, std::size_t numb) const = 0;
+};
+
+
 class RBuffer {
 private:
     std::shared_ptr<Bytes>  buffer_;

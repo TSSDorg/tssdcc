@@ -131,6 +131,9 @@ public:
 
     static TError MarshalTo(const Flatable& flat, Buffer &buf);
     static TError UnmarshalTo(Buffer &buf, Flatable& flat);
+
+    static TError Read(const Reader &reader, Flatable &flat);
+    static TError Write(const Writer &writer, const Flatable &flat, const int mtu = TSSD_BUFFER_MTU);
 };
 
 }  //end namespace tssd

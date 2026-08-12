@@ -22,9 +22,8 @@ using namespace std;
 void recvStudent(int sockfd)
 {
     tssd::Manager::Register<Student>();
-    tssd::FBuffer fbuf;  // FBuffer to process raw data buffer
+    tssd::RBuffer fbuf;  // RBuffer to process raw data buffer
     Student student;   // object to receive
-
     size_t more(0);
 
     SocketReader socketReader(sockfd);
@@ -38,10 +37,8 @@ void recvStudent(int sockfd)
         cout << "unmarshal err:" << endl;
         return;
     }
-
     // process your data
     student.print();
-
 }
 
 bool sendRequest(int sockfd, int16_t fid)
@@ -49,7 +46,6 @@ bool sendRequest(int sockfd, int16_t fid)
     Request request;
     request.fid = fid;
     tssd::Manager::Register<Request>();
-
     tssd::Buffer buf(256);
     if (auto ret = tssd::Manager::MarshalTo(request, buf)) {
         cout << "tssd Marshal error:" << ret << endl;
@@ -67,17 +63,18 @@ bool sendRequest(int sockfd, int16_t fid)
         }
         cout << "send " << n << " bytes" << endl;
     }
-
     return true;
 }
 
-
+int server(int argc, char *argv[]);
 int main(int argc, char *argv[])
 {
-    if (argc != 4) {
-        cout << "usage:" << argv[0] << " addr port fid" << endl;
+    if (argc != 3 && argc != 4) {
+        cout << "usage:" << argv[0] << " addr port [fid]" << endl;
         return -1;
     }
+    if (argc == 3)
+        server(argc, argv);
     int sockfd, connfd;
     struct sockaddr_in servaddr, cli;
 
@@ -113,5 +110,3 @@ int main(int argc, char *argv[])
     close(sockfd);
     return 0;
 }
-
-

@@ -182,6 +182,15 @@ public:
     Student(std::uint16_t id=0) : ID(id) {}
     void print() {
         std::cout << "Student ID" << ID << ", name:" << name << std::endl;
+        for (const auto &it : contacts) {
+             std::cout << "contact name:" << it.name << ", address:" << it.address << std::endl;
+        }
+        for (const auto& [key, value] : courses) {
+             std::cout << "course title:" << value.title << ", teacher:" << value.teacher << std::endl;
+        }
+        for (const auto &it : papers) {
+             std::cout << "paper title:" << it.title << ", tags:" << it.tags[0] << std::endl;
+        }
     }
 
     std::string Family() const override {
@@ -214,6 +223,18 @@ public:
     int Read(void *dest, std::size_t numb) const override {
         auto n = recv(sockfd_, dest, numb, flags_);
         std::cout << " recv " << n << " bytes" << std::endl;
+        return n;
+    }
+};
+
+class SocketWriter : public tssd::Writer {
+    int sockfd_;
+    int flags_;
+public:
+    SocketWriter(int sockfd, int flags=0) : sockfd_(sockfd), flags_(flags) {}
+    int Write(void *data, std::size_t numb) const override {
+        auto n = send(sockfd_, data, numb, flags_);
+        std::cout << " send " << n << " bytes" << std::endl;
         return n;
     }
 };
