@@ -82,7 +82,7 @@ struct Header {
 };
 
 class Buffer;
-class FBuffer;
+class RBuffer;
 struct Schema {
     std::int16_t FID;    //fragment id: [1,2, ... -n]
     std::string  TID;
@@ -96,7 +96,7 @@ struct Schema {
 
 class Fragment {
     friend class Buffer;
-    friend class FBuffer;
+    friend class RBuffer;
 private:
     VBytes heads;    // header's byte stream, including payload's Tarraym header
     VBytes payload;  // user payload, excluding itself Tarraym header
@@ -137,7 +137,7 @@ public:
     virtual int Read(void *dest, std::size_t numb) const = 0;
 };
 
-class FBuffer {
+class RBuffer {
 private:
     std::shared_ptr<Bytes>  buffer_;
     Header header;
@@ -191,7 +191,7 @@ private:
 
 public:
     static constexpr std::string MAGIC = "TSSDV";
-    FBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
+    RBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
         buffer_->resize(0);
     }
     inline Bytes Data() const { return *buffer_; }

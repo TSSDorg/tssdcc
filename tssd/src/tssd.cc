@@ -34,7 +34,7 @@ Fragment::Validate(VBytes input, VBytes checksum)
     return OK;
 }
 
-void FBuffer::append(const std::byte *data, const std::size_t nsize)
+void RBuffer::append(const std::byte *data, const std::size_t nsize)
 {
     if (nsize <=0) return;
     auto size = buffer_->size();
@@ -48,7 +48,7 @@ void FBuffer::append(const std::byte *data, const std::size_t nsize)
 }
 
 void
-FBuffer::moveFront(const size_t pos, int n)
+RBuffer::moveFront(const size_t pos, int n)
 {
     if (pos > 0) {
         for (int i=0; i<n; ++i)
@@ -60,7 +60,7 @@ FBuffer::moveFront(const size_t pos, int n)
 // return OK if we found magic
 // otherwise return ERR_INSUFFICIENT_DATA
 TError
-FBuffer::detectMagic(const Bytes &data, std::size_t &more, const std::size_t skip)
+RBuffer::detectMagic(const Bytes &data, std::size_t &more, const std::size_t skip)
 {
     auto pre_size = buffer_->size();
     auto cpsize = std::min((std::size_t)4, data.size());
@@ -108,7 +108,7 @@ RETURN:
     return OK;
 }
 
-TError FBuffer::dumpMergeArrayHeader(const std::size_t pos, int &len, std::size_t &more)
+TError RBuffer::dumpMergeArrayHeader(const std::size_t pos, int &len, std::size_t &more)
 {
     if (pos + TSSD_TARRAYM_HEAD_LENGTH > this->Size()) {
         more = TSSD_TARRAYM_HEAD_LENGTH - this->Size() - pos;
@@ -133,7 +133,7 @@ TError FBuffer::dumpMergeArrayHeader(const std::size_t pos, int &len, std::size_
     return OK;
 }
 
-TError FBuffer::parseHeads(std::size_t &more)
+TError RBuffer::parseHeads(std::size_t &more)
 {
     if (heads_len_>=0) return OK;
     if (this->Size() < TSSD_FRAGMENT_MIN_HEADER_SIZE) {
@@ -167,7 +167,7 @@ TError FBuffer::parseHeads(std::size_t &more)
     return OK;
 }
 
-TError FBuffer::parsePayload(std::size_t &more)
+TError RBuffer::parsePayload(std::size_t &more)
 {
     if (payload_>=0) return OK;
 
@@ -179,7 +179,7 @@ TError FBuffer::parsePayload(std::size_t &more)
     return OK;
 }
 
-TError FBuffer::parseChecksum(std::size_t more)
+TError RBuffer::parseChecksum(std::size_t more)
 {
     if (checksum_ >=0) return OK;
     if (auto ret = dumpMergeArrayHeader(payload_+payload_len_, checksum_len_, more)) {
@@ -198,7 +198,7 @@ TError FBuffer::parseChecksum(std::size_t more)
     return OK;
 }
 
-TError FBuffer::Feed(const Bytes &data, std::size_t &more)
+TError RBuffer::Feed(const Bytes &data, std::size_t &more)
 {
     if (auto ret = detectMagic(data, more))
         return ret;
@@ -244,7 +244,7 @@ AGAIN:
     return ret;
 }
 
-pFragment FBuffer::Fragment()
+pFragment RBuffer::Fragment()
 {
     std::size_t remain = this->Size() - heads_len_ - payload_len_ - checksum_len_;
     pFragment frag = std::make_shared<tssd::Fragment>(std::max(TSSD_BUFFER_MTU, remain));
@@ -264,12 +264,12 @@ pFragment FBuffer::Fragment()
     return frag;
 }
 
-bool FBuffer::Ready(const std::string &family, const std::string &version){
+bool RBuffer::Ready(const std::string &family, const std::string &version){
     return results_.contains(family) && results_[family].contains(version)
             && results_[family][version]->Wanted() == 0;
 }
 
-TError FBuffer::Feed(const Reader &reader)
+TError RBuffer::Feed(const Reader &reader)
 {
     Bytes bs(TSSD_BUFFER_MTU);
     //bs.resize(0);

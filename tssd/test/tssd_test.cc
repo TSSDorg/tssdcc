@@ -28,7 +28,7 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
 
 
     for (int i=0; i<list.size(); i++) {
-        FBuffer fbuf;
+        RBuffer fbuf;
         std::size_t more = 0;
         EXPECT_TRUE(!fbuf.Feed(list[i]->data, more));
         EXPECT_EQ(rbuf.Push(fbuf.Fragment()), 0);
@@ -91,7 +91,7 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
     auto list = buf.Fragments();
 
     for (int i=0; i<list.size(); i++) {
-        FBuffer fbuf;
+        RBuffer fbuf;
         std::size_t more = 0;
         EXPECT_TRUE(!fbuf.Feed(list[i]->data, more));
         rbuf.Push(fbuf.Fragment());

@@ -32,7 +32,7 @@ Bytes getTestBytes()
 }
 
 
-TEST(FBuffer, unmarshal) {
+TEST(RBuffer, unmarshal) {
 
     Struct1Flat<char> bta1; //('a', "uint8");
     bta1.struct1.v1 = 'a';
@@ -49,7 +49,7 @@ TEST(FBuffer, unmarshal) {
 
     auto list = buf.Fragments();
 
-    FBuffer fbuf;
+    RBuffer fbuf;
     for (int i=0; i<list.size(); i++) {
         std::size_t more = 0;
         EXPECT_TRUE(!fbuf.Feed(list[0]->data, more));
@@ -67,14 +67,14 @@ TEST(FBuffer, unmarshal) {
     EXPECT_TRUE(cmp.Equal(bta1, bta2));
 }
 
-TEST(FBuffer, DetechMagic) {
+TEST(RBuffer, DetechMagic) {
     auto bs = getTestBytes();
-    FBuffer fbuf;
+    RBuffer fbuf;
     std::size_t more = 0;
     EXPECT_TRUE(!fbuf.detectMagic(bs, more));
 }
 
-void TestDetechMagic(FBuffer &fbuf, TError expectRet, int expectMagic, size_t expectMore, int count, ...)
+void TestDetechMagic(RBuffer &fbuf, TError expectRet, int expectMagic, size_t expectMore, int count, ...)
 {
     std::size_t more = 0;
     int ret = 0;
@@ -90,8 +90,8 @@ void TestDetechMagic(FBuffer &fbuf, TError expectRet, int expectMagic, size_t ex
     EXPECT_EQ(more, expectMore);
 }
 
-TEST(FBuffer, DetechMagic2) {
-    FBuffer fbuf;
+TEST(RBuffer, DetechMagic2) {
+    RBuffer fbuf;
     TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-1,
         1, Bytes{byte('T')});
     TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-4,
@@ -135,8 +135,8 @@ TEST(FBuffer, DetechMagic2) {
     EXPECT_TRUE(Basic::BytesEqual(fbuf.Data(), Bytes{byte('c'), byte('d'), byte('e'), byte('f')}));
 }
 
-TEST(FBuffer, DetechMagic3) {
-    FBuffer fbuf;
+TEST(RBuffer, DetechMagic3) {
+    RBuffer fbuf;
     TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-11,
         1, Bytes{byte('a'), byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('1'), byte('2'), byte('3'), byte('4'), byte('5'), byte('b')});
 
@@ -166,8 +166,8 @@ TEST(FBuffer, DetechMagic3) {
     EXPECT_TRUE(Basic::BytesEqual(fbuf.Data(), Bytes{byte('a'), byte('b')}));
 }
 
-TEST(FBuffer, DetechMagicChecksumFailure) {
-    FBuffer fbuf;
+TEST(RBuffer, DetechMagicChecksumFailure) {
+    RBuffer fbuf;
     TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-11,
         1, Bytes{byte('a'), byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('1'), byte('2'), byte('3'), byte('4'), byte('5'), byte('b')});
 
@@ -198,8 +198,8 @@ TEST(FBuffer, DetechMagicChecksumFailure) {
     EXPECT_TRUE(Basic::BytesEqual(fbuf.Data(), Bytes{byte('a'), byte('b')}));
 }
 
-TEST(FBuffer, DetechMagic4) {
-    FBuffer fbuf;
+TEST(RBuffer, DetechMagic4) {
+    RBuffer fbuf;
     TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-11,
         1, Bytes{byte('a'), byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('1'), byte('2'), byte('3'), byte('4'), byte('5'), byte('b')});
 
@@ -224,8 +224,8 @@ TEST(FBuffer, DetechMagic4) {
     EXPECT_EQ(more, TSSD_FRAGMENT_MIN_HEADER_SIZE-4);
 }
 
-TEST(FBuffer, DetechMagic5) {
-    FBuffer fbuf;
+TEST(RBuffer, DetechMagic5) {
+    RBuffer fbuf;
     TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-1,
         1, Bytes{byte('a')});
     TestDetechMagic(fbuf, tssd::ERR_INSUFFICIENT_DATA, -1, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-4,

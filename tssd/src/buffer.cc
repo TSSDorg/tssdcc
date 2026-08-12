@@ -16,7 +16,7 @@ TError Buffer::Prepare(Schema schema)
     this->schema_ = schema;
 
     Buffer nbuf(mtu_/3);
-    nbuf.Append((std::byte *)FBuffer::MAGIC.c_str(), FBuffer::MAGIC.length());
+    nbuf.Append((std::byte *)RBuffer::MAGIC.c_str(), RBuffer::MAGIC.length());
     nbuf.Append(std::byte(MINOR));
     nbuf.Append(std::byte(MAJOR));
     nbuf.Append(std::byte(TType::Tschema));
@@ -26,7 +26,7 @@ TError Buffer::Prepare(Schema schema)
     nbuf.Append(std::byte(TType::Tarraym));
     nbuf.Append(std::byte(TType::Tuint8));
 
-    checksum_len_ = 8 + Manager::checksum(FBuffer::MAGIC.c_str(), FBuffer::MAGIC.length()).length(); //8 bytes for [Tarraym][Tuint8][sizet/4B][sizea/2B]
+    checksum_len_ = 8 + Manager::checksum(RBuffer::MAGIC.c_str(), RBuffer::MAGIC.length()).length(); //8 bytes for [Tarraym][Tuint8][sizet/4B][sizea/2B]
     int avail = mtu_ - nbuf.Size() - TSSD_SIZET_LENGTH - TSSD_SIZEA_LENGTH - checksum_len_;
     nbuf.AppendSize4(avail + TSSD_SIZEA_LENGTH);
     nbuf.AppendSize2(avail);
