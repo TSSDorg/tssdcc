@@ -7,6 +7,7 @@
 #include "types.h"
 using namespace tssd;
 using namespace std;
+
 TEST(TSSD, MarshalUnmarshaBasicType) {
 
     BasicTypeFlat bta1;
@@ -16,7 +17,7 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
     Manager::Register<BasicTypeFlat>();
 
     Buffer buf;
-    EXPECT_EQ(Manager::MarshalTo(bta1, buf.clear()), OK);
+    EXPECT_EQ(Manager::MarshalTo(bta1, buf.Clear()), OK);
 
     buf.print("after MarshalTo:");
 
@@ -25,16 +26,16 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
 
     auto list = buf.Fragments();
 
+
     for (int i=0; i<list.size(); i++) {
-        int remain_pos = 0;
-        std::span sp(list[0]->data.data(), list[0]->data.size());
-        if (auto ret = frag->Unmarshal(sp, remain_pos)) {
-            std::println("Unarshal frag error", ret);
-        }
-        rbuf.push(frag);
+        RBuffer fbuf;
+        std::size_t more = 0;
+        EXPECT_TRUE(!fbuf.Feed(list[i]->data, more));
+        EXPECT_EQ(rbuf.Push(fbuf.Fragment()), 0);
+        EXPECT_EQ(fbuf.Size(), 0);
     }
 
-    EXPECT_EQ(rbuf.wanted(),0);
+    EXPECT_EQ(rbuf.Wanted(),0);
 
     BasicTypeFlat bta2;
     //Basic::rand(&bt2.vbool, sizeof(BasicType));
@@ -81,26 +82,23 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
     Manager::Register<BasicArrayFlat>();
 
     Buffer buf(256);
-    EXPECT_EQ(Manager::MarshalTo(bta1, buf.clear()), OK);
+    EXPECT_EQ(Manager::MarshalTo(bta1, buf.Clear()), OK);
 
     buf.print("after MarshalTo:");
 
     Buffer rbuf;  ///read/receive/unmarshal buf
 
-
     auto list = buf.Fragments();
 
     for (int i=0; i<list.size(); i++) {
-        pFragment frag=std::make_shared<Fragment>(2048);  ///read fragment
-        int remain_pos = 0;
-        std::span sp(list[i]->data.data(), list[i]->data.size());
-        if (auto ret = frag->Unmarshal(sp, remain_pos)) {
-            std::println("Unarshal frag error", ret);
-        }
-        rbuf.push(frag);
+        RBuffer fbuf;
+        std::size_t more = 0;
+        EXPECT_TRUE(!fbuf.Feed(list[i]->data, more));
+        rbuf.Push(fbuf.Fragment());
+        EXPECT_EQ(fbuf.Size(), 0);
     }
 
-    EXPECT_EQ(rbuf.wanted(),0);
+    EXPECT_EQ(rbuf.Wanted(),0);
 
     BasicArrayFlat bta2;
     memset(&bta2.basicArray.vbool[0], 0, sizeof(BasicArray));
@@ -136,12 +134,12 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
 
 struct CTestxxxx : public rander<CTestxxxx>, BasicType, Flatable {
     char x;
-    std::string Group() const override {
-        return "CTestxxxx";
+    std::string Family() const override {
+        return "CTestxxxxFamily";
     }
 
     std::string Version() const override {
-        return "CTestxxxxGroup";
+        return "CTestxxxx-v1";
     }
 };
 
@@ -158,7 +156,7 @@ TEST(TSSD, rander) {
               << ", ctest.x:" <<  std::addressof(ctest.x)
               << ", BasicType:" << std::addressof(ctest.vbool)
               << std::endl;
-    std::cout << ", ctest.begin addr:"<< std::hex << ctest.begin() << endl;
+    std::cout << ", ctest.begin addr:"<< std::hex << (uint64_t)ctest.begin() << endl;
     std::cout << ", ctest.x addr:"<< std::hex << &ctest.x << ", x:" << ctest.x << endl;
     ctest.x = 'b';
     std::cout << ", ctest.x addr:"<< std::hex << &ctest.x << ", x:" << ctest.x << endl;

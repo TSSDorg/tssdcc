@@ -4,10 +4,11 @@
 
 #include "buffer.h"
 #include "flat.h"
+#include "tssd.h"
 
 namespace tssd {
 
-TError Buffer::prepare(Schema schema)
+TError Buffer::Prepare(Schema schema)
 {
     if (mtu_ == 0) mtu_ = TSSD_BUFFER_MTU;
     mtu_ = std::max(mtu_, TSSD_BUFFER_MIN_MTU);
@@ -15,26 +16,26 @@ TError Buffer::prepare(Schema schema)
     this->schema_ = schema;
 
     Buffer nbuf(mtu_/3);
-    nbuf.append((std::byte *)Manager::MAGIC.c_str(), Manager::MAGIC.length());
-    nbuf.append(std::byte(MINOR));
-    nbuf.append(std::byte(MAJOR));
-    nbuf.append(std::byte(TType::Tschema));
+    nbuf.Append((std::byte *)RBuffer::MAGIC.c_str(), RBuffer::MAGIC.length());
+    nbuf.Append(std::byte(MINOR));
+    nbuf.Append(std::byte(MAJOR));
+    nbuf.Append(std::byte(TType::Tschema));
     if (auto ret = schema.Marshal(nbuf)) return ret;
 
 
-    nbuf.append(std::byte(TType::Tarraym));
-    nbuf.append(std::byte(TType::Tuint8));
+    nbuf.Append(std::byte(TType::Tarraym));
+    nbuf.Append(std::byte(TType::Tuint8));
 
-    checksum_len_ = 8 + Manager::checksum(Manager::MAGIC.c_str(), Manager::MAGIC.length()).length(); //8 bytes for [Tarraym][Tuint8][sizet/4B][sizea/2B]
-    int avail = mtu_ - nbuf.size() - TSSD_SIZET_LENGTH - TSSD_SIZEA_LENGTH - checksum_len_;
-    nbuf.appendSize4(avail + TSSD_SIZEA_LENGTH);
-    nbuf.appendSize2(avail);
-    if (nbuf.size() > mtu_ || nbuf.fragments_.size() > 1) {
+    checksum_len_ = 8 + Manager::checksum(RBuffer::MAGIC.c_str(), RBuffer::MAGIC.length()).length(); //8 bytes for [Tarraym][Tuint8][sizet/4B][sizea/2B]
+    int avail = mtu_ - nbuf.Size() - TSSD_SIZET_LENGTH - TSSD_SIZEA_LENGTH - checksum_len_;
+    nbuf.AppendSize4(avail + TSSD_SIZEA_LENGTH);
+    nbuf.AppendSize2(avail);
+    if (nbuf.Size() > mtu_ || nbuf.fragments_.size() > 1) {
         return ERR_TSSD_MTU_TOO_SMALL;
     }
-    heads_.resize(nbuf.size());
-    memcpy(&heads_[0], &nbuf.fragments_[0]->data[0], nbuf.size());
-    std::cout << "2 heads_ size:" << heads_.size() << ",cap:" << heads_.capacity() << " nbuf size:" << nbuf.size() << std::endl;
+    heads_.resize(nbuf.Size());
+    memcpy(&heads_[0], &nbuf.fragments_[0]->data[0], nbuf.Size());
+    std::cout << "2 heads_ size:" << heads_.size() << ",cap:" << heads_.capacity() << " nbuf size:" << nbuf.Size() << std::endl;
     return OK;
 }
 
@@ -58,13 +59,12 @@ void Buffer::appendChecksum(int index, int pos)
     memcpy(&fragments_[index]->data[pos+8], bs.c_str(), bs.length());
 }
 
-void Buffer::finish()
+void Buffer::Finish()
 {
     if (size_ == 0) return;
     //this->print("finish 1:", heads_.size() + size_);
     if (heads_.empty()) {
-        auto size = this->size();
-        if (size == 0) return;
+        auto size = this->Size();
         for (std::size_t i=0; i<windex_; ++i)
         {
             auto csize = fragments_[i]->data.size();
@@ -99,7 +99,7 @@ void Buffer::finish()
     }
 }
 
-Buffer& Buffer::append(const std::span<std::byte> bs)
+Buffer& Buffer::Append(const std::span<std::byte> bs)
 {
     if (bs.empty()) return *this;
     std::size_t written = 0;
@@ -113,6 +113,7 @@ Buffer& Buffer::append(const std::span<std::byte> bs)
                 updateFragmentID(windex_, windex_+1);
                 woffset_ += heads_.size();
             }
+            fra->heads = std::span<std::byte>(&fra->data[0], heads_.size());
         }
 
         auto fra = fragments_[windex_];
@@ -138,7 +139,7 @@ Buffer& Buffer::append(const std::span<std::byte> bs)
 }
 
 
-TError Buffer::dump(std::size_t size, std::byte *dest) {
+TError Buffer::Dump(std::size_t size, std::byte *dest) {
     if (size > size_) return ERR_INSUFFICIENT_DATA;
 
     std::size_t read = 0;
@@ -166,71 +167,71 @@ TError Buffer::dump(std::size_t size, std::byte *dest) {
 }
 
 
-Buffer& Buffer::append(const std::byte bt)
+Buffer& Buffer::Append(const std::byte bt)
 {
-    return this->append(&bt, 1);
+    return this->Append(&bt, 1);
 }
 
-Buffer& Buffer::append(const TType bt)
+Buffer& Buffer::Append(const TType bt)
 {
-    return append(std::byte(bt));
+    return Append(std::byte(bt));
 }
 
-int Buffer::dumpSize2()
+int Buffer::DumpSize2()
 {
     return dumpSize<std::int16_t>();
 }
 
-int Buffer::dumpSize4()
+int Buffer::DumpSize4()
 {
     return dumpSize<std::int32_t>();
 }
 
-int Buffer::push(pFragment fragment)
+int Buffer::Push(pFragment fragment)
 {
-    if (schema_.hash.empty()) {
+    if (schema_.Types.empty()) {
         schema_ = fragment->schema;
         heads_.assign(fragment->heads.begin(), fragment->heads.end());
         checksum_len_ = fragment->checksum.size();
     }
-    if (schema_.hash != fragment->schema.hash || schema_.tid != fragment->schema.tid) {
+    if (schema_.Types != fragment->schema.Types || schema_.TID != fragment->schema.TID) {
         return ERR_SCHEMA_NOT_MATCH;
     }
-    if (fragment->schema.fragment == 0) {
+    if (fragment->schema.FID == 0) {
         return ERR_FORMAT_ERROR;
     }
 
-    int fid = fragment->schema.fragment;
+    int fid = fragment->schema.FID;
     fid = fid < 0 ? -fid : fid;
     if (!fragments_.contains(fid-1)) {
         size_ +=  fragment->payload.size();
     }
     fragments_[fid-1] = fragment;
 
-    return (int)wanted();
+    return (int)Wanted();
 }
 
-std::size_t Buffer::wanted()
+std::size_t Buffer::Wanted()
 {
     std::size_t i = 0;
     for (; i<fragments_.size(); i++) {
         if (!fragments_.contains(i))
             return i+1;
-        if (fragments_[i]->schema.fragment < 0) {
+        if (fragments_[i]->schema.FID < 0) {
             return 0;
         }
     }
     return i + 1;
 }
 
-void Buffer::merge()
+void Buffer::Merge()
 {
     if (fragments_.size() < 2) return;
-    rewind();
-    split(this->size() + heads_.size() + checksum_len_);
+    Rewind();
+    Split(this->Size() + heads_.size() + checksum_len_);
 }
 
-void Buffer::split(std::size_t mtu)
+void Buffer::Split(std::size_t mtu)
 {
     if (fragments_.empty() || mtu <= heads_.size() + checksum_len_) return;
     mtu_ = mtu;
@@ -242,8 +243,8 @@ void Buffer::split(std::size_t mtu)
     std::swap(fragments_, nfrags);
 
     for (std::size_t i=0; i<nfrags.size(); ++i)
-        this->append(nfrags[i]->payload);
-    this->finish();
+        this->Append(nfrags[i]->payload);
+    this->Finish();
 }
 
 } //end namespace tssd

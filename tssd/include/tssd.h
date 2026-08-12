@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <unordered_map>
 
 namespace tssd {
 
@@ -46,19 +47,23 @@ enum class TType {
     Tset,
     Tmap,
     Tunordered_map,
-    Tshared_ptr,
     Tref,
+    Tshared_ptr,
+    Tunique_ptr,
 };
 
 const char MINOR = 1;
 const char MAJOR = 0;
 const char TSSD_VERSION[2] = {MINOR, MAJOR};
+const std::size_t TSSD_FRAGMENT_MIN_HEADER_SIZE = 41;
 const std::size_t TSSD_BUFFER_MIN_MTU = 256;
-const std::size_t TSSD_BUFFER_MTU = 3072;
+const std::size_t TSSD_BUFFER_MTU = 2048;
+const std::size_t TSSD_TARRAYM_HEAD_LENGTH      = 8;  // [Tarraym][Tuint8][sizet/4B][sizea/2B]
 const std::size_t TSSD_SIZET_LENGTH = 4;
 const std::size_t TSSD_SIZEA_LENGTH = 2;
 
 using TError = std::int16_t;
+const TError ERR_IO = -6;
 const TError ERR_SCHEMA_NOT_MATCH = -3;
 const TError ERR_CHECKSUM_FAILURE = -5;
 const TError ERR_TSSD_MTU_TOO_SMALL = -4;
@@ -77,29 +82,44 @@ struct Header {
 };
 
 class Buffer;
+class RBuffer;
 struct Schema {
-    std::int16_t fragment;    //fragment id: [1,2, ... -n]
-    std::string  hash;
-    std::string  tid;
-    std::string  extent;
+    std::int16_t FID;    //fragment id: [1,2, ... -n]
+    std::string  TID;
+    std::string  Types;
+    std::string  Info;
 
     TError Marshal(Buffer &buf);
     TError Unmarshal(Buffer &buf);
 };
 
 
-struct Fragment {
+class Fragment {
+    friend class Buffer;
+    friend class RBuffer;
+private:
+    VBytes heads;    // header's byte stream, including payload's Tarraym header
+    VBytes payload;  // user payload, excluding itself Tarraym header
+    VBytes checksum; // checksum, including itself Tarraym header
+public:
     Header header;
     Schema schema;
     Bytes data;
-    VBytes heads;
-    VBytes payload;
-    VBytes checksum;
-    Fragment(std::size_t mtu) : data(mtu){}
+    Fragment(std::size_t mtu=0) : data(mtu){}
     Fragment(VBytes bs) : payload(bs) {}
 
-    TError Unmarshal(VBytes input, int &remain_pos);
-    TError Validate(VBytes input) const;
+    // return heads excluding payload's Tarraym header
+    VBytes Heads() const {
+        return heads.subspan(0, heads.size() - TSSD_TARRAYM_HEAD_LENGTH);
+    }
+
+    VBytes Payload() const { return payload; }
+    VBytes Checksum() const { return checksum.subspan(TSSD_TARRAYM_HEAD_LENGTH); }
+
+    inline TError Validate() {
+        return Validate(VBytes(&this->data[0], heads.size() + payload.size()), Checksum());
+    }
+    static TError Validate(VBytes input, VBytes checksum);
 
     void print(int offset) {
         std::cout << "Fragment size:" << data.size() << '[';
@@ -109,6 +129,102 @@ struct Fragment {
     }
 };
 using pFragment = std::shared_ptr<Fragment>;
+using pBuffer = std::shared_ptr<Buffer>;
+
+class Reader {
+public:
+    virtual ~Reader() = 0;
+    virtual int Read(void *dest, std::size_t numb) const = 0;
+};
+
+class Writer {
+public:
+    virtual ~Writer() = 0;
+    virtual int Write(void *dest, std::size_t numb) const = 0;
+};
+
+
+class RBuffer {
+private:
+    std::shared_ptr<Bytes>  buffer_;
+    Header header;
+    Schema schema;
+    int magic_  = -1;     //magic_pos, heads begin
+    int heads_len_ =  -1;  // heads len
+    int payload_ = -1;    // payload begin pos
+    int payload_len_ = -1;
+    int checksum_ = -1;   // checksum begin
+    int checksum_len_ = -1;
+    using HBuffers = std::unordered_map<std::string, pBuffer>;  // (version, pBuffer)
+    std::unordered_map<std::string, HBuffers> results_;  //(family, buffers)
+    HBuffers unregistered_;
+
+    inline void append(const Bytes &data)
+    {
+        append(data, data.size());
+    }
+    inline void append(const Bytes &data, const std::size_t nsize)
+    {
+        append(data.data(), nsize);
+    }
+    void append(const std::byte *data, const std::size_t nsize);
+
+    inline int findMagic(const Bytes &data, const std::size_t skip=0) {
+        auto view = std::string_view(reinterpret_cast<const char*>(&data[skip]), data.size()-skip);
+        auto pos = view.find(MAGIC);
+        return pos == view.npos ? -1 : pos;
+    }
+
+    // reset doesn't clear data, clear does.
+    inline void reset()
+    {
+        //clear all status
+        magic_ = heads_len_ = payload_ = payload_len_ = checksum_ = checksum_len_ = -1;
+        //frag_.reset();
+    }
+
+    //4 step to parse Fragment
+    // 0. detectMagic, set magic_
+    // 1. parseHeads,  set heads_len_
+    // 2. parsePayload, set payload_ and payload_len_
+    // 3. parseChecksum, set checksum_ and checksum_len;
+    // if meet fmt error, we need goto step 0
+    TError detectMagic(const Bytes &data, std::size_t &more, const std::size_t skip = 0);
+    TError dumpMergeArrayHeader(const std::size_t pos, int &len, std::size_t &more);
+    TError parseHeads(std::size_t &more);
+    TError parsePayload(std::size_t &more);
+    TError parseChecksum(std::size_t more);
+    void moveFront(const std::size_t pos, const int n);
+
+public:
+    static constexpr std::string MAGIC = "TSSDV";
+    RBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
+        buffer_->resize(0);
+    }
+    inline Bytes Data() const { return *buffer_; }
+    inline void Clear() { buffer_->resize(0); reset(); }
+    inline std::size_t Size() const { return buffer_->size(); }
+    inline std::byte &operator[](const std::size_t pos) {
+        return (*buffer_)[pos];
+    }
+
+    TError Feed(const Bytes &data, std::size_t &more);
+    // Feed got OK, then we can call it to get a Fragment;
+    pFragment Fragment();
+
+    TError Feed(const Reader &reader);
+    bool Ready(const std::string &family, const std::string &version);
+    // after Ready true, call Buffer to get a TSSD Buffer
+    pBuffer Buffer(const std::string &family, const std::string &version) {
+        if (!Ready(family, version)) return nullptr;
+        return results_[family][version];
+    }
+    void ResetBuffer(const std::string &family, const std::string &version) {
+        if (!Ready(family, version)) return;
+        results_[family][version].reset();
+    }
+};
+
 
 } //end namespace tssd
 

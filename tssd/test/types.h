@@ -1,6 +1,16 @@
 #ifndef __TSSD_TEST_TYPES_H__
 #define __TSSD_TEST_TYPES_H__
 
+//////////////this file is define struct/class for test///////////////////////
+#include<string>
+#include<map>
+#include<vector>
+#include<unordered_map>
+#include<memory>
+#include<list>
+#include<set>
+#include <iostream>
+
 #include "flat.h"
 
 struct BasicType {
@@ -44,24 +54,25 @@ struct BasicArray {
 
 struct BasicTypeFlat : public tssd::Flatable {
     BasicType basicType;
-    std::string Group() const override {
-        return "BasicFlat";
+    std::string Family() const override {
+        return "BasicFlatFamily";
     }
     std::string Version() const override {
-        return "BasicFlatGroup";
+        return "BasicFlat-V1";
     }
 };
 
 struct BasicArrayFlat : public tssd::Flatable {
     BasicArray basicArray;
-    std::string Group() const override {
-        return "BasicArrayFlat";
+    std::string Family() const override {
+        return "BasicArrayFlatFamily";
     }
 
     std::string Version() const override {
-        return "BasicArrayFlatGroup";
+        return "BasicArrayFlat-V1";
     }
 };
+
 
 template <typename T>
 struct Struct1 {
@@ -116,13 +127,116 @@ struct LexCompare<BasicType> {
 
 template<typename T, typename Compare = LexCompare<T>>
 struct ContainerT {
-    vector<T> vec;
-    list<T> lst;
-    set<T, Compare> st;
-    map<string, T> mp;
-    unordered_map<string, T> ump;
+    std::vector<T> vec;
+    std::list<T> lst;
+    std::set<T, Compare> st;
+    std::map<std::string, T> mp;
+    std::unordered_map<std::string, T> ump;
     std::shared_ptr<T> sp;
+    std::unique_ptr<T> up;
 };
 
+template<typename T>
+struct Struct1Flat : public tssd::Flatable {
+    Struct1<T> struct1;
+    //std::string type_;
+    //Struct1Flat(T v, const string type="") : struct1.v1(v), type_(type){}
+    std::string Family() const override {
+        return "Struct1FlatFamily";
+    }
+    std::string Version() const override {
+        return "Struct1Flat-V1";
+    }
+};
+
+struct Course {
+    std::string title;
+    std::string teacher;
+    float  score;
+};
+
+struct Contact {
+    std::string name;
+    std::string relation;
+    std::string phone;
+    std::string address;
+};
+
+struct Paper {
+    std::string title;
+    std::string tags[3];
+    std::string content;
+};
+
+class Student : public tssd::Flatable {
+    std::uint64_t ID;
+public:
+    std::string   name;
+    std::int16_t  age;
+    bool     IsMale;
+
+    std::vector<Contact> contacts;
+    std::map<std::string, Course> courses;
+    std::list<Paper> papers;
+
+    Student(std::uint16_t id=0) : ID(id) {}
+    void print() {
+        std::cout << "Student ID" << ID << ", name:" << name << std::endl;
+        for (const auto &it : contacts) {
+             std::cout << "contact name:" << it.name << ", address:" << it.address << std::endl;
+        }
+        for (const auto& [key, value] : courses) {
+             std::cout << "course title:" << value.title << ", teacher:" << value.teacher << std::endl;
+        }
+        for (const auto &it : papers) {
+             std::cout << "paper title:" << it.title << ", tags:" << it.tags[0] << std::endl;
+        }
+    }
+
+    std::string Family() const override {
+        return "StudentFamily";
+    }
+    std::string Version() const override {
+        return "StudentV1";
+    }
+};
+
+// request to  server to get a specify(fid, types, tid) Fragment
+class Request : public tssd::Flatable {
+public:
+    std::int16_t fid;
+    std::string types;
+    std::string tid;
+    std::string Family() const override {
+        return "RequestFamily";
+    }
+    std::string Version() const override {
+        return "RequestV1";
+    }
+};
+
+class SocketReader : public tssd::Reader {
+    int sockfd_;
+    int flags_;
+public:
+    SocketReader(int sockfd, int flags=0) : sockfd_(sockfd), flags_(flags) {}
+    int Read(void *dest, std::size_t numb) const override {
+        auto n = recv(sockfd_, dest, numb, flags_);
+        std::cout << " recv " << n << " bytes" << std::endl;
+        return n;
+    }
+};
+
+class SocketWriter : public tssd::Writer {
+    int sockfd_;
+    int flags_;
+public:
+    SocketWriter(int sockfd, int flags=0) : sockfd_(sockfd), flags_(flags) {}
+    int Write(void *data, std::size_t numb) const override {
+        auto n = send(sockfd_, data, numb, flags_);
+        std::cout << " send " << n << " bytes" << std::endl;
+        return n;
+    }
+};
 
 #endif // __TSSD_TEST_TYPES_H__

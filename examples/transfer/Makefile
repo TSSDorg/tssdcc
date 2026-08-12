@@ -3,7 +3,8 @@
 ################################################################################
 
 # Executable name
-EXEC = tssd
+EXEC = program
+
 LIB_SHORT = tssdcc
 LIB = libtssdcc.a
 
@@ -18,24 +19,24 @@ ASSETS_DIR = assets
 ASSETS_OS_DIR := $(ASSETS_DIR)_os
 
 # Executable sources (found recursively inside SRC_DIR)
-SRC_DIR = src
+SRC_DIR = .
 SRCS := $(sort $(shell find $(SRC_DIR) -name '*.cc'))
 
 # Test sources (found recursively inside TEST_DIR if it exists)
-TEST_DIR = test
+TEST_DIR = tests
 TEST_SRCS := $(sort $(shell find $(TEST_DIR) -name '*.cc' 2> /dev/null))
 
 # Includes
-INCLUDE_DIR = include
+INCLUDE_DIR = ../../tssd/include ../../tssd/test
 INCLUDES = $(addprefix -I,$(SRC_DIR) $(INCLUDE_DIR))
-TEST_INCLUDES = -I$(TEST_DIR)
+TEST_INCLUDES = -I$(TEST_DIR) 
 
 # C preprocessor settings
 CPPFLAGS = $(INCLUDES) -MMD -MP
 
 # C++ compiler settings
 CXX = g++
-CXXFLAGS = -std=c++26 -freflection -g
+CXXFLAGS = -std=c++26 -freflection -g 
 WARNINGS = -Wall -Wpedantic -Wextra -fpermissive
 
 # Linker flags
@@ -43,8 +44,8 @@ LDFLAGS = -static
 TEST_LDFLAGS =
 
 # Libraries to link
-LDLIBS = -l$(LIB_SHORT)
-TEST_LDLIBS = -lgtest -lgtest_main
+LDLIBS =-l$(LIB_SHORT) -L../../tssd/build/linux/debug/lib
+TEST_LDLIBS =
 
 # Target OS detection
 ifeq ($(OS),Windows_NT) # OS is a preexisting environment variable on Windows
@@ -76,7 +77,7 @@ else ifeq ($(OS),macos)
 	LDLIBS +=
 else ifeq ($(OS),linux)
 	# Linux-specific settings
-	INCLUDES +=
+	INCLUDES += 
 	LDFLAGS +=
 	LDLIBS +=
 endif
@@ -108,12 +109,9 @@ endif
 # Object and bin directories
 OBJ_DIR := $(BUILD_DIR)/obj
 BIN_DIR := $(BUILD_DIR)/bin
-LIB_DIR := $(BUILD_DIR)/lib
-
-LDLIBS += -L $(LIB_DIR)
 
 # Object files
-MAIN_SRC = $(TEST_DIR)/main.cc
+MAIN_SRC = $(SRC_DIR)/main.cc
 MAIN_OBJ := $(MAIN_SRC:%.cc=$(OBJ_DIR)/%.o)
 SRCS_WITHOUT_MAIN := $(filter-out $(MAIN_SRC),$(SRCS))
 SRC_OBJS_WITHOUT_MAIN := $(SRCS_WITHOUT_MAIN:%.cc=$(OBJ_DIR)/%.o)
@@ -137,26 +135,25 @@ FILES := $(shell find $(SRC_DIR) $(TEST_DIR) $(INCLUDE_DIR) -name '*.cc' -o -nam
 .SUFFIXES:
 
 .PHONY: all
-#all: $(BIN_DIR)/$(EXEC) $(if $(TEST_SRCS),$(BIN_DIR)/$(TEST_EXEC))
-all: $(LIB_DIR)/$(LIB)
+all: $(BIN_DIR)/$(EXEC) $(if $(TEST_SRCS),$(BIN_DIR)/$(TEST_EXEC))
 
-# Build library
-$(LIB_DIR)/$(LIB): $(SRC_OBJS_WITHOUT_MAIN)
+# Build executable
+$(BIN_DIR)/$(EXEC): $(MAIN_OBJ) $(SRC_OBJS_WITHOUT_MAIN)
 	@echo "Building executable: $@"
 	@mkdir -p $(@D)
-	$(AR) -r $@ $^
-	#@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Build tests
-#$(BIN_DIR)/$(TEST_EXEC): LDFLAGS += $(TEST_LDFLAGS)
-#$(BIN_DIR)/$(TEST_EXEC): LDLIBS += $(TEST_LDLIBS)
-#$(BIN_DIR)/$(TEST_EXEC): $(TEST_OBJS) $(SRC_OBJS_WITHOUT_MAIN)
-#	@echo "Building tests: $@  $(LDLIBS)"
-#	@mkdir -p $(@D)
-#	@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
+$(BIN_DIR)/$(TEST_EXEC): LDFLAGS += $(TEST_LDFLAGS)
+$(BIN_DIR)/$(TEST_EXEC): LDLIBS += $(TEST_LDLIBS)
+$(BIN_DIR)/$(TEST_EXEC): $(TEST_OBJS) $(SRC_OBJS_WITHOUT_MAIN)
+	@echo "Building tests: $@"
+	@mkdir -p $(@D)
+	@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Compile C++ source files
-$(SRC_OBJS_WITHOUT_MAIN): $(OBJ_DIR)/%.o: %.cc
+$(OBJ_DIR)/$(TEST_DIR)/%.o: INCLUDES += $(TEST_INCLUDES)
+$(ALL_OBJS): $(OBJ_DIR)/%.o: %.cc
 	@echo "Compiling: $<"
 	@mkdir -p $(@D)
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(WARNINGS) -c $< -o $@
@@ -172,22 +169,9 @@ run: $(BIN_DIR)/$(EXEC)
 
 # Build and run tests
 .PHONY: test
-test: $(BIN_DIR)/$(TEST_EXEC) $(if $(TEST_SRCS),$(BIN_DIR)/$(TEST_EXEC))
-$(BIN_DIR)/$(TEST_EXEC): LDFLAGS += $(TEST_LDFLAGS)
-$(BIN_DIR)/$(TEST_EXEC): LDLIBS += $(TEST_LDLIBS)
-$(BIN_DIR)/$(TEST_EXEC): $(TEST_OBJS)
-	@echo "Building tests: $@  $(LDLIBS)"
-	@mkdir -p $(@D)
-	@$(CXX)  $(LDFLAGS) $^ $(LDLIBS) -o $@
+test: $(BIN_DIR)/$(TEST_EXEC)
 	@echo "Running tests: $<"
 	@cd $(BIN_DIR) && ./$(TEST_EXEC)
-
-
-$(OBJ_DIR)/$(TEST_DIR)/%.o:
-$(TEST_OBJS): $(OBJ_DIR)/%.o: %.cc
-	@echo "Compiling: $<"
-	@mkdir -p $(@D)
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(WARNINGS) -c $< -o $@
 
 # Copy assets to bin directory for selected platform
 .PHONY: copyassets

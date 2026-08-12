@@ -3,18 +3,21 @@
 #include "buffer.h"
 namespace tssd {
 
-std::map<std::string, Manager::group> Manager::groups;
+
+std::pair<std::map<std::string, Manager::family>, std::map<std::string, Manager::VersionInfo>> Manager::families;
 std::shared_ptr<TypeInfo> Manager::schemaTypeInfo = TypeInfo::Create<Schema>();
 std::function<std::string(const void*, int)> Manager::hash = Manager::hash6;
 std::function<std::string(const void*, int)> Manager::checksum = Manager::hash6;
 Flatable::~Flatable() {}
+Reader::~Reader() {}
+Writer::~Writer() {}
 
 std::string Flatable::TID() const
 {
     return "";
 }
 
-Schema Flatable::schema() const
+Schema Flatable::Schema() const
 {
     auto bs = this->Types();
 
@@ -22,45 +25,71 @@ Schema Flatable::schema() const
     auto ret = Manager::hash(bs.data(), bs.size());
     std::cout << "hash value:" << ret << std::endl;
     struct Schema s{
-        -1,
-        //Manager::hash(bs.data(), bs.size()),
-        ret,
-        this->TID(),
-        ""};
+        -1,           // FID
+        this->TID(),  // TID
+        Manager::hash(bs.data(), bs.size()),
+        this->Info()};
     return s;
 }
 
 std::vector<std::byte> Flatable::Types() const
 {
-    return Manager::groups[this->Group()].versions[this->Version()]->typeInfo->Types();
+    return Manager::families.first[this->Family()].versions[this->Version()]->typeInfo->Types();
 }
 
 TError Manager::MarshalTo(const Flatable &flat, Buffer &buf)
 {
-    if (!groups.contains(flat.Group())) return ERR_SCHEMA_NOT_FOUND;
+    if (!families.first.contains(flat.Family())) return ERR_SCHEMA_NOT_FOUND;
 
-    auto &group = groups[flat.Group()];
-    if (!groups[flat.Group()].versions.contains(flat.Version())) return ERR_SCHEMA_NOT_FOUND;
+    auto &family = families.first[flat.Family()];
+    if (!families.first[flat.Family()].versions.contains(flat.Version())) return ERR_SCHEMA_NOT_FOUND;
 
-    buf.prepare(flat.schema());
-    if (auto ret = group.versions[flat.Version()]->typeInfo->MarshalTo(&flat, buf)) {
+    buf.Prepare(flat.Schema());
+    if (auto ret = family.versions[flat.Version()]->typeInfo->MarshalTo(&flat, buf)) {
         return ret;
     }
 
-    buf.finish();
+    buf.Finish();
     return OK;
 }
 
 TError Manager::UnmarshalTo(Buffer &buf, Flatable &flat)
 {
-    if (!groups.contains(flat.Group())) return ERR_SCHEMA_NOT_FOUND;
+    if (!families.first.contains(flat.Family())) return ERR_SCHEMA_NOT_FOUND;
 
-    auto &group = groups[flat.Group()];
-    if (!group.versions.contains(flat.Version())) return ERR_SCHEMA_NOT_FOUND;
+    auto &family = families.first[flat.Family()];
+    if (!family.versions.contains(flat.Version())) return ERR_SCHEMA_NOT_FOUND;
 
-    //TODO dump TSSD header
+    return family.versions[flat.Version()]->typeInfo->UnmarshalTo(buf, &flat);
+}
 
-    return group.versions[flat.Version()]->typeInfo->UnmarshalTo(buf, &flat);
+TError Manager::Read(const Reader &reader, Flatable &flat)
+{
+    tssd::RBuffer rbuf;  // RBuffer to process raw data buffer
+    if (auto ret = rbuf.Feed(reader)) {
+        return ret;
+    }
+    if (!rbuf.Ready(flat.Family(), flat.Version())) {
+        return ERR_SCHEMA_NOT_MATCH;
+    }
+    auto dbuf = rbuf.Buffer(flat.Family(), flat.Version());
+
+    return tssd::Manager::UnmarshalTo(*dbuf, flat);
+}
+
+TError Manager::Write(const Writer &writer, const Flatable &flat, const int mtu)
+{
+     tssd::Buffer buf(mtu);
+    if (auto ret = tssd::Manager::MarshalTo(flat, buf)) {
+        return ret;
+    }
+
+    auto frags  = buf.Fragments();
+    for (std::size_t i=0; i<frags.size(); i++) {
+        int n = writer.Write(frags[i]->data.data(), frags[i]->data.size());
+        if (n<=0) return ERR_IO;
+    }
+    return OK;
 }
 
 } //end namespace tssd

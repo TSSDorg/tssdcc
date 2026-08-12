@@ -29,11 +29,11 @@ void append(Buffer &buf, int n) {
 
     auto rd = Basic::bounded_rand(n);
 
-    buf.append(&vin[0], rd);
+    buf.Append(&vin[0], rd);
 
-    buf.append(&vin[rd], n-rd);
+    buf.Append(&vin[rd], n-rd);
 
-    buf.finish();
+    buf.Finish();
 }
 
 bool appendTest(size_t mtu, int n,  std::vector<Bytes> expect)
@@ -139,7 +139,7 @@ TEST(Buffer, append) {
 bool dumpTest(Buffer &buf, int n, Bytes expect)
 {
     byte bs[100];
-    if (buf.dump(n, bs)) return false;
+    if (buf.Dump(n, bs)) return false;
     return Basic::BytesEqual(&expect[0], expect.size(), bs, n);
 }
 
@@ -147,7 +147,7 @@ TEST(Buffer, dump) {
     Buffer buf(5);
     buf.mtu_ = 5;
     append(buf, 14);
-    EXPECT_EQ(buf.size(), 14);
+    EXPECT_EQ(buf.Size(), 14);
     EXPECT_EQ(buf.fragments_.size(), 3);
     EXPECT_TRUE(dumpTest(buf, 1, Bytes{byte(100)}));
     EXPECT_TRUE(dumpTest(buf, 2, Bytes{byte(101), byte(102)}));
@@ -162,7 +162,7 @@ TEST(Buffer, dump2) {
     Buffer buf(5);
     buf.mtu_ = 5;
     append(buf, 16);
-    EXPECT_EQ(buf.size(), 16);
+    EXPECT_EQ(buf.Size(), 16);
     EXPECT_EQ(buf.fragments_.size(), 4);
     EXPECT_TRUE(dumpTest(buf, 1, Bytes{byte(100)}));
     EXPECT_TRUE(dumpTest(buf, 9, Bytes{byte(101), byte(102), byte(103), byte(104), byte(105), byte(106), byte(107), byte(108), byte(109)}));
@@ -172,7 +172,7 @@ TEST(Buffer, dump3) {
     Buffer buf(5);
     buf.mtu_ = 5;
     append(buf, 16);
-    EXPECT_EQ(buf.size(), 16);
+    EXPECT_EQ(buf.Size(), 16);
     EXPECT_EQ(buf.fragments_.size(), 4);
     EXPECT_TRUE(dumpTest(buf, 1, Bytes{byte(100)}));
     EXPECT_TRUE(dumpTest(buf, 10, Bytes{byte(101), byte(102), byte(103), byte(104), byte(105), byte(106), byte(107), byte(108), byte(109), byte(110)}));
@@ -182,9 +182,9 @@ TEST(Buffer, merge) {
     Buffer buf(5);
     buf.mtu_ = 5;
     append(buf, 16);
-    EXPECT_EQ(buf.size(), 16);
+    EXPECT_EQ(buf.Size(), 16);
     EXPECT_EQ(buf.fragments_.size(), 4);
-    buf.merge();
+    buf.Merge();
     EXPECT_EQ(buf.mtu_, 16);
     EXPECT_EQ(buf.fragments_.size(), 1);
     EXPECT_TRUE(dumpTest(buf, 1, Bytes{byte(100)}));
@@ -195,9 +195,9 @@ TEST(Buffer, split) {
     Buffer buf(5);
     buf.mtu_ = 5;
     append(buf, 16);
-    EXPECT_EQ(buf.size(), 16);
+    EXPECT_EQ(buf.Size(), 16);
     EXPECT_EQ(buf.fragments_.size(), 4);
-    buf.split(7);
+    buf.Split(7);
     EXPECT_EQ(buf.mtu_, 7);
     EXPECT_EQ(buf.fragments_.size(), 3);
     EXPECT_TRUE(dumpTest(buf, 1, Bytes{byte(100)}));
@@ -212,8 +212,8 @@ TEST(Buffer, MergeWithHeads) {
 
     Buffer buf;
 
-    EXPECT_EQ(Manager::MarshalTo(bta1, buf.clear()), OK);
-    auto pre_size = buf.size();
+    EXPECT_EQ(Manager::MarshalTo(bta1, buf.Clear()), OK);
+    auto pre_size = buf.Size();
     buf.print("after MarshalTo:");
     BasicArrayFlat bta2;
 
@@ -221,11 +221,11 @@ TEST(Buffer, MergeWithHeads) {
 
     EXPECT_TRUE(Cpeq<BasicArrayFlat>().Equal(bta1, bta2));
 
-    buf.rewind();
+    buf.Rewind();
     auto pre_frags = buf.fragments_.size();
     EXPECT_TRUE(pre_frags>1);
 
-    buf.merge();
+    buf.Merge();
     EXPECT_EQ(buf.mtu_, pre_size + buf.heads_.size() + buf.checksum_len_);
     EXPECT_EQ(buf.fragments_.size(), 1);
 
@@ -244,8 +244,8 @@ TEST(Buffer, SplitWithHeads) {
 
     Buffer buf;
 
-    EXPECT_EQ(Manager::MarshalTo(bta1, buf.clear()), OK);
-    auto pre_size = buf.size();
+    EXPECT_EQ(Manager::MarshalTo(bta1, buf.Clear()), OK);
+    auto pre_size = buf.Size();
     buf.print("after MarshalTo:");
     BasicArrayFlat bta2;
 
@@ -253,11 +253,11 @@ TEST(Buffer, SplitWithHeads) {
 
     EXPECT_TRUE(Cpeq<BasicArrayFlat>().Equal(bta1, bta2));
 
-    buf.rewind();
+    buf.Rewind();
     auto pre_frags = buf.fragments_.size();
     EXPECT_TRUE(pre_frags>1);
 
-    buf.split(384);
+    buf.Split(384);
     EXPECT_EQ(buf.mtu_, 384);
     EXPECT_EQ(buf.fragments_.size(), 2);
 

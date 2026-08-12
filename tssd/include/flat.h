@@ -25,11 +25,12 @@ class Flatable {
 public:
     virtual ~Flatable() = 0;
     //virtual pFlatable Build() const = 0;
-    virtual Schema schema() const;
-    virtual std::string Group() const = 0;
+    virtual tssd::Schema Schema() const;
+    virtual std::string Family() const = 0;
     virtual std::string Version() const = 0;
     virtual std::string TID() const;
-    virtual std::string Progeny() const { return "";}
+    virtual std::string Info() const { return ""; }
+    virtual std::string Progeny() const { return ""; }
     virtual Flatable &Decorate(Flatable &other) { return *this;};
     Bytes Types() const;
 };
@@ -70,17 +71,21 @@ class Manager {
         return str.substr(0, LEN) + str.substr(str.length()-LEN, LEN);
     }
 
-    struct group {
+    struct family {
         std::string current;
         std::map<std::string, pFlatInfo> versions;  //query by version;
-        std::map<std::string, pFlatInfo> hashes;  //query by schema's hash;
     };
 
-    static std::map<std::string, group> groups;
+    struct VersionInfo {
+        std::string family;
+        std::string version;
+    };
+
+    static std::pair<std::map<std::string, family>, std::map<std::string, VersionInfo>> families;
     static std::shared_ptr<TypeInfo> schemaTypeInfo;
     static std::function<std::string(const void*, int)> hash;
     static std::function<std::string(const void*, int)> checksum;
-    static constexpr std::string MAGIC = "TSSDV";
+
 public:
     static inline void print(const void *data, int size, const std::string &prefix="")
     {
@@ -91,25 +96,18 @@ public:
         std::cout << ']' << std::endl;
     }
 
-    static int findMagic(VBytes bs) {
-        auto view = std::string_view(reinterpret_cast<const char*>(bs.data()), bs.size());
-        auto pos = view.find(MAGIC);
-        return pos == view.npos ? -1 : pos;
-    }
-
     template<typename T>
     static void Register() {
         T flat;
-        if (!groups.contains(flat.Group())) {
-            groups[flat.Group()] = group {
+        if (!families.first.contains(flat.Family())) {
+            families.first[flat.Family()] = family {
                 flat.Version(),
-                std::map<std::string, pFlatInfo>(),
                 std::map<std::string, pFlatInfo>()
             };
         }
 
-        auto &group = groups[flat.Group()];
-        if (group.versions.contains(flat.Version()))
+        auto &family = families.first[flat.Family()];
+        if (family.versions.contains(flat.Version()))
             return;
 
         pFlatInfo fi = std::make_shared<FlatInfo>(
@@ -118,13 +116,24 @@ public:
             Schema{},
             TypeInfo::Create<T>());
 
-        group.versions[flat.Version()] = fi;
-        fi->schema = flat.schema();
-        group.hashes[fi->schema.hash] = fi;
+        family.versions[flat.Version()] = fi;
+        fi->schema = flat.Schema();
+        families.second[fi->schema.Types] = VersionInfo {
+            flat.Family(),
+            flat.Version()
+        };
+    }
+
+    static inline VersionInfo* TypesToVersionInfo(const std::string &types) {
+        if (!families.second.contains(types)) return nullptr;
+        return &families.second[types];
     }
 
     static TError MarshalTo(const Flatable& flat, Buffer &buf);
     static TError UnmarshalTo(Buffer &buf, Flatable& flat);
+
+    static TError Read(const Reader &reader, Flatable &flat);
+    static TError Write(const Writer &writer, const Flatable &flat, const int mtu = TSSD_BUFFER_MTU);
 };
 
 }  //end namespace tssd

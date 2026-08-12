@@ -26,7 +26,7 @@ private:
     template<typename T>
     int appendSize(T n)
     {
-        append((const std::byte *)&n, sizeof(T));
+        Append((const std::byte *)&n, sizeof(T));
         return size_;
     }
 
@@ -34,7 +34,7 @@ private:
     int dumpSize()
     {
         T size(0);
-        if (auto ret = dump(sizeof(T), (std::byte *)&size))
+        if (auto ret = Dump(sizeof(T), (std::byte *)&size))
             return ret;
         return size;
     }
@@ -54,7 +54,7 @@ public:
         fragments_[0] = std::make_shared<Fragment>(bs);
     }
 
-    inline Buffer& clear() {
+    inline Buffer& Clear() {
         size_ = index_ = offset_ = 0;
         windex_ = woffset_ = 0;
         heads_.clear();
@@ -63,8 +63,8 @@ public:
         return *this;
     }
 
-    TError prepare(Schema schema);
-    void finish();
+    TError Prepare(Schema schema);
+    void Finish();
 
     //convert to a vector ordered by the fragment id(last fragment is -n)
     inline std::vector<pFragment> Fragments()
@@ -78,27 +78,27 @@ public:
         return result;
     }
 
-    Buffer& append(const std::span<std::byte> bs);
-    Buffer& append(const std::byte bt);
-    Buffer& append(const TType bt);
+    Buffer& Append(const std::span<std::byte> bs);
+    Buffer& Append(const std::byte bt);
+    Buffer& Append(const TType bt);
 
-    inline Buffer& append(const Bytes &bs) {
-        return append(bs.data(), bs.size());
+    inline Buffer& Append(const Bytes &bs) {
+        return Append(bs.data(), bs.size());
     }
 
-    inline Buffer& append(const void* ptr, const std::size_t size) {
-        return append((const std::byte*)ptr, size);
+    inline Buffer& Append(const void* ptr, const std::size_t size) {
+        return Append((const std::byte*)ptr, size);
     }
 
-    inline Buffer& append(const std::byte* ptr, const std::size_t size) {
+    inline Buffer& Append(const std::byte* ptr, const std::size_t size) {
         auto span = std::span<std::byte>((std::byte*)ptr, size);
-        return append(span);
+        return Append(span);
     }
 
-    TError dump(std::size_t size, std::byte *dest);
-    std::byte *dump(std::size_t size);
+    TError Dump(std::size_t size, std::byte *dest);
+    std::byte *Dump(std::size_t size);
 
-    inline TError peekByte(std::byte &bt) {
+    inline TError PeekByte(std::byte &bt) {
         if (size_ == 0) return ERR_INSUFFICIENT_DATA;
 
         bt = fragments_[index_]->payload[offset_];
@@ -106,20 +106,20 @@ public:
     }
 
 
-    inline std::size_t size() { return size_; }
+    inline std::size_t Size() { return size_; }
 
-    inline int appendSize2(const int size) {
+    inline int AppendSize2(const int size) {
         return appendSize<std::int16_t>(size);
     }
 
-    inline int appendSize4(const int size) {
+    inline int AppendSize4(const int size) {
         return appendSize<std::int32_t>(size);
     }
 
-    int dumpSize2();
-    int dumpSize4();
+    int DumpSize2();
+    int DumpSize4();
 
-    inline void updateSize(const int index, const int offset, const int size) {
+    inline void UpdateSize(const int index, const int offset, const int size) {
         // back current write pos
         int windex_bak = windex_;
         int woffset_bak = woffset_;
@@ -127,19 +127,19 @@ public:
         // seek to the pos, append the size
         windex_ = index;
         woffset_ = offset;
-        appendSize4(size);
+        AppendSize4(size);
         // recover the pos and size
         windex_ = windex_bak;
         woffset_ = woffset_bak;
         size_ = size_bak;
     }
 
-    inline void ftell(int &index, int &offset) const {
+    inline void Ftell(int &index, int &offset) const {
         index = windex_;
         offset = woffset_;
     }
 
-    inline void rewind() {
+    inline void Rewind() {
         index_ = offset_ = size_ = 0;
         for (std::size_t i=0; i<fragments_.size(); ++i)
             size_ += fragments_[i]->payload.size();
@@ -159,19 +159,29 @@ public:
     //  < 0:  Error, the fragment was rejected
     //  0 : push sucess, and Buffer is complete, all fragments arrive
     //  n(>0): missing n-th fragment
-    int push(pFragment fragment);
+    int Push(pFragment fragment);
 
     // @desc query the missing fragment
     // return
     //  0 : Buffer is complete, all fragments arrive
     //  n(>0): missing n-th fragment
-    std::size_t wanted();
+    std::size_t Wanted();
 
     // merge all fragments into one, useful for storage
-    void merge();
+    void Merge();
 
     // split fragments with specify mtu
-    void split(std::size_t mtu);
+    void Split(std::size_t mtu);
+/*
+    TError ReadFragments(int fd) {
+        while (Wanted()) {
+            pFragment frag = std::make_shared<Fragment>();
+            if (auto ret = frag->Read(fd)) return ret;
+            auto ret = Push(frag);
+            if (ret <= 0) return ret;
+        }
+        return OK;
+    }*/
 };
 
 }  //end of namespace tssd
