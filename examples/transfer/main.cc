@@ -22,39 +22,26 @@ using namespace std;
 void recvStudent(int sockfd)
 {
     tssd::Manager::Register<Student>();
-    tssd::FBuffer fbuf;  // FBuffer to process raw input data to Fragment
-    tssd::Buffer dbuf;   // dbuf for unmarshal tssd data;
+    tssd::FBuffer fbuf;  // FBuffer to process raw data buffer
     Student student;   // object to receive
 
     size_t more(0);
-    do {
-        std::vector<std::byte> bs(1024);
-        int ret = read(sockfd, bs.data(), bs.size());
-        if (ret <= 0 ) {
-            cout << "recv err: " << ret << endl;
-            return;
-        }
-        bs.resize(ret);
-        do {
-            if (fbuf.Feed(bs, more)!=tssd::OK) break;
 
-            //dbuf return 0 means complete
-            if (dbuf.Push(fbuf.Fragment()) !=0) {
-                bs.resize(0);
-                continue;
-            }
-        } while (fbuf.Size());
-        if (dbuf.Wanted()) continue;
+    SocketReader socketReader(sockfd);
+    if (fbuf.Feed(socketReader) != tssd::OK || !fbuf.Ready(student.Family(), student.Version())) {
+        cout << "recv Student err" << endl;
+        return;
+    }
+    auto dbuf = fbuf.Buffer(student.Family(), student.Version());
 
-        if (tssd::Manager::UnmarshalTo(dbuf, student) != tssd::OK) {
-            cout << "unmarshal err:" << endl;
-            return;
-        }
+    if (tssd::Manager::UnmarshalTo(*dbuf, student) != tssd::OK) {
+        cout << "unmarshal err:" << endl;
+        return;
+    }
 
-        // process your data
-        student.print();
+    // process your data
+    student.print();
 
-    } while(0);
 }
 
 bool sendRequest(int sockfd, int16_t fid)

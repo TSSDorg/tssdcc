@@ -9,6 +9,7 @@
 #include<memory>
 #include<list>
 #include<set>
+#include <iostream>
 
 #include "flat.h"
 
@@ -205,5 +206,16 @@ public:
     }
 };
 
+class SocketReader : public tssd::Reader {
+    int sockfd_;
+    int flags_;
+public:
+    SocketReader(int sockfd, int flags=0) : sockfd_(sockfd), flags_(flags) {}
+    int Read(void *dest, std::size_t numb) const override {
+        auto n = recv(sockfd_, dest, numb, flags_);
+        std::cout << " recv " << n << " bytes" << std::endl;
+        return n;
+    }
+};
 
 #endif // __TSSD_TEST_TYPES_H__
