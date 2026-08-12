@@ -233,13 +233,17 @@ AGAIN:
         }
         return ret;
     }
-    auto frag =  fragment();
-    if (ret = frag->Validate()) return ret;
-    frag_ = frag;
-    return OK;
+    auto cks = VBytes(&(*this)[heads_len_ + payload_len_+TSSD_TARRAYM_HEAD_LENGTH], checksum_len_ - TSSD_TARRAYM_HEAD_LENGTH);
+    ret = Fragment::Validate(VBytes(&(*this)[magic_], heads_len_ + payload_len_), cks);
+    if (ret) {
+        auto len = heads_len_ + payload_len_ + checksum_len_;
+        moveFront(magic_+len, this->Size() - len);
+        reset();
+    }
+    return ret;
 }
 
-pFragment FBuffer::fragment()
+pFragment FBuffer::Fragment()
 {
     std::size_t remain = this->Size() - heads_len_ - payload_len_ - checksum_len_;
     pFragment frag = std::make_shared<tssd::Fragment>(std::max(TSSD_BUFFER_MTU, remain));
@@ -257,6 +261,55 @@ pFragment FBuffer::fragment()
     frag->checksum = VBytes(&frag->data[checksum_], checksum_len_);
     reset();
     return frag;
+}
+
+bool FBuffer::Ready(const std::string &family, const std::string &version){
+    return results_.contains(family) && results_[family].contains(version)
+            && results_[family][version]->Wanted() == 0;
+}
+
+TError FBuffer::Feed(const Reader &reader)
+{
+    Bytes bs(TSSD_BUFFER_MTU);
+    bs.resize(0);
+    std::size_t more(0);
+    do {
+        auto ret = Feed(bs, more);
+        if (ret==ERR_INSUFFICIENT_DATA) {
+            int n = reader.Read(bs.data(), more);
+            if (!n) return ERR_IO;
+            if (n<0) return n;
+            bs.resize(n);
+            continue;
+        }
+        if (ret) return ret;
+        auto frag = this->Fragment();
+        auto &types = frag->schema.Types;
+        auto version = Manager::TypesToVersionInfo(types);
+        if (!version) {
+            if (!unregistered_.contains(types))
+                unregistered_[types] = std::make_shared<tssd::Buffer>();
+
+            auto &buf = unregistered_[types];
+            if (buf->Push(frag)) {
+                bs.resize(0);
+                continue;
+            }
+            return ERR_SCHEMA_NOT_MATCH;
+        }
+        if (!results_.contains(version->family))
+            results_[version->family] = HBuffers();
+
+        auto &bufs = results_[version->family];
+
+        if (!bufs.contains(version->version))
+            bufs[types] = std::make_shared<tssd::Buffer>();
+        if (bufs[types]->Push(frag)) {
+            bs.resize(0);
+            continue;
+        }
+    } while(0);
+    return OK;
 }
 
 } // namespace

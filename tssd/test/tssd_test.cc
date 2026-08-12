@@ -31,7 +31,6 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
         FBuffer fbuf;
         std::size_t more = 0;
         EXPECT_TRUE(!fbuf.Feed(list[i]->data, more));
-        EXPECT_TRUE(fbuf.Ready());
         EXPECT_EQ(rbuf.Push(fbuf.Fragment()), 0);
         EXPECT_EQ(fbuf.Size(), 0);
     }
@@ -95,7 +94,6 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
         FBuffer fbuf;
         std::size_t more = 0;
         EXPECT_TRUE(!fbuf.Feed(list[i]->data, more));
-        EXPECT_TRUE(fbuf.Ready());
         rbuf.Push(fbuf.Fragment());
         EXPECT_EQ(fbuf.Size(), 0);
     }

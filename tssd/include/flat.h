@@ -74,10 +74,14 @@ class Manager {
     struct family {
         std::string current;
         std::map<std::string, pFlatInfo> versions;  //query by version;
-        std::map<std::string, pFlatInfo> hashes;  //query by schema's hash;
     };
 
-    static std::map<std::string, family> families;
+    struct VersionInfo {
+        std::string family;
+        std::string version;
+    };
+
+    static std::pair<std::map<std::string, family>, std::map<std::string, VersionInfo>> families;
     static std::shared_ptr<TypeInfo> schemaTypeInfo;
     static std::function<std::string(const void*, int)> hash;
     static std::function<std::string(const void*, int)> checksum;
@@ -95,15 +99,14 @@ public:
     template<typename T>
     static void Register() {
         T flat;
-        if (!families.contains(flat.Family())) {
-            families[flat.Family()] = family {
+        if (!families.first.contains(flat.Family())) {
+            families.first[flat.Family()] = family {
                 flat.Version(),
-                std::map<std::string, pFlatInfo>(),
                 std::map<std::string, pFlatInfo>()
             };
         }
 
-        auto &family = families[flat.Family()];
+        auto &family = families.first[flat.Family()];
         if (family.versions.contains(flat.Version()))
             return;
 
@@ -115,7 +118,15 @@ public:
 
         family.versions[flat.Version()] = fi;
         fi->schema = flat.Schema();
-        family.hashes[fi->schema.Types] = fi;
+        families.second[fi->schema.Types] = VersionInfo {
+            flat.Family(),
+            flat.Version()
+        };
+    }
+
+    static inline VersionInfo* TypesToVersionInfo(const std::string &types) {
+        if (!families.second.contains(types)) return nullptr;
+        return &families.second[types];
     }
 
     static TError MarshalTo(const Flatable& flat, Buffer &buf);

@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <unordered_map>
 
 namespace tssd {
 
@@ -86,8 +87,7 @@ struct Schema {
     std::int16_t FID;    //fragment id: [1,2, ... -n]
     std::string  TID;
     std::string  Types;
-    std::string  family;
-    std::string  info;
+    std::string  Info;
 
     TError Marshal(Buffer &buf);
     TError Unmarshal(Buffer &buf);
@@ -131,7 +131,11 @@ public:
 using pFragment = std::shared_ptr<Fragment>;
 using pBuffer = std::shared_ptr<Buffer>;
 
-
+class Reader {
+public:
+    virtual ~Reader() = 0;
+    virtual int Read(void *dest, std::size_t numb) const = 0;
+};
 
 class FBuffer {
 private:
@@ -144,8 +148,9 @@ private:
     int payload_len_ = -1;
     int checksum_ = -1;   // checksum begin
     int checksum_len_ = -1;
-    pFragment frag_;
-    //std::unordered_map<std::string, pBuffer> results_;  //(family, pBuffer)
+    using HBuffers = std::unordered_map<std::string, pBuffer>;  // (version, pBuffer)
+    std::unordered_map<std::string, HBuffers> results_;  //(family, buffers)
+    HBuffers unregistered_;
 
     inline void append(const Bytes &data)
     {
@@ -168,7 +173,7 @@ private:
     {
         //clear all status
         magic_ = heads_len_ = payload_ = payload_len_ = checksum_ = checksum_len_ = -1;
-        frag_.reset();
+        //frag_.reset();
     }
 
     //4 step to parse Fragment
@@ -182,7 +187,6 @@ private:
     TError parseHeads(std::size_t &more);
     TError parsePayload(std::size_t &more);
     TError parseChecksum(std::size_t more);
-    pFragment fragment();
     void moveFront(const std::size_t pos, const int n);
 
 public:
@@ -190,17 +194,24 @@ public:
     FBuffer() : buffer_(std::make_shared<Bytes>(TSSD_BUFFER_MTU)) {
         buffer_->resize(0);
     }
-    inline Bytes Buffer() const { return *buffer_; }
+    inline Bytes Data() const { return *buffer_; }
     inline void Clear() { buffer_->resize(0); reset(); }
     inline std::size_t Size() const { return buffer_->size(); }
     inline std::byte &operator[](const std::size_t pos) {
         return (*buffer_)[pos];
     }
-    inline bool Ready() const { return frag_ != nullptr;}
+    bool Ready(const std::string &family, const std::string &version);
     TError Feed(const Bytes &data, std::size_t &more);
+    pFragment Fragment();
 
     // Feed got OK, then we can call it to get a Fragment;
-    pFragment Fragment() const { return frag_; }
+    // pFragment Fragment(const Flatable *flat) const;
+    pBuffer Buffer(const std::string &family, const std::string &version) {
+        if (!Ready(family, version)) return nullptr;
+        return results_[family][version];
+    }
+
+    TError Feed(const Reader &reader);
 };
 
 

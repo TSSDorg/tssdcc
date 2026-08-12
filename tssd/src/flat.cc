@@ -3,11 +3,13 @@
 #include "buffer.h"
 namespace tssd {
 
-std::map<std::string, Manager::family> Manager::families;
+
+std::pair<std::map<std::string, Manager::family>, std::map<std::string, Manager::VersionInfo>> Manager::families;
 std::shared_ptr<TypeInfo> Manager::schemaTypeInfo = TypeInfo::Create<Schema>();
 std::function<std::string(const void*, int)> Manager::hash = Manager::hash6;
 std::function<std::string(const void*, int)> Manager::checksum = Manager::hash6;
 Flatable::~Flatable() {}
+Reader::~Reader() {}
 
 std::string Flatable::TID() const
 {
@@ -25,22 +27,21 @@ Schema Flatable::Schema() const
         -1,           // FID
         this->TID(),  // TID
         Manager::hash(bs.data(), bs.size()),
-        this->Family(),
         this->Info()};
     return s;
 }
 
 std::vector<std::byte> Flatable::Types() const
 {
-    return Manager::families[this->Family()].versions[this->Version()]->typeInfo->Types();
+    return Manager::families.first[this->Family()].versions[this->Version()]->typeInfo->Types();
 }
 
 TError Manager::MarshalTo(const Flatable &flat, Buffer &buf)
 {
-    if (!families.contains(flat.Family())) return ERR_SCHEMA_NOT_FOUND;
+    if (!families.first.contains(flat.Family())) return ERR_SCHEMA_NOT_FOUND;
 
-    auto &family = families[flat.Family()];
-    if (!families[flat.Family()].versions.contains(flat.Version())) return ERR_SCHEMA_NOT_FOUND;
+    auto &family = families.first[flat.Family()];
+    if (!families.first[flat.Family()].versions.contains(flat.Version())) return ERR_SCHEMA_NOT_FOUND;
 
     buf.Prepare(flat.Schema());
     if (auto ret = family.versions[flat.Version()]->typeInfo->MarshalTo(&flat, buf)) {
@@ -53,12 +54,10 @@ TError Manager::MarshalTo(const Flatable &flat, Buffer &buf)
 
 TError Manager::UnmarshalTo(Buffer &buf, Flatable &flat)
 {
-    if (!families.contains(flat.Family())) return ERR_SCHEMA_NOT_FOUND;
+    if (!families.first.contains(flat.Family())) return ERR_SCHEMA_NOT_FOUND;
 
-    auto &family = families[flat.Family()];
+    auto &family = families.first[flat.Family()];
     if (!family.versions.contains(flat.Version())) return ERR_SCHEMA_NOT_FOUND;
-
-    //TODO dump TSSD header
 
     return family.versions[flat.Version()]->typeInfo->UnmarshalTo(buf, &flat);
 }
