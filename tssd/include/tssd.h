@@ -85,8 +85,8 @@ class Buffer;
 class RBuffer;
 struct Schema {
     std::int16_t FID;    //fragment id: [1,2, ... -n]
-    std::string  TID;
     std::string  Types;
+    std::string  TID;
     std::string  Info;
 
     TError Marshal(Buffer &buf);

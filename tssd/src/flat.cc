@@ -26,8 +26,8 @@ Schema Flatable::Schema() const
     std::cout << "hash value:" << ret << std::endl;
     struct Schema s{
         -1,           // FID
-        this->TID(),  // TID
         Manager::hash(bs.data(), bs.size()),
+        this->TID(),  // TID
         this->Info()};
     return s;
 }
