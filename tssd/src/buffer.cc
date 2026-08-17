@@ -8,7 +8,7 @@
 
 namespace tssd {
 
-TError Buffer::Prepare(Schema schema)
+TError Buffer::Prepare(tssd::Schema schema)
 {
     if (mtu_ == 0) mtu_ = TSSD_BUFFER_MTU;
     mtu_ = std::max(mtu_, TSSD_BUFFER_MIN_MTU);

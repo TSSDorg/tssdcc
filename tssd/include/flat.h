@@ -24,7 +24,7 @@ using pFlatable = std::shared_ptr<Flatable>;
 class Flatable {
 public:
     virtual ~Flatable() = 0;
-    //virtual pFlatable Build() const = 0;
+    virtual pFlatable Build() const { return nullptr; }
     virtual tssd::Schema Schema() const;
     virtual std::string Family() const = 0;
     virtual std::string Version() const = 0;
@@ -37,9 +37,9 @@ public:
 
 struct FlatInfo {
     std::string version;
-    //std::string hash;
     std::string progeny;
     Schema schema;
+    pFlatable flat;
     const std::shared_ptr<TypeInfo> typeInfo;
 };
 
@@ -114,6 +114,7 @@ public:
             flat.Version(),
             flat.Progeny(),
             Schema{},
+            std::make_shared<T>(),
             TypeInfo::Create<T>());
 
         family.versions[flat.Version()] = fi;
@@ -131,6 +132,7 @@ public:
 
     static TError MarshalTo(const Flatable& flat, Buffer &buf);
     static TError UnmarshalTo(Buffer &buf, Flatable& flat);
+    static pFlatable Unmarshal(Buffer &buf);
 
     static TError Read(const Reader &reader, Flatable &flat);
     static TError Write(const Writer &writer, const Flatable &flat, const int mtu = TSSD_BUFFER_MTU);

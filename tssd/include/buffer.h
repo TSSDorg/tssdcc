@@ -65,6 +65,11 @@ public:
 
     TError Prepare(Schema schema);
     void Finish();
+    //get Schema info
+    tssd::Schema *Schema() {
+        if (fragments_.empty()) return nullptr;
+        return &fragments_[0]->schema;
+    }
 
     //convert to a vector ordered by the fragment id(last fragment is -n)
     inline std::vector<pFragment> Fragments()

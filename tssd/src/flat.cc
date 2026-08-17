@@ -63,6 +63,23 @@ TError Manager::UnmarshalTo(Buffer &buf, Flatable &flat)
     return family.versions[flat.Version()]->typeInfo->UnmarshalTo(buf, &flat);
 }
 
+pFlatable Manager::Unmarshal(Buffer &buf)
+{
+    auto schema = buf.Schema();
+    if (!schema) {
+		return nullptr;
+	}
+	auto remoteHash = schema->Types;
+    auto vi = TypesToVersionInfo(remoteHash);
+    if (!vi) return nullptr;
+
+    auto flat = families.first[vi->family].versions[vi->version]->flat->Build();
+    if (!flat) return nullptr;
+
+    if (UnmarshalTo(buf, *flat)) return nullptr;
+    return flat;
+}
+
 TError Manager::Read(const Reader &reader, Flatable &flat)
 {
     tssd::RBuffer rbuf;  // RBuffer to process raw data buffer
