@@ -13,35 +13,14 @@
 #include "md5.h"
 
 namespace tssd {
-class Manager;
-class FlatInfo;
-class Flatable;
-using pMgr = std::shared_ptr<Manager>;
-using pFlatInfo = std::shared_ptr<FlatInfo>;
-using pBuffer = std::shared_ptr<Buffer>;
-using pFlatable = std::shared_ptr<Flatable>;
-
-class Flatable {
-public:
-    virtual ~Flatable() = 0;
-    virtual pFlatable Build() const { return nullptr; }
-    virtual tssd::Schema Schema() const;
-    virtual std::string Family() const = 0;
-    virtual std::string Version() const = 0;
-    virtual std::string TID() const;
-    virtual std::string Info() const { return ""; }
-    virtual std::string Progeny() const { return ""; }
-    virtual Flatable &Decorate(Flatable &other) { return *this;};
-    Bytes Types() const;
-};
 
 struct FlatInfo {
     std::string version;
     std::string progeny;
     Schema schema;
-    pFlatable flat;
     const std::shared_ptr<TypeInfo> typeInfo;
 };
+using pFlatInfo = std::shared_ptr<FlatInfo>;
 
 template<typename T>
 class Cpeq {
@@ -114,8 +93,7 @@ public:
             flat.Version(),
             flat.Progeny(),
             Schema{},
-            std::make_shared<T>(),
-            TypeInfo::Create<T>());
+            TypeInfo::CreateT<T>());
 
         family.versions[flat.Version()] = fi;
         fi->schema = flat.Schema();

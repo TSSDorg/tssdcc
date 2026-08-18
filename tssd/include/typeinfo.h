@@ -6,6 +6,7 @@
 #include <vector>
 #include <span>
 #include <cstring>
+#include <concepts>
 #include <meta>
 #include <set>
 #include <list>
@@ -18,6 +19,9 @@
 #include "buffer.h"
 
 namespace tssd {
+
+template<std::derived_from<Flatable> T>
+class TypeInfoT;
 
 struct TypeInfo {
 
@@ -68,6 +72,7 @@ struct TypeInfo {
             children_(ch) {}
 
     constexpr TypeInfo(TType type) : node_(type) {}
+    TypeInfo(const TypeInfo &other) : node_(other.node_), children_(other.children_) {}
 
     inline TError CheckTType(Buffer &buf) const {
         return CheckTType(buf, (std::int8_t)node_.tssd_type_);
@@ -99,9 +104,9 @@ struct TypeInfo {
 
     virtual void copy(const std::byte *src, std::byte *dest) const {}
 
-    virtual bool equal(const std::byte *pl, const std::byte *pr) const {
-        return false;
-    }
+    virtual bool equal(const std::byte *pl, const std::byte *pr) const { return false; }
+
+    virtual pFlatable Build() const { return nullptr; }
 
     //set tssd_type, total offset, save, dump by the reflect type
     void parse(std::shared_ptr<TypeInfo> parent);
@@ -141,6 +146,13 @@ public:
         ti->parse(ti);
         ti->MakeTypes();
         return ti;
+    }
+
+    template <std::derived_from<Flatable> T>
+    static std::shared_ptr<TypeInfo> CreateT() {
+        auto ti = Create<T>();
+        auto ret = std::make_shared<TypeInfoT<T>>(*ti);
+        return std::static_pointer_cast<TypeInfo>(ret);
     }
 
     TError MarshalTo(const void *obj, Buffer &buf) const {
@@ -186,10 +198,20 @@ public:
 class objectOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
+    objectOper(const TypeInfo &other) : TypeInfo(other) {}
     TError save(const std::byte *src, Buffer &buf) const override;
     TError dump(Buffer &buf, std::byte *dest) const override;
     void   copy(const std::byte *src, std::byte *dest) const override;
     bool   equal(const std::byte *pl, const std::byte *pr) const override;
+};
+
+template<std::derived_from<Flatable> T>
+class TypeInfoT : public objectOper {
+public:
+    TypeInfoT(const TypeInfo &other) : objectOper(other) {}
+    pFlatable Build() const {
+        return std::make_shared<T>();
+    }
 };
 
 class arrayOper : public TypeInfo {

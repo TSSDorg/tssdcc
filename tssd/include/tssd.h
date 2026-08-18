@@ -128,8 +128,6 @@ public:
         std::cout << ']' << std::endl;
     }
 };
-using pFragment = std::shared_ptr<Fragment>;
-using pBuffer = std::shared_ptr<Buffer>;
 
 class Reader {
 public:
@@ -143,6 +141,22 @@ public:
     virtual int Write(void *dest, std::size_t numb) const = 0;
 };
 
+class Flatable {
+public:
+    virtual ~Flatable() = 0;
+    virtual tssd::Schema Schema() const;
+    virtual std::string Family() const = 0;
+    virtual std::string Version() const = 0;
+    virtual std::string TID() const;
+    virtual std::string Info() const { return ""; }
+    virtual std::string Progeny() const { return ""; }
+    virtual Flatable &Decorate(Flatable &other) { return *this;};
+    Bytes Types() const;
+};
+
+using pFragment = std::shared_ptr<Fragment>;
+using pBuffer = std::shared_ptr<Buffer>;
+using pFlatable = std::shared_ptr<Flatable>;
 
 class RBuffer {
 private:

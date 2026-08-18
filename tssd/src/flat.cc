@@ -73,7 +73,7 @@ pFlatable Manager::Unmarshal(Buffer &buf)
     auto vi = TypesToVersionInfo(remoteHash);
     if (!vi) return nullptr;
 
-    auto flat = families.first[vi->family].versions[vi->version]->flat->Build();
+    auto flat = families.first[vi->family].versions[vi->version]->typeInfo->Build();
     if (!flat) return nullptr;
 
     if (UnmarshalTo(buf, *flat)) return nullptr;

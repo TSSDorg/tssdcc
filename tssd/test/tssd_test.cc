@@ -164,3 +164,37 @@ TEST(TSSD, rander) {
     ctest.rand_content(&ctest);
 }
 
+
+struct CStruct1Flat : public tssd::Flatable {
+    string name;
+    //std::string type_;
+    //Struct1Flat(T v, const string type="") : struct1.v1(v), type_(type){}
+    std::string Family() const override {
+        return "CStruct1FlatFamily";
+    }
+    std::string Version() const override {
+        return "CStruct1Flat-V1";
+    }
+};
+
+struct CStruct2Flat : public CStruct1Flat {
+    int age;
+    //std::string type_;
+    //Struct1Flat(T v, const string type="") : struct1.v1(v), type_(type){}
+    std::string Version() const override {
+        return "CStruct1Flat-V2";
+    }
+};
+
+TEST(TypeInfoT, TypeInfoT) {
+    std::shared_ptr<tssd::TypeInfo> ti[2] = {
+        tssd::TypeInfo::CreateT<CStruct1Flat>(),
+        tssd::TypeInfo::CreateT<CStruct2Flat>()
+    };
+    EXPECT_TRUE(ti[0] && ti[1]);
+    EXPECT_TRUE(ti[0]->Build() && ti[1]->Build());
+    EXPECT_EQ(ti[0]->Build()->Version(),  "CStruct1Flat-V1");
+    EXPECT_EQ(ti[1]->Build()->Version(),  "CStruct1Flat-V2");
+    EXPECT_EQ(ti[0]->Build()->Family(), "CStruct1FlatFamily");
+    EXPECT_EQ(ti[1]->Build()->Family(), "CStruct1FlatFamily");
+}
