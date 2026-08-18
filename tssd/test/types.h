@@ -10,6 +10,8 @@
 #include<list>
 #include<set>
 #include <iostream>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include "flat.h"
 

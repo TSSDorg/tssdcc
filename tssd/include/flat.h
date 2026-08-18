@@ -13,35 +13,14 @@
 #include "md5.h"
 
 namespace tssd {
-class Manager;
-class FlatInfo;
-class Flatable;
-using pMgr = std::shared_ptr<Manager>;
-using pFlatInfo = std::shared_ptr<FlatInfo>;
-using pBuffer = std::shared_ptr<Buffer>;
-using pFlatable = std::shared_ptr<Flatable>;
-
-class Flatable {
-public:
-    virtual ~Flatable() = 0;
-    //virtual pFlatable Build() const = 0;
-    virtual tssd::Schema Schema() const;
-    virtual std::string Family() const = 0;
-    virtual std::string Version() const = 0;
-    virtual std::string TID() const;
-    virtual std::string Info() const { return ""; }
-    virtual std::string Progeny() const { return ""; }
-    virtual Flatable &Decorate(Flatable &other) { return *this;};
-    Bytes Types() const;
-};
 
 struct FlatInfo {
     std::string version;
-    //std::string hash;
     std::string progeny;
     Schema schema;
     const std::shared_ptr<TypeInfo> typeInfo;
 };
+using pFlatInfo = std::shared_ptr<FlatInfo>;
 
 template<typename T>
 class Cpeq {
@@ -59,6 +38,7 @@ public:
 };
 
 class Manager {
+private:
     friend class Flatable;
     friend struct Schema;
     friend struct Fragment;
@@ -86,6 +66,9 @@ class Manager {
     static std::function<std::string(const void*, int)> hash;
     static std::function<std::string(const void*, int)> checksum;
 
+    static TError decorate(const pFlatable from, Flatable &to);
+    static pFlatable unmarshal(Buffer &buf);
+
 public:
     static inline void print(const void *data, int size, const std::string &prefix="")
     {
@@ -97,8 +80,10 @@ public:
     }
 
     template<typename T>
-    static void Register() {
+    static TError Register() {
         T flat;
+        if (flat.Family().empty() || flat.Version().empty())
+            return ERR_REGISTER_FLAT_FAILURE;
         if (!families.first.contains(flat.Family())) {
             families.first[flat.Family()] = family {
                 flat.Version(),
@@ -107,14 +92,16 @@ public:
         }
 
         auto &family = families.first[flat.Family()];
+        if (flat.Progeny().empty())
+            family.current = flat.Version();
         if (family.versions.contains(flat.Version()))
-            return;
+            return OK;
 
         pFlatInfo fi = std::make_shared<FlatInfo>(
             flat.Version(),
             flat.Progeny(),
             Schema{},
-            TypeInfo::Create<T>());
+            TypeInfo::CreateT<T>());
 
         family.versions[flat.Version()] = fi;
         fi->schema = flat.Schema();
@@ -122,6 +109,17 @@ public:
             flat.Family(),
             flat.Version()
         };
+        return OK;
+    }
+
+    template<typename T>
+    static TError RegisterCurrent() {
+        if (auto ret = Register<T>())
+            return ret;
+        T flat;
+        auto &family = families.first[flat.Family()];
+        family.current = flat.Version();
+        return OK;
     }
 
     static inline VersionInfo* TypesToVersionInfo(const std::string &types) {
@@ -131,6 +129,7 @@ public:
 
     static TError MarshalTo(const Flatable& flat, Buffer &buf);
     static TError UnmarshalTo(Buffer &buf, Flatable& flat);
+    static pFlatable Unmarshal(Buffer &buf);
 
     static TError Read(const Reader &reader, Flatable &flat);
     static TError Write(const Writer &writer, const Flatable &flat, const int mtu = TSSD_BUFFER_MTU);

@@ -63,6 +63,7 @@ const std::size_t TSSD_SIZET_LENGTH = 4;
 const std::size_t TSSD_SIZEA_LENGTH = 2;
 
 using TError = std::int16_t;
+const TError ERR_REGISTER_FLAT_FAILURE = -6;
 const TError ERR_IO = -6;
 const TError ERR_SCHEMA_NOT_MATCH = -3;
 const TError ERR_CHECKSUM_FAILURE = -5;
@@ -85,8 +86,8 @@ class Buffer;
 class RBuffer;
 struct Schema {
     std::int16_t FID;    //fragment id: [1,2, ... -n]
-    std::string  TID;
     std::string  Types;
+    std::string  TID;
     std::string  Info;
 
     TError Marshal(Buffer &buf);
@@ -128,8 +129,6 @@ public:
         std::cout << ']' << std::endl;
     }
 };
-using pFragment = std::shared_ptr<Fragment>;
-using pBuffer = std::shared_ptr<Buffer>;
 
 class Reader {
 public:
@@ -143,6 +142,22 @@ public:
     virtual int Write(void *dest, std::size_t numb) const = 0;
 };
 
+class Flatable {
+public:
+    virtual ~Flatable() = 0;
+    virtual tssd::Schema Schema() const;
+    virtual std::string Family() const = 0;
+    virtual std::string Version() const = 0;
+    virtual std::string TID() const;
+    virtual std::string Info() const { return ""; }
+    virtual std::string Progeny() const { return ""; }
+    virtual TError Decorate(const std::shared_ptr<Flatable> other) { return OK; }
+    Bytes Types() const;
+};
+
+using pFragment = std::shared_ptr<Fragment>;
+using pBuffer = std::shared_ptr<Buffer>;
+using pFlatable = std::shared_ptr<Flatable>;
 
 class RBuffer {
 private:

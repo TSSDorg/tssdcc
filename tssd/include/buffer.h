@@ -12,7 +12,7 @@ namespace tssd {
 class Buffer {
 private:
     std::unordered_map<std::size_t, std::shared_ptr<Fragment>> fragments_;
-    Schema schema_;
+    tssd::Schema schema_;
     Bytes heads_;
     int checksum_len_ = 0;
 
@@ -65,6 +65,10 @@ public:
 
     TError Prepare(Schema schema);
     void Finish();
+    //get Schema info
+    tssd::Schema Schema() {
+        return schema_;
+    }
 
     //convert to a vector ordered by the fragment id(last fragment is -n)
     inline std::vector<pFragment> Fragments()

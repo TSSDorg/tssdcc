@@ -3,7 +3,6 @@
 #include "buffer.h"
 namespace tssd {
 
-
 std::pair<std::map<std::string, Manager::family>, std::map<std::string, Manager::VersionInfo>> Manager::families;
 std::shared_ptr<TypeInfo> Manager::schemaTypeInfo = TypeInfo::Create<Schema>();
 std::function<std::string(const void*, int)> Manager::hash = Manager::hash6;
@@ -26,8 +25,8 @@ Schema Flatable::Schema() const
     std::cout << "hash value:" << ret << std::endl;
     struct Schema s{
         -1,           // FID
-        this->TID(),  // TID
         Manager::hash(bs.data(), bs.size()),
+        this->TID(),  // TID
         this->Info()};
     return s;
 }
@@ -53,6 +52,23 @@ TError Manager::MarshalTo(const Flatable &flat, Buffer &buf)
     return OK;
 }
 
+TError Manager::decorate(const pFlatable from, Flatable &to)
+{
+    auto &family = families.first[to.Family()];
+    auto it = from;
+    for (auto ver = it->Progeny(); !ver.empty() && family.versions.contains(ver); )
+    {
+        if (to.Version() == ver)
+            return to.Decorate(it);
+        auto flat = family.versions[ver]->typeInfo->Build();
+        if (auto ret = flat->Decorate(it))
+            return ret;
+        it = flat;
+        ver = it->Progeny();
+    }
+    return ERR_SCHEMA_NOT_MATCH;
+}
+
 TError Manager::UnmarshalTo(Buffer &buf, Flatable &flat)
 {
     if (!families.first.contains(flat.Family())) return ERR_SCHEMA_NOT_FOUND;
@@ -60,8 +76,45 @@ TError Manager::UnmarshalTo(Buffer &buf, Flatable &flat)
     auto &family = families.first[flat.Family()];
     if (!family.versions.contains(flat.Version())) return ERR_SCHEMA_NOT_FOUND;
 
-    return family.versions[flat.Version()]->typeInfo->UnmarshalTo(buf, &flat);
+    auto vi = TypesToVersionInfo(buf.Schema().Types);
+    if ( !vi || (vi->family != flat.Family())) return ERR_SCHEMA_NOT_MATCH;
+
+    // match exactly
+    if (vi->version == flat.Version())
+        return family.versions[flat.Version()]->typeInfo->UnmarshalTo(buf, &flat);
+
+    auto remote = unmarshal(buf);
+    if (!remote) return ERR_SCHEMA_NOT_MATCH;
+
+    return decorate(remote, flat);
 }
+
+// unmarshal to the original version
+pFlatable Manager::unmarshal(Buffer &buf)
+{
+    auto vi = TypesToVersionInfo(buf.Schema().Types);
+    if (!vi) return nullptr;
+
+    auto flat = families.first[vi->family].versions[vi->version]->typeInfo->Build();
+
+    if (UnmarshalTo(buf, *flat)) return nullptr;
+    return flat;
+}
+
+// Unmarshal to current version
+pFlatable Manager::Unmarshal(Buffer &buf)
+{
+    auto remote = unmarshal(buf);
+    if (!remote) return nullptr;
+
+    auto family = families.first[remote->Family()];
+    if (family.current.empty() || remote->Version() == family.current)
+        return remote;
+
+    auto flat = family.versions[family.current]->typeInfo->Build();
+    return decorate(remote, *flat) ? nullptr : flat;
+}
+
 
 TError Manager::Read(const Reader &reader, Flatable &flat)
 {
