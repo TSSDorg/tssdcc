@@ -65,6 +65,8 @@ class Manager {
     static std::function<std::string(const void*, int)> hash;
     static std::function<std::string(const void*, int)> checksum;
 
+    static TError decorate(const pFlatable from, Flatable &to);
+
 public:
     static inline void print(const void *data, int size, const std::string &prefix="")
     {

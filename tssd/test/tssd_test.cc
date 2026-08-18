@@ -167,8 +167,6 @@ TEST(TSSD, rander) {
 
 struct CStruct1Flat : public tssd::Flatable {
     string name;
-    //std::string type_;
-    //Struct1Flat(T v, const string type="") : struct1.v1(v), type_(type){}
     std::string Family() const override {
         return "CStruct1FlatFamily";
     }
@@ -179,8 +177,6 @@ struct CStruct1Flat : public tssd::Flatable {
 
 struct CStruct2Flat : public CStruct1Flat {
     int age;
-    //std::string type_;
-    //Struct1Flat(T v, const string type="") : struct1.v1(v), type_(type){}
     std::string Version() const override {
         return "CStruct1Flat-V2";
     }

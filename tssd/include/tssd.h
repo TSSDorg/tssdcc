@@ -150,7 +150,7 @@ public:
     virtual std::string TID() const;
     virtual std::string Info() const { return ""; }
     virtual std::string Progeny() const { return ""; }
-    virtual Flatable &Decorate(Flatable &other) { return *this;};
+    virtual TError Decorate(const std::shared_ptr<Flatable> other) { return OK; }
     Bytes Types() const;
 };
 
