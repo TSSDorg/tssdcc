@@ -122,3 +122,69 @@ TEST(Decoreate, V1ToV3) {
     EXPECT_EQ(dt3out.addr[0], "default address");
     EXPECT_EQ(dt3out.addr[1], "default address 2");
 }
+
+TEST(Decoreate, V2ToV3) {
+    DecorateTest2 dtin;
+    dtin.name = Basic::RandomString(8);
+    dtin.addr = Basic::RandomString(16);
+    Basic::rand(&dtin.age, sizeof(dtin.age));
+
+    Manager::Register<DecorateTest2>();
+
+    Buffer buf(256);
+    EXPECT_EQ(Manager::MarshalTo(dtin, buf.Clear()), OK);
+
+    buf.print("after MarshalTo:");
+
+    DecorateTest2 dtout;
+    EXPECT_EQ(Manager::UnmarshalTo(buf, dtout), OK);
+    EXPECT_TRUE(Cpeq<DecorateTest2>().Equal(dtin, dtout));
+
+    //v2 - > v3
+    Manager::Register<DecorateTest3>();
+    DecorateTest3 dt3out;
+    buf.Rewind();
+    EXPECT_EQ(Manager::UnmarshalTo(buf, dt3out), OK);
+    EXPECT_EQ(dtin.name, dt3out.name);
+    EXPECT_EQ(dtin.age, dt3out.age);
+    EXPECT_EQ(dt3out.addr[0], dtin.addr);
+    EXPECT_EQ(dt3out.addr[1], "default address 2");
+
+    //v2 -> v1 should fail
+    Manager::Register<DecorateTest>();
+    DecorateTest dt1out;
+    buf.Rewind();
+    EXPECT_TRUE(Manager::UnmarshalTo(buf, dt1out) != OK);
+}
+
+TEST(Decoreate, V3ToV3) {
+    DecorateTest3 dtin;
+    dtin.name = Basic::RandomString(8);
+    dtin.addr[0] = Basic::RandomString(16);
+    dtin.addr[1] = Basic::RandomString(16);
+    Basic::rand(&dtin.age, sizeof(dtin.age));
+
+    Manager::Register<DecorateTest3>();
+
+    Buffer buf(256);
+    EXPECT_EQ(Manager::MarshalTo(dtin, buf.Clear()), OK);
+
+    buf.print("after MarshalTo:");
+
+    DecorateTest3 dtout;
+    EXPECT_EQ(Manager::UnmarshalTo(buf, dtout), OK);
+    EXPECT_TRUE(Cpeq<DecorateTest3>().Equal(dtin, dtout));
+
+    //v3 -> v2 should fail
+    Manager::Register<DecorateTest2>();
+    DecorateTest2 dt2out;
+    buf.Rewind();
+    EXPECT_TRUE(Manager::UnmarshalTo(buf, dt2out) != OK);
+
+    //v3->v1 should fail
+    Manager::Register<DecorateTest>();
+    DecorateTest dt1out;
+    buf.Rewind();
+    EXPECT_TRUE(Manager::UnmarshalTo(buf, dt1out) != OK);
+}
+
