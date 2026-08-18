@@ -38,6 +38,7 @@ public:
 };
 
 class Manager {
+private:
     friend class Flatable;
     friend struct Schema;
     friend struct Fragment;
@@ -66,6 +67,7 @@ class Manager {
     static std::function<std::string(const void*, int)> checksum;
 
     static TError decorate(const pFlatable from, Flatable &to);
+    static pFlatable unmarshal(Buffer &buf);
 
 public:
     static inline void print(const void *data, int size, const std::string &prefix="")
@@ -78,8 +80,10 @@ public:
     }
 
     template<typename T>
-    static void Register() {
+    static TError Register() {
         T flat;
+        if (flat.Family().empty() || flat.Version().empty())
+            return ERR_REGISTER_FLAT_FAILURE;
         if (!families.first.contains(flat.Family())) {
             families.first[flat.Family()] = family {
                 flat.Version(),
@@ -88,8 +92,10 @@ public:
         }
 
         auto &family = families.first[flat.Family()];
+        if (flat.Progeny().empty())
+            family.current = flat.Version();
         if (family.versions.contains(flat.Version()))
-            return;
+            return OK;
 
         pFlatInfo fi = std::make_shared<FlatInfo>(
             flat.Version(),
@@ -103,6 +109,17 @@ public:
             flat.Family(),
             flat.Version()
         };
+        return OK;
+    }
+
+    template<typename T>
+    static TError RegisterCurrent() {
+        if (auto ret = Register<T>())
+            return ret;
+        T flat;
+        auto &family = families.first[flat.Family()];
+        family.current = flat.Version();
+        return OK;
     }
 
     static inline VersionInfo* TypesToVersionInfo(const std::string &types) {

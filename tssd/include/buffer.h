@@ -12,7 +12,7 @@ namespace tssd {
 class Buffer {
 private:
     std::unordered_map<std::size_t, std::shared_ptr<Fragment>> fragments_;
-    Schema schema_;
+    tssd::Schema schema_;
     Bytes heads_;
     int checksum_len_ = 0;
 

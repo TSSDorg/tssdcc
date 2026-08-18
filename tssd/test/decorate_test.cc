@@ -2,10 +2,12 @@
 #include <span>
 #include "gtest/gtest.h"
 
+#define private public
 #include "tssd.h"
 #include "flat.h"
 #include "basic.h"
 #include "types.h"
+#undef private
 using namespace tssd;
 using namespace std;
 
@@ -188,3 +190,63 @@ TEST(Decoreate, V3ToV3) {
     EXPECT_TRUE(Manager::UnmarshalTo(buf, dt1out) != OK);
 }
 
+
+TEST(Decoreate, unmarshal) {
+    DecorateTest2 dtin;
+    dtin.name = Basic::RandomString(8);
+    dtin.addr = Basic::RandomString(16);
+    Basic::rand(&dtin.age, sizeof(dtin.age));
+
+    Manager::RegisterCurrent<DecorateTest2>();
+    Manager::Register<DecorateTest3>();
+
+    Buffer buf(256);
+    EXPECT_EQ(Manager::MarshalTo(dtin, buf.Clear()), OK);
+    // unmarshal the data version v2
+    auto out = Manager::unmarshal(buf);
+    EXPECT_TRUE(out);
+    auto pout = std::dynamic_pointer_cast<DecorateTest2>(out);
+    EXPECT_TRUE(pout);
+    EXPECT_TRUE(Cpeq<DecorateTest2>().Equal(dtin, *pout));
+
+    Manager::Register<DecorateTest3>();
+    DecorateTest3 dt3out;
+    buf.Rewind();
+    out = Manager::Unmarshal(buf);
+    EXPECT_TRUE(out);
+    auto pout3 = std::dynamic_pointer_cast<DecorateTest3>(out);
+    EXPECT_TRUE(pout3);
+    EXPECT_EQ(pout3->name, dtin.name);
+    EXPECT_EQ(pout3->age, dtin.age);
+    EXPECT_EQ(pout3->addr[0], dtin.addr);
+    EXPECT_EQ(pout3->addr[1], "default address 2");
+}
+
+TEST(Decoreate, Unmarshal) {
+    DecorateTest2 dtin;
+    dtin.name = Basic::RandomString(8);
+    dtin.addr = Basic::RandomString(16);
+    Basic::rand(&dtin.age, sizeof(dtin.age));
+
+    Manager::RegisterCurrent<DecorateTest2>();
+
+    Buffer buf(256);
+    EXPECT_EQ(Manager::MarshalTo(dtin, buf.Clear()), OK);
+    auto out = Manager::Unmarshal(buf);
+    EXPECT_TRUE(out);
+    auto pout = std::dynamic_pointer_cast<DecorateTest2>(out);
+    EXPECT_TRUE(pout);
+    EXPECT_TRUE(Cpeq<DecorateTest2>().Equal(dtin, *pout));
+
+    Manager::Register<DecorateTest3>();
+    DecorateTest3 dt3out;
+    buf.Rewind();
+    out = Manager::Unmarshal(buf);
+    EXPECT_TRUE(out);
+    auto pout3 = std::dynamic_pointer_cast<DecorateTest3>(out);
+    EXPECT_TRUE(pout3);
+    EXPECT_EQ(pout3->name, dtin.name);
+    EXPECT_EQ(pout3->age, dtin.age);
+    EXPECT_EQ(pout3->addr[0], dtin.addr);
+    EXPECT_EQ(pout3->addr[1], "default address 2");
+}

@@ -63,6 +63,7 @@ const std::size_t TSSD_SIZET_LENGTH = 4;
 const std::size_t TSSD_SIZEA_LENGTH = 2;
 
 using TError = std::int16_t;
+const TError ERR_REGISTER_FLAT_FAILURE = -6;
 const TError ERR_IO = -6;
 const TError ERR_SCHEMA_NOT_MATCH = -3;
 const TError ERR_CHECKSUM_FAILURE = -5;
