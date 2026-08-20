@@ -14,8 +14,6 @@
 
 using namespace std;
 
-#define MAX 80
-#define PORT 8080
 #define SA struct sockaddr
 
 
@@ -38,7 +36,7 @@ bool sendStudent(int sockfd)
     Student student;
     student.name = "George W. Bush";
     student.age = 25;
-    student.IsMale = true;
+    student.isMale = true;
 
     tssd::Manager::Register<Student>();
     SocketWriter socketWriter(sockfd);
@@ -52,11 +50,8 @@ bool sendStudent(int sockfd)
 
 void func(int connfd)
 {
-    char buff[MAX];
-    int n;
     // infinite loop for chat
     for (;;) {
-        bzero(buff, MAX);
         auto fid = recvRequest(connfd);
         sendStudent(connfd);
     }
