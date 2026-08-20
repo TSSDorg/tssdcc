@@ -14,7 +14,10 @@
 #include <iterator>
 #include <vector>
 #include <unordered_map>
+#include <chrono>
+#include <ctime>
 
+#include "time_rfc3339.h"
 #include "tssd.h"
 #include "buffer.h"
 
@@ -189,6 +192,17 @@ public:
     using TypeInfo::TypeInfo;
 
     stringOper(TType type) : TypeInfo(type) {}
+    TError save(const std::byte *src, Buffer &buf) const override;
+    TError dump(Buffer &buf, std::byte *dest) const override;
+    void   copy(const std::byte *src, std::byte *dest) const override;
+    bool   equal(const std::byte *pl, const std::byte *pr) const override;
+};
+
+class timeOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+
+    timeOper(TType type) : TypeInfo(type) {}
     TError save(const std::byte *src, Buffer &buf) const override;
     TError dump(Buffer &buf, std::byte *dest) const override;
     void   copy(const std::byte *src, std::byte *dest) const override;
@@ -762,6 +776,42 @@ public:
     }
 };
 
+
+template <std::meta::info T>
+class timePointOper : public TypeInfo {
+public:
+    using TypeInfo::TypeInfo;
+    using TimePoint = [:T:];
+    TError save(const std::byte *src, Buffer &buf) const override {
+        auto ptmp = (const TimePoint*)src;
+        auto ts = time_rfc3339::Time::timepointToTimespec(*ptmp);
+        return timeOper(node_.tssd_type_).save((const std::byte*)&ts, buf);
+    }
+
+    void copy(const std::byte *src, std::byte *dest) const override
+    {
+        auto ptmp = (const TimePoint*)src;
+        auto ptmp2 = (TimePoint*)dest;
+        *ptmp2 = *ptmp;
+    }
+
+    bool equal(const std::byte *pl, const std::byte *pr) const override {
+        auto ptp1 = (const TimePoint*)pl;
+        auto ptp2 = (const TimePoint*)pr;
+
+        return *ptp1 == *ptp2;
+    }
+
+    TError dump(Buffer &buf, std::byte *dest) const override {
+        timespec time;
+        if (auto ret = timeOper(node_.tssd_type_).dump(buf, (std::byte*)&time))
+            return ret;
+        auto ptm = (TimePoint*)dest;
+        *ptm = time_rfc3339::Time::timespecToTimePoint(time);
+        return OK;
+    }
+};
+
 template <typename T>
 constexpr std::shared_ptr<TypeInfo>
 TypeInfo::parse(std::ptrdiff_t offset, const char *name)
@@ -816,10 +866,19 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
 #undef createTypeInfo
 
     } else {
-
+        //timespec
+        if constexpr (std::is_same_v<T, timespec>) {
+            return std::make_shared<timeOper>(
+                "timespec",
+                name,
+                offset,
+                std::meta::size_of(^^T),
+                TType::Ttime,
+                std::vector<std::shared_ptr<TypeInfo>>{}
+            );
+        }
         //string
         if constexpr (std::is_same_v<T, std::string>) {
-            //std::println("parse string");
             return std::make_shared<stringOper>(
                 "std::string",
                 name,
@@ -841,6 +900,11 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
                 );
 
         if constexpr(std::meta::has_template_arguments(^^T)) {
+            if  constexpr (std::meta::template_of(^^T) == ^^std::chrono::time_point) {
+                //using Clock = [:std::meta::template_arguments_of(^^T)[0]:];
+                //using Duration = [:std::meta::template_arguments_of(^^T)[1]:];
+                CREATE_CONTAINER_TYPE(timePointOper, TType::Ttime);
+            }
             if  constexpr (std::meta::template_of(^^T) == ^^std::map) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
                 using ValueT = [:std::meta::template_arguments_of(^^T)[1]:];

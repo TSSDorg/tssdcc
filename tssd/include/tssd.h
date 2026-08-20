@@ -124,8 +124,12 @@ public:
 
     void print(int offset) {
         std::cout << "Fragment size:" << data.size() << '[';
-        for (int i=0; i< offset; i++)
-            std::cout << int(data[i]) << '\t';
+        for (int i=0; i< offset; i++) {
+            std::cout <<(int)data[i];
+            if (std::isprint(static_cast<unsigned char>(data[i])))
+                std::cout << '(' << (unsigned char)data[i] << ')';
+             std::cout << '\t';
+        }
         std::cout << ']' << std::endl;
     }
 };

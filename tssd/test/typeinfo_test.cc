@@ -5,8 +5,9 @@
 #include <list>
 #include <map>
 #include <unordered_map>
+#include <time.h>
 
-
+#include "time_rfc3339.h"
 #include "typeinfo.h"
 #include "basic.h"
 #include "types.h"
@@ -351,3 +352,35 @@ TEST(TypeInfo, TypeInfoRefTest) {
     EXPECT_TRUE(str == str2);
 }
 
+struct sttime {
+    timespec ts;
+    std::chrono::time_point<std::chrono::system_clock,
+                            std::chrono::nanoseconds> t;
+};
+
+
+TEST(TypeInfo, TypeInfoTimePoint)
+{
+
+    auto ti = TypeInfo::Create<sttime>();
+    ti->print();
+    // The new way
+    auto const now = std::chrono::system_clock::now();
+    //std::time_t newt = std::chrono::system_clock::to_time_t(now);
+
+    sttime st{
+        time_rfc3339::Time::timepointToTimespec(now),
+        now
+     }, st2;
+
+
+    Buffer buf;
+    EXPECT_FALSE(ti->MarshalTo(&st, buf));
+    buf.Finish();
+    buf.print("TypeInfoTimePoint: ");
+
+    EXPECT_FALSE(ti->UnmarshalTo(buf, &st2));
+    EXPECT_TRUE(ti->Equal(st, st2));
+    cout << "st:" << time_rfc3339::Time(st.t).formatNano() << endl;
+    cout << "st2:" << time_rfc3339::Time(st2.t).formatNano() << endl;
+}
