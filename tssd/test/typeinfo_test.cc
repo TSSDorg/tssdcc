@@ -192,7 +192,6 @@ void TestContainerT(T ba1) {
     EXPECT_TRUE(cmp.Equal(cba3, cba2));
 }
 
-
 TEST(TypeInfo, ContainerT) {
     BasicArray ba1;
     Basic::rand(&ba1, sizeof(ba1));
@@ -217,6 +216,9 @@ TEST(TypeInfo, ContainerT) {
     TestContainerT<BasicType>(bt1);
     TestContainerT<byte>((byte)Basic::urand<unsigned char>());
     TestContainerT<string>(Basic::RandomString());
+    auto now = time_rfc3339::Time::now();
+    TestContainerT<timespec>(now.to_timespec());
+    TestContainerT<time_rfc3339::Time::TimePoint>(now.to_timepoint());
 }
 
 
@@ -250,7 +252,6 @@ TEST(TypeInfo, TypeInfoParent) {
     cmp.Copy(et2, et3);
     EXPECT_TRUE(cmp.Equal(et3, et1));
 }
-
 
 TEST(TypeInfo, TypeInfoBytes) {
 
@@ -361,7 +362,6 @@ struct sttime {
 
 TEST(TypeInfo, TypeInfoTimePoint)
 {
-
     auto ti = TypeInfo::Create<sttime>();
     ti->print();
     // The new way

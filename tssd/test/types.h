@@ -128,6 +128,13 @@ struct LexCompare<BasicType> {
     }
 };
 
+template<>
+struct LexCompare<timespec> {
+    bool operator()(const timespec& a, const timespec& b) const {
+        return time_rfc3339::Time(a).formatNano() < time_rfc3339::Time(b).formatNano();
+    }
+};
+
 template<typename T, typename Compare = LexCompare<T>>
 struct ContainerT {
     std::vector<T> vec;

@@ -113,6 +113,7 @@ public:
 
   std::time_t to_time_t() const { return std::chrono::system_clock::to_time_t(tp_); }
   timespec to_timespec() const { return timepointToTimespec(tp_); }
+  TimePoint to_timepoint() const { return tp_; }
 
   /// Year (4 digits, e.g. 1996).
   int year() const { return toTm().tm_year + 1900; }
