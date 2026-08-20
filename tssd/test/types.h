@@ -11,8 +11,13 @@
 #include<list>
 #include<set>
 #include <iostream>
+#include <chrono>
+#include <ctime>
+
 #include <sys/types.h>
 #include <sys/socket.h>
+
+#include "time_rfc3339.h"
 
 #include "flat.h"
 
@@ -128,6 +133,14 @@ struct LexCompare<BasicType> {
     }
 };
 
+template<>
+struct LexCompare<timespec> {
+    bool operator()(const timespec& a, const timespec& b) const {
+        return time_rfc3339::Time(a).formatNano() < time_rfc3339::Time(b).formatNano();
+    }
+};
+
+
 template<typename T, typename Compare = LexCompare<T>>
 struct ContainerT {
     std::vector<T> vec;
@@ -177,15 +190,17 @@ class Student : public tssd::Flatable {
 public:
     std::string   name;
     std::int16_t  age;
-    bool     IsMale;
+    bool     isMale;
+    std::chrono::time_point<std::chrono::system_clock,
+                            std::chrono::nanoseconds> birth;
 
     std::vector<Contact> contacts;
     std::map<std::string, Course> courses;
     std::list<Paper> papers;
 
-    Student(std::uint16_t id=0) : ID(id) {}
+    Student(std::uint16_t id=0) : ID(id), birth(time_rfc3339::Time::parseNano("2006-01-02T15:04:05.123456789+06:00").to_timepoint()) {}
     void print() {
-        std::cout << "Student ID" << ID << ", name:" << name << std::endl;
+        std::cout << "Student ID" << ID << ", name:" << name << ", birthday:" << time_rfc3339::Time(birth).formatNano()<< std::endl;
         for (const auto &it : contacts) {
              std::cout << "contact name:" << it.name << ", address:" << it.address << std::endl;
         }
@@ -211,6 +226,7 @@ public:
     std::int16_t fid;
     std::string types;
     std::string tid;
+    timespec ts;
     std::string Family() const override {
         return "RequestFamily";
     }
