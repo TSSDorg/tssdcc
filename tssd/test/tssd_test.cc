@@ -194,3 +194,50 @@ TEST(TypeInfoT, TypeInfoT) {
     EXPECT_EQ(ti[0]->Build()->Family(), "CStruct1FlatFamily");
     EXPECT_EQ(ti[1]->Build()->Family(), "CStruct1FlatFamily");
 }
+
+
+TEST(tssd, mapDeepCp) {
+
+    using ssmap = std::map<std::string, std::shared_ptr<std::string>>;
+    Struct1Flat<ssmap> in, out;
+
+    in.struct1.v1["hello"] = std::make_shared<std::string>("tssd");
+
+    Manager::Register<Struct1Flat<ssmap>>();
+
+    Buffer buf(256);
+    EXPECT_EQ(Manager::MarshalTo(in, buf), OK);
+
+    buf.print("after MarshalTo:");
+
+    EXPECT_EQ(Manager::UnmarshalTo(buf, out), OK);
+
+    Cpeq<Struct1Flat<ssmap>> cmp;
+    EXPECT_TRUE(cmp.Equal(in, out));
+
+
+    // skip ptr
+    Struct1Flat<map<string, string>> out2;
+
+    Manager::Register<Struct1Flat<map<string, string>>>();
+
+    EXPECT_EQ(Manager::UnmarshalTo(buf.Rewind(), out2), OK);
+
+    EXPECT_TRUE(out2.struct1.v1.size() == 1);
+    EXPECT_TRUE(out2.struct1.v1.contains("hello"));
+    EXPECT_EQ(out2.struct1.v1["hello"], "tssd");
+}
+
+
+TEST(tssd, cmpCopy) {
+
+    using ssmap = std::map<std::string, std::shared_ptr<std::string>>;
+    Struct1Flat<ssmap> in, out;
+
+    in.struct1.v1["hello"] = std::make_shared<std::string>("tssd");
+
+    Cpeq<Struct1Flat<ssmap>> cmp;
+    cmp.Copy(in, out);
+    EXPECT_TRUE(cmp.Equal(in, out));
+    EXPECT_TRUE(in.struct1.v1["hello"] != out.struct1.v1["hello"]);
+}
