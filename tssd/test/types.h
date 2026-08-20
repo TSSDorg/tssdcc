@@ -2,6 +2,7 @@
 #define __TSSD_TEST_TYPES_H__
 
 //////////////this file is define struct/class for test///////////////////////
+#include <meta>
 #include<string>
 #include<map>
 #include<vector>
@@ -141,14 +142,15 @@ struct ContainerT {
 template<typename T>
 struct Struct1Flat : public tssd::Flatable {
     Struct1<T> struct1;
-    //std::string type_;
-    //Struct1Flat(T v, const string type="") : struct1.v1(v), type_(type){}
+    std::string tname;
+    Struct1Flat() : tname(std::define_static_string(std::meta::display_string_of(^^T))) {}
     std::string Family() const override {
         return "Struct1FlatFamily";
     }
     std::string Version() const override {
-        return "Struct1Flat-V1";
+        return "Struct1Flat-" + tname;
     }
+
 };
 
 struct Course {

@@ -143,10 +143,11 @@ public:
         offset = woffset_;
     }
 
-    inline void Rewind() {
+    inline Buffer &Rewind() {
         index_ = offset_ = size_ = 0;
         for (std::size_t i=0; i<fragments_.size(); ++i)
             size_ += fragments_[i]->payload.size();
+        return *this;
     }
 
     inline void print(const std::string &prefix="", int n = 0) {

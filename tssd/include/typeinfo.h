@@ -727,8 +727,12 @@ public:
         auto pmap1 = (const Map*)src;
         auto pmap2 = (Map*)dest;
         pmap2->clear();
+        typename Map::key_type ky;
+        typename Map::mapped_type val;
         for (const auto& [key, value] : *pmap1) {
-            (*pmap2)[key] = value;
+            children_[0]->copy((const std::byte*)&key, (std::byte *)&ky);
+            children_[1]->copy((const std::byte*)&value, (std::byte *)&val);
+            (*pmap2)[ky] = val;
         }
     }
 
