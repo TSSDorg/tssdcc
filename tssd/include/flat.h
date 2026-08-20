@@ -74,8 +74,12 @@ public:
     {
         auto p = (const std::byte *)data;
         std::cout << prefix << '(' << size << ")[";
-        for (int i=0; i<size; i++)
-            std::cout <<(int)p[i] << ' ';
+        for (int i=0; i<size; i++) {
+            std::cout <<(int)p[i];
+            if (std::isprint(static_cast<unsigned char>(p[i])))
+                std::cout << '(' << (unsigned char)p[i] << ')';
+             std::cout << ' ';
+        }
         std::cout << ']' << std::endl;
     }
 

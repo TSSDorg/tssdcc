@@ -10,6 +10,7 @@
 #include <list>
 #include <set>
 
+#include "time_rfc3339.h"
 #include "tssd.h"
 #include "typeinfo.h"
 #include "flat.h"
@@ -164,7 +165,7 @@ bool memOper::equal(const std::byte *pl, const std::byte *pr) const {
 TError
 stringOper::save(const std::byte *src, Buffer &buf) const
 {
-    buf.Append(node_.tssd_type_);
+    buf.Append(TType::Tstring);
     auto pstr = (const std::string *)src;
 
     buf.AppendSize4(pstr->size()); //sizet
@@ -176,7 +177,7 @@ stringOper::save(const std::byte *src, Buffer &buf) const
 TError
 stringOper::dump(Buffer &buf, std::byte *dest) const
 {
-    if (auto ret = CheckTType(buf))
+    if (auto ret = CheckTType(buf, (std::int8_t)TType::Tstring))
         return ret;
     auto size = buf.DumpSize4();
     if (size <= 0 ) {
@@ -210,6 +211,54 @@ stringOper::copy(const std::byte *src, std::byte *dest) const
     auto pdest = (std::string *)dest;
     *pdest = *psrc;
 }
+
+
+TError
+timeOper::save(const std::byte *src, Buffer &buf) const
+{
+    buf.Append(TType::Ttime);
+    auto ptm = (const timespec *)src;
+    auto str = time_rfc3339::Time(*ptm).formatNano();
+    return stringOper(TType::Tstring).save((const std::byte *)&str, buf);
+}
+
+TError
+timeOper::dump(Buffer &buf, std::byte *dest) const
+{
+    if (auto ret = CheckTType(buf))
+        return ret;
+
+    std::string time_str;
+    if (auto ret = stringOper(TType::Tstring).dump(buf, (std::byte*)&time_str))
+        return ret;
+
+    auto ptm = (timespec *)dest;
+
+    try {
+        *ptm = time_rfc3339::Time::parseNano(time_str).to_timespec();
+    } catch (...) {
+        std::println("Ttime format invalid");
+        return ERR_FORMAT_ERROR;
+    }
+    return OK;
+}
+
+bool
+timeOper::equal(const std::byte *pl, const std::byte *pr) const
+{
+    auto pts1 = (const timespec *)pl;
+    auto pts2 = (const timespec *)pr;
+    return !std::memcmp(pts1, pts2, sizeof(timespec));
+}
+
+void
+timeOper::copy(const std::byte *src, std::byte *dest) const
+{
+    auto psrc = (const timespec *)src;
+    auto pdest = (timespec *)dest;
+    *pdest = *psrc;
+}
+
 
 TError
 objectOper::save(const std::byte *src, Buffer &buf) const
