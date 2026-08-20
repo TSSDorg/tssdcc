@@ -1,3 +1,6 @@
+// this file is from project:  https://github.com/zxhio/time_rfc3339.git
+// update to support parse rfc3339 string, and support timespec conversion
+
 //===- time_rfc3339.h - Time library for RFC3339 ----------------*- C++ -*-===//
 //
 /// \file
@@ -99,7 +102,7 @@ public:
   Time(const Time &) = default;
   Time &operator=(const Time &) = default;
 
-  explicit Time(time_t second)
+  explicit Time(const time_t second)
       : Time(TimePoint(std::chrono::seconds(second))) {}
   explicit Time(const TimePoint &tp) : tp_(tp) {}
 
