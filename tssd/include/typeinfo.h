@@ -547,7 +547,24 @@ public:
     }
 };
 
-template <std::meta::info T>
+template<std::meta::info T>
+struct MkSharedPtr {
+    using SharedPtr = [:T:];
+    static SharedPtr New() {
+        return std::make_shared<typename SharedPtr::element_type>();
+    }
+};
+
+template<std::meta::info T>
+struct MkUniquePtr {
+    using SharedPtr = [:T:];
+    static SharedPtr New() {
+        return std::make_unique<typename SharedPtr::element_type>();
+    }
+};
+
+// SharePtr support share_ptr of unique_ptr
+template <std::meta::info T, template <std::meta::info> class M>
 class sharedPtrOper : public TypeInfo {
 public:
     using TypeInfo::TypeInfo;
@@ -556,7 +573,7 @@ public:
         auto pshared_ptr = (const SharedPtr*)src;
         if (!*pshared_ptr) {
             std::int8_t t = (std::int8_t)children_[0]->node_.tssd_type_;
-            buf.Append(std::byte(-t));  //null pointer
+            buf.Append(std::byte(-t));
             return OK;
         }
         return children_[0]->save((const std::byte*)pshared_ptr->get(), buf);
@@ -583,7 +600,7 @@ public:
             return;
         }
         if (!*pshared_ptr2)
-            *pshared_ptr2 = std::make_shared<typename SharedPtr::element_type>();
+            *pshared_ptr2 = M<T>::New();
         children_[0]->copy((const std::byte*)pshared_ptr1->get(), (std::byte*)pshared_ptr2->get());
     }
 
@@ -591,76 +608,17 @@ public:
         std::int8_t t(0);
         auto pshared_ptr = (SharedPtr*)dest;
         if (auto ret = buf.PeekByte((std::byte&)t)) return ret;
-        if (-t == (std::int8_t)children_[0]->node_.tssd_type_) {  //null pointer
-            buf.Dump(sizeof(t), (std::byte*)&t);  //consume the null pointer type
+        if (-t == (std::int8_t)children_[0]->node_.tssd_type_) {
+            buf.Dump(sizeof(t), (std::byte*)&t);
             if (*pshared_ptr)
                 pshared_ptr->reset();
             return OK;
         }
         if (!*pshared_ptr)
-            *pshared_ptr = std::make_shared<typename SharedPtr::element_type>();
-
+            *pshared_ptr = M<T>::New();
         return children_[0]->dump(buf, (std::byte*)pshared_ptr->get());
     }
 };
-
-template <std::meta::info T>
-class uniquePtrOper : public TypeInfo {
-public:
-    using TypeInfo::TypeInfo;
-    using SharedPtr = [:T:];
-    TError save(const std::byte *src, Buffer &buf) const override {
-        auto pshared_ptr = (const SharedPtr*)src;
-        if (!*pshared_ptr) {
-            std::int8_t t = (std::int8_t)children_[0]->node_.tssd_type_;
-            buf.Append(std::byte(-t));  //null pointer
-            return OK;
-        }
-        return children_[0]->save((const std::byte*)pshared_ptr->get(), buf);
-    }
-
-    bool equal(const std::byte *pl, const std::byte *pr) const override {
-        auto pshared_ptr1 = (const SharedPtr*)pl;
-        auto pshared_ptr2 = (const SharedPtr*)pr;
-
-        if (!*pshared_ptr1 && !*pshared_ptr2) {
-            return true;
-        }
-        if ((*pshared_ptr1 && !*pshared_ptr2) || (!*pshared_ptr1 && *pshared_ptr2))
-            return false;
-        return children_[0]->equal((const std::byte*)pshared_ptr1->get(), (const std::byte*)pshared_ptr2->get());
-    }
-    void copy(const std::byte *src, std::byte *dest) const override
-    {
-        auto pshared_ptr1 = (const SharedPtr*)src;
-        auto pshared_ptr2 = (SharedPtr*)dest;
-        if (!*pshared_ptr1) {
-            if (*pshared_ptr2)
-                pshared_ptr2->reset();
-            return;
-        }
-        if (!*pshared_ptr2)
-            *pshared_ptr2 = std::make_unique<typename SharedPtr::element_type>();
-        children_[0]->copy((const std::byte*)pshared_ptr1->get(), (std::byte*)pshared_ptr2->get());
-    }
-
-    TError dump(Buffer &buf, std::byte *dest) const override {
-        std::int8_t t(0);
-        auto pshared_ptr = (SharedPtr*)dest;
-        if (auto ret = buf.PeekByte((std::byte&)t)) return ret;
-        if (-t == (std::int8_t)children_[0]->node_.tssd_type_) {  //null pointer
-            buf.Dump(sizeof(t), (std::byte*)&t);  //consume the null pointer type
-            if (*pshared_ptr)
-                pshared_ptr->reset();
-            return OK;
-        }
-        if (!*pshared_ptr)
-            *pshared_ptr = std::make_unique<typename SharedPtr::element_type>();
-
-        return children_[0]->dump(buf, (std::byte*)pshared_ptr->get());
-    }
-};
-
 
 template <std::meta::info T>
 class forwardOper : public TypeInfo {
@@ -894,7 +852,7 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
         }
 
 #define CREATE_CONTAINER_TYPE(cls, ttype, ...)  \
-                    return std::make_shared<cls<^^T>>( \
+                return std::make_shared<cls<^^T>>( \
                     std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
                     name, \
                     offset, \
@@ -902,7 +860,15 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
                     ttype, \
                     std::vector<std::shared_ptr<TypeInfo>>{__VA_ARGS__} \
                 );
-
+#define CREATE_PTR_TYPE(cls, mk, ttype) \
+                return std::make_shared<cls<^^T, mk>>( \
+                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
+                    name, \
+                    offset, \
+                    std::meta::size_of(^^T), \
+                    ttype, \
+                    std::vector<std::shared_ptr<TypeInfo>>{parse<ItemT>()} \
+                );
         if constexpr(std::meta::has_template_arguments(^^T)) {
             if  constexpr (std::meta::template_of(^^T) == ^^std::chrono::time_point) {
                 //using Clock = [:std::meta::template_arguments_of(^^T)[0]:];
@@ -919,7 +885,6 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
                 using ValueT = [:std::meta::template_arguments_of(^^T)[1]:];
                 CREATE_CONTAINER_TYPE(mapOper, TType::Tunordered_map, parse<ItemT>(), parse<ValueT>());
             }
-
             if  constexpr (std::meta::template_of(^^T) == ^^std::vector) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
                 CREATE_CONTAINER_TYPE(vectorOper, TType::Tvector, parse<ItemT>());
@@ -934,14 +899,15 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
             }
             if  constexpr (std::meta::template_of(^^T) == ^^std::shared_ptr) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
-                CREATE_CONTAINER_TYPE(sharedPtrOper, TType::Tshared_ptr, parse<ItemT>());
+                CREATE_PTR_TYPE(sharedPtrOper, MkSharedPtr, TType::Tshared_ptr);
             }
             if  constexpr (std::meta::template_of(^^T) == ^^std::unique_ptr) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
-                CREATE_CONTAINER_TYPE(uniquePtrOper, TType::Tunique_ptr, parse<ItemT>());
+                CREATE_PTR_TYPE(sharedPtrOper, MkUniquePtr, TType::Tunique_ptr);
             }
         }
 #undef CREATE_CONTAINER_TYPE
+#undef CREATE_PTR_TYPE
 
         constexpr auto ctx = std::meta::access_context::unchecked();
         std::vector<std::shared_ptr<TypeInfo>> children;
