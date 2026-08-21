@@ -17,14 +17,8 @@ class Basic {
 public:
     inline static unsigned bounded_rand(unsigned range)
     {
-        for (unsigned x, r;;) {
-            x = std::rand();
-            r = x % range;
-            if (x - r <= -range)
-                return r;
-        }
+        return Manager::rrand(range);
     }
-
 
     template<typename T>
     inline static unsigned urand()
@@ -54,14 +48,7 @@ public:
     }
 
     static std::string RandomString(int length=-1) {
-        const std::string CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        std::string random_string;
-        if (length < 0)
-            length = bounded_rand(128);
-        for (int i = 0; i < length; ++i) {
-            random_string += CHARACTERS[bounded_rand(CHARACTERS.length())];
-        }
-        return random_string;
+        return Manager::RandomString(length);
     }
 
     template<typename T>

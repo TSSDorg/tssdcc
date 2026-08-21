@@ -208,13 +208,14 @@ TEST(tssd, mapDeepCp) {
     Buffer buf(256);
     EXPECT_EQ(Manager::MarshalTo(in, buf), OK);
 
+    EXPECT_FALSE(buf.Schema().TID.empty());
+
     buf.print("after MarshalTo:");
 
     EXPECT_EQ(Manager::UnmarshalTo(buf, out), OK);
 
     Cpeq<Struct1Flat<ssmap>> cmp;
     EXPECT_TRUE(cmp.Equal(in, out));
-
 
     // skip ptr
     Struct1Flat<map<string, string>> out2;
