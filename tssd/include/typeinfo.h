@@ -851,8 +851,9 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
             );
         }
 
-#define CREATE_CONTAINER_TYPE(cls, ttype, ...)  \
-                return std::make_shared<cls<^^T>>( \
+#define PACK(...) __VA_ARGS__
+#define CREATE_CONTAINER_TYPE(cls, TT, ttype, ...)  \
+                return std::make_shared<cls<TT>>( \
                     std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
                     name, \
                     offset, \
@@ -860,54 +861,46 @@ TypeInfo::parse(std::ptrdiff_t offset, const char *name)
                     ttype, \
                     std::vector<std::shared_ptr<TypeInfo>>{__VA_ARGS__} \
                 );
-#define CREATE_PTR_TYPE(cls, mk, ttype) \
-                return std::make_shared<cls<^^T, mk>>( \
-                    std::define_static_string(std::meta::display_string_of(std::meta::template_of(^^T))), \
-                    name, \
-                    offset, \
-                    std::meta::size_of(^^T), \
-                    ttype, \
-                    std::vector<std::shared_ptr<TypeInfo>>{parse<ItemT>()} \
-                );
+
         if constexpr(std::meta::has_template_arguments(^^T)) {
             if  constexpr (std::meta::template_of(^^T) == ^^std::chrono::time_point) {
                 //using Clock = [:std::meta::template_arguments_of(^^T)[0]:];
                 //using Duration = [:std::meta::template_arguments_of(^^T)[1]:];
-                CREATE_CONTAINER_TYPE(timePointOper, TType::Ttime);
+                CREATE_CONTAINER_TYPE(timePointOper, ^^T, TType::Ttime);
             }
             if  constexpr (std::meta::template_of(^^T) == ^^std::map) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
                 using ValueT = [:std::meta::template_arguments_of(^^T)[1]:];
-                CREATE_CONTAINER_TYPE(mapOper, TType::Tmap, parse<ItemT>(), parse<ValueT>());
+                CREATE_CONTAINER_TYPE(mapOper, ^^T, TType::Tmap, parse<ItemT>(), parse<ValueT>());
             }
             if constexpr (std::meta::template_of(^^T) == ^^std::unordered_map) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
                 using ValueT = [:std::meta::template_arguments_of(^^T)[1]:];
-                CREATE_CONTAINER_TYPE(mapOper, TType::Tunordered_map, parse<ItemT>(), parse<ValueT>());
+                CREATE_CONTAINER_TYPE(mapOper, ^^T, TType::Tunordered_map, parse<ItemT>(), parse<ValueT>());
             }
             if  constexpr (std::meta::template_of(^^T) == ^^std::vector) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
-                CREATE_CONTAINER_TYPE(vectorOper, TType::Tvector, parse<ItemT>());
+                CREATE_CONTAINER_TYPE(vectorOper, ^^T, TType::Tvector, parse<ItemT>());
             }
             if  constexpr (std::meta::template_of(^^T) == ^^std::list) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
-                CREATE_CONTAINER_TYPE(listOper, TType::Tlist, parse<ItemT>());
+                CREATE_CONTAINER_TYPE(listOper, ^^T, TType::Tlist, parse<ItemT>());
             }
             if  constexpr (std::meta::template_of(^^T) == ^^std::set) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
-                CREATE_CONTAINER_TYPE(setOper, TType::Tset, parse<ItemT>());
+                CREATE_CONTAINER_TYPE(setOper, ^^T, TType::Tset, parse<ItemT>());
             }
             if  constexpr (std::meta::template_of(^^T) == ^^std::shared_ptr) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
-                CREATE_PTR_TYPE(sharedPtrOper, MkSharedPtr, TType::Tshared_ptr);
+                CREATE_CONTAINER_TYPE(sharedPtrOper, PACK(^^T,MkSharedPtr), TType::Tshared_ptr, parse<ItemT>());
             }
             if  constexpr (std::meta::template_of(^^T) == ^^std::unique_ptr) {
                 using ItemT = [:std::meta::template_arguments_of(^^T)[0]:];
-                CREATE_PTR_TYPE(sharedPtrOper, MkUniquePtr, TType::Tunique_ptr);
+                CREATE_CONTAINER_TYPE(sharedPtrOper, PACK(^^T,MkUniquePtr), TType::Tunique_ptr, parse<ItemT>());
             }
         }
 #undef CREATE_CONTAINER_TYPE
-#undef CREATE_PTR_TYPE
+#undef PACK
 
         constexpr auto ctx = std::meta::access_context::unchecked();
         std::vector<std::shared_ptr<TypeInfo>> children;
