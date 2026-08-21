@@ -13,7 +13,7 @@ Writer::~Writer() {}
 
 std::string Flatable::TID() const
 {
-    return "";
+    return Manager::RandomString(9);
 }
 
 Schema Flatable::Schema() const

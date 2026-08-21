@@ -63,13 +63,32 @@ private:
 
     static std::pair<std::map<std::string, family>, std::map<std::string, VersionInfo>> families;
     static std::shared_ptr<TypeInfo> schemaTypeInfo;
-    static std::function<std::string(const void*, int)> hash;
-    static std::function<std::string(const void*, int)> checksum;
-
     static TError decorate(const pFlatable from, Flatable &to);
     static pFlatable unmarshal(Buffer &buf);
 
 public:
+    static std::function<std::string(const void*, int)> hash;
+    static std::function<std::string(const void*, int)> checksum;
+    inline static unsigned rrand(unsigned range)
+    {
+        for (unsigned x, r;;) {
+            x = std::rand();
+            r = x % range;
+            if (x - r <= -range)
+                return r;
+        }
+    }
+    static std::string RandomString(int length=-1) {
+        const std::string CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        std::string random_string;
+        if (length < 0)
+            length = rrand(32);
+        for (int i = 0; i < length; ++i) {
+            random_string += CHARACTERS[rrand(CHARACTERS.length())];
+        }
+        return random_string;
+    }
+
     static inline void print(const void *data, int size, const std::string &prefix="")
     {
         auto p = (const std::byte *)data;
