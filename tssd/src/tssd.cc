@@ -233,6 +233,7 @@ AGAIN:
         }
         return ret;
     }
+    more = 0;
     auto cks = VBytes(&(*this)[heads_len_ + payload_len_+TSSD_TARRAYM_HEAD_LENGTH], checksum_len_ - TSSD_TARRAYM_HEAD_LENGTH);
     ret = Fragment::Validate(VBytes(&(*this)[magic_], heads_len_ + payload_len_), cks);
     if (ret) {
@@ -240,7 +241,6 @@ AGAIN:
         moveFront(magic_+len, this->Size() - len);
         reset();
     }
-    more = 0;
     return ret;
 }
 
@@ -263,16 +263,30 @@ pFragment RBuffer::Fragment()
     reset();
     return frag;
 }
-
-bool RBuffer::Ready(const std::string &family, const std::string &version){
-    return results_.contains(family) && results_[family].contains(version)
-            && results_[family][version]->Wanted() == 0;
+/*
+pBuffer RBuffer::Buffer() {
+    if (!frag_) return nullptr;
+    auto version = Manager::TypesToVersionInfo(frag_->schema.Types);
+    auto ret = results_[version->family][version->version][frag_->schema.TID];
+    results_[version->family][version->version].erase(frag_->schema.TID);
+    return ret;
 }
+*/
+
+pBuffer RBuffer::Buffer(const std::string &family, const std::string &version) {
+    for (auto it = results_[family][version].begin(); it != results_[family][version].end(); ++it) {
+        if (!it->second->Wanted()) {
+            results_[family][version].erase(it);
+            return it->second;
+        }
+    }
+    return nullptr;
+}
+
 
 TError RBuffer::Feed(const Reader &reader)
 {
     Bytes bs(TSSD_BUFFER_MTU);
-    //bs.resize(0);
     std::size_t more(TSSD_BUFFER_MTU);
     do {
         if (more) {
@@ -301,13 +315,15 @@ TError RBuffer::Feed(const Reader &reader)
             return ERR_SCHEMA_NOT_MATCH;
         }
         if (!results_.contains(version->family))
-            results_[version->family] = HBuffers();
+            results_[version->family] = VBuffers();
 
         auto &bufs = results_[version->family];
 
         if (!bufs.contains(version->version))
-            bufs[version->version] = std::make_shared<tssd::Buffer>();
-        if (bufs[version->version]->Push(frag)) {
+            bufs[version->version] = TBuffers();
+        if (!bufs[version->version].contains(frag->schema.TID))
+            bufs[version->version][frag->schema.TID] = std::make_shared<tssd::Buffer>();
+        if (bufs[version->version][frag->schema.TID]->Push(frag)) {
             bs.resize(0);
             continue;
         }
