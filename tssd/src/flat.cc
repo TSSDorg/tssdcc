@@ -119,13 +119,13 @@ pFlatable Manager::Unmarshal(Buffer &buf)
 TError Manager::Read(const Reader &reader, Flatable &flat)
 {
     tssd::RBuffer rbuf;  // RBuffer to process raw data buffer
-    if (auto ret = rbuf.Feed(reader)) {
-        return ret;
+    pBuffer dbuf;        // data buffer
+    do {
+        if (auto ret = rbuf.Feed(reader)) {
+            return ret;
+        }
     }
-    if (!rbuf.Ready(flat.Family(), flat.Version())) {
-        return ERR_SCHEMA_NOT_MATCH;
-    }
-    auto dbuf = rbuf.Buffer(flat.Family(), flat.Version());
+    while(!(dbuf = rbuf.Buffer(flat.Family(), flat.Version())));
 
     return tssd::Manager::UnmarshalTo(*dbuf, flat);
 }

@@ -174,9 +174,12 @@ private:
     int payload_len_ = -1;
     int checksum_ = -1;   // checksum begin
     int checksum_len_ = -1;
-    using HBuffers = std::unordered_map<std::string, pBuffer>;  // (version, pBuffer)
-    std::unordered_map<std::string, HBuffers> results_;  //(family, buffers)
-    HBuffers unregistered_;
+
+    //pFragment frag_;  //latest fragment received
+    using TBuffers = std::unordered_map<std::string, pBuffer>;  // (TID, pBuffer)
+    using VBuffers = std::unordered_map<std::string, TBuffers>; // (Version, TBuffers)
+    std::unordered_map<std::string, VBuffers> results_;  //(family, buffers)
+    TBuffers unregistered_;
 
     inline void append(const Bytes &data)
     {
@@ -228,22 +231,17 @@ public:
     }
 
     TError Feed(const Bytes &data, std::size_t &more);
-    // Feed got OK, then we can call it to get a Fragment;
+    // Feed got OK, call it to get the lastest Fragment;
     pFragment Fragment();
 
     TError Feed(const Reader &reader);
-    bool Ready(const std::string &family, const std::string &version);
-    // after Ready true, call Buffer to get a TSSD Buffer
-    pBuffer Buffer(const std::string &family, const std::string &version) {
-        if (!Ready(family, version)) return nullptr;
-        return results_[family][version];
-    }
-    void ResetBuffer(const std::string &family, const std::string &version) {
-        if (!Ready(family, version)) return;
-        results_[family][version].reset();
-    }
-};
 
+    //if Feed OK, call it fetch the lastest Buffer
+    //pBuffer Buffer();
+
+    pBuffer Buffer(const std::string &family, const std::string &version);
+
+};
 
 } //end namespace tssd
 
