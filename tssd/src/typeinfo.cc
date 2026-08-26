@@ -131,6 +131,8 @@ TypeInfo::parse(std::shared_ptr<TypeInfo> parent)
                 case TType::Tref:
                     it->parse(it);  //Tobject is the default, just walk throuth children
                     break;
+                case TType::Ttime:
+                    break;
                 default:  //Tunknow, do nothing
                     std::println("known type:", it->node_.type_);
             }
