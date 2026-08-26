@@ -139,8 +139,8 @@ TEST(TypeInfo, TypeInfoEqual) {
     et1.vint16_t[2]=  0;
     et1.vint16_t[3]=  789;
     et1.vint16_t[4]=  12345;
-    et1.s1[0] = "123";
-    et1.s1[1] = "456";
+    et1.s1[0] = "12你好sfd";
+    et1.s1[1] = "45世界6";
     et1.li.emplace_back(5);
     et1.li.emplace_back(6);
     et1.si.insert(788);
