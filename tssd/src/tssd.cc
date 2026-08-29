@@ -66,11 +66,13 @@ RBuffer::detectMagic(const Bytes &data, std::size_t &more, const std::size_t ski
     auto cpsize = std::min((std::size_t)4, data.size());
     if (magic_ >= 0) {
         append(data);
-        goto RETURN;
+        if (Size() < TSSD_FRAGMENT_MIN_HEADER_SIZE)
+            more = TSSD_FRAGMENT_MIN_HEADER_SIZE - Size();
+        return OK;
     }
     if (pre_size >= MAGIC.length()) {
         if ((magic_ = findMagic(*buffer_, skip)) >= 0 ) {
-            moveFront(skip+magic_, pre_size - skip -magic_);
+            moveFront(skip+magic_, pre_size - skip - magic_);
             append(data);
             goto RETURN;
         }
@@ -198,7 +200,7 @@ TError RBuffer::parseChecksum(std::size_t more)
     return OK;
 }
 
-TError RBuffer::Feed(const Bytes &data, std::size_t &more)
+TError RBuffer::Extract(const Bytes &data, std::size_t &more)
 {
     if (auto ret = detectMagic(data, more))
         return ret;
@@ -284,7 +286,7 @@ pBuffer RBuffer::Buffer(const std::string &family, const std::string &version) {
 }
 
 
-TError RBuffer::Feed(const Reader &reader)
+TError RBuffer::Extract(const Reader &reader)
 {
     Bytes bs(TSSD_BUFFER_MTU);
     std::size_t more(TSSD_BUFFER_MTU);
@@ -295,7 +297,7 @@ TError RBuffer::Feed(const Reader &reader)
             if (n<0) return n;
             bs.resize(n);
         }
-        auto ret = Feed(bs, more);
+        auto ret = Extract(bs, more);
         if (ret==ERR_INSUFFICIENT_DATA) {
             continue;
         }

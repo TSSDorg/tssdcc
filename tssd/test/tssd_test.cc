@@ -30,7 +30,7 @@ TEST(TSSD, MarshalUnmarshaBasicType) {
     for (int i=0; i<list.size(); i++) {
         RBuffer fbuf;
         std::size_t more = 0;
-        EXPECT_TRUE(!fbuf.Feed(list[i]->data, more));
+        EXPECT_TRUE(!fbuf.Extract(list[i]->data, more));
         EXPECT_EQ(rbuf.Push(fbuf.Fragment()), 0);
         EXPECT_EQ(fbuf.Size(), 0);
     }
@@ -93,7 +93,7 @@ TEST(TSSD, MarshalUnmarshaBasicTypeArray) {
     for (int i=0; i<list.size(); i++) {
         RBuffer fbuf;
         std::size_t more = 0;
-        EXPECT_TRUE(!fbuf.Feed(list[i]->data, more));
+        EXPECT_TRUE(!fbuf.Extract(list[i]->data, more));
         rbuf.Push(fbuf.Fragment());
         EXPECT_EQ(fbuf.Size(), 0);
     }

@@ -60,6 +60,9 @@ public:
         heads_.clear();
         checksum_len_ = 0;
         fragments_.clear();
+        schema_.Types.clear();
+        schema_.TID.clear();
+        schema_.FID = 0;
         return *this;
     }
 

@@ -121,7 +121,7 @@ TError Manager::Read(const Reader &reader, Flatable &flat)
     tssd::RBuffer rbuf;  // RBuffer to process raw data buffer
     pBuffer dbuf;        // data buffer
     do {
-        if (auto ret = rbuf.Feed(reader)) {
+        if (auto ret = rbuf.Extract(reader)) {
             return ret;
         }
     }
