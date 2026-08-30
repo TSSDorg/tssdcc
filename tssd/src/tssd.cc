@@ -275,11 +275,13 @@ pBuffer RBuffer::Buffer() {
 }
 */
 
-pBuffer RBuffer::Buffer(const std::string &family, const std::string &version) {
+pBuffer RBuffer::Buffer(const std::string &family, const std::string &version)
+{
     for (auto it = results_[family][version].begin(); it != results_[family][version].end(); ++it) {
         if (!it->second->Wanted()) {
+            auto ret = it->second;
             results_[family][version].erase(it);
-            return it->second;
+            return ret;
         }
     }
     return nullptr;

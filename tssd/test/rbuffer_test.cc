@@ -346,4 +346,31 @@ TEST(RBuffer, FeedBytes4) {
     testExtract(2, 4, other2, bs, other, bs2);
 }
 
+class MockReader : public tssd::Reader
+{
+    list<Bytes> datas;
+public:
+    void Set(Bytes data) {
+        datas.emplace_back(data);
+    }
 
+    int Read(void *dest, std::size_t numb) const {
+        auto d = datas.front();
+        auto ret = std::min(numb, d.size());
+        memcpy(dest, d.data(), ret);
+        datas.pop_front();
+        return ret;
+    }
+    //MOCK_METHOD(int, Read, (void *, std::size_t), (const, override));
+};
+
+
+TEST(RBuffer, ExtractReader) {
+
+    MockReader mockReader;
+    mockReader.Set(getTestBytes('a'));
+
+    Struct1Flat<char> out;
+    EXPECT_EQ(Manager::Read(mockReader, out), OK);
+    EXPECT_EQ(out.struct1.v1, 'a');
+}
