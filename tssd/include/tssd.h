@@ -230,11 +230,14 @@ public:
         return (*buffer_)[pos];
     }
 
-    TError Feed(const Bytes &data, std::size_t &more);
-    // Feed got OK, call it to get the lastest Fragment;
+    TError Extract(const Bytes &data, std::size_t &more);
+    TError Extract(std::size_t &more) {
+        return Extract(Bytes(), more);
+    }
+    // Extract got OK, call it to get the lastest Fragment;
     pFragment Fragment();
 
-    TError Feed(const Reader &reader);
+    TError Extract(const Reader &reader);
 
     //if Feed OK, call it fetch the lastest Buffer
     //pBuffer Buffer();

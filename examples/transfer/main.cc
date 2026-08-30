@@ -26,7 +26,7 @@ void recvStudent(int sockfd)
     size_t more(0);
 
     SocketReader socketReader(sockfd);
-    if (fbuf.Feed(socketReader) != tssd::OK || !fbuf.Ready(student.Family(), student.Version())) {
+    if (fbuf.Extract(socketReader) != tssd::OK || !fbuf.Ready(student.Family(), student.Version())) {
         cout << "recv Student err" << endl;
         return;
     }

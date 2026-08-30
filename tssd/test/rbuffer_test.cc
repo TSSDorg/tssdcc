@@ -12,20 +12,18 @@
 using namespace tssd;
 using namespace std;
 
-Bytes getTestBytes()
+template <class T=char>
+Bytes getTestBytes(T v)
 {
-    Struct1Flat<char> bta1; //('a', "uint8");
-    bta1.struct1.v1 = 'a';
+    Struct1Flat<T> bta1;
+    bta1.struct1.v1 = v;
 
-    Manager::Register<Struct1Flat<char>>();
+    Manager::Register<Struct1Flat<T>>();
 
     Buffer buf;
     EXPECT_EQ(Manager::MarshalTo(bta1, buf), OK);
 
     buf.print("after MarshalTo:");
-
-    Buffer rbuf;  ///read/receive/unmarshal buf
-    pFragment frag=std::make_shared<Fragment>(1024);  ///read fragment
 
     auto list = buf.Fragments();
     return list[0]->data;
@@ -52,7 +50,7 @@ TEST(RBuffer, unmarshal) {
     RBuffer fbuf;
     for (int i=0; i<list.size(); i++) {
         std::size_t more = 0;
-        EXPECT_TRUE(!fbuf.Feed(list[0]->data, more));
+        EXPECT_TRUE(!fbuf.Extract(list[0]->data, more));
         EXPECT_EQ(rbuf.Push(fbuf.Fragment()), 0);
         EXPECT_EQ(fbuf.Size(), 0);
     }
@@ -68,7 +66,7 @@ TEST(RBuffer, unmarshal) {
 }
 
 TEST(RBuffer, DetechMagic) {
-    auto bs = getTestBytes();
+    auto bs = getTestBytes('a');
     RBuffer fbuf;
     std::size_t more = 0;
     EXPECT_TRUE(!fbuf.detectMagic(bs, more));
@@ -140,7 +138,7 @@ TEST(RBuffer, DetechMagic3) {
     TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-11,
         1, Bytes{byte('a'), byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('1'), byte('2'), byte('3'), byte('4'), byte('5'), byte('b')});
 
-    auto bs = getTestBytes();
+    auto bs = getTestBytes('a');
     bs.push_back(byte('a'));
     bs.push_back(byte('b'));
     size_t more(0);
@@ -157,7 +155,7 @@ TEST(RBuffer, DetechMagic3) {
     EXPECT_EQ(more, 0);
     EXPECT_EQ(fbuf.magic_, 0);
     EXPECT_EQ(fbuf.Size(), bs.size());
-    EXPECT_EQ(fbuf.Feed(Bytes(), more), OK);
+    EXPECT_EQ(fbuf.Extract(Bytes(), more), OK);
     EXPECT_EQ(more, 0);
 
     EXPECT_TRUE(fbuf.Fragment());
@@ -171,7 +169,7 @@ TEST(RBuffer, DetechMagicChecksumFailure) {
     TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-11,
         1, Bytes{byte('a'), byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('1'), byte('2'), byte('3'), byte('4'), byte('5'), byte('b')});
 
-    auto bs = getTestBytes();
+    auto bs = getTestBytes('a');
     bs[bs.size()-30] = byte('x');
     bs[bs.size()-31] = byte('x');
     bs.push_back(byte('a'));
@@ -190,7 +188,7 @@ TEST(RBuffer, DetechMagicChecksumFailure) {
     EXPECT_EQ(more, 0);
     EXPECT_EQ(fbuf.magic_, 0);
     EXPECT_EQ(fbuf.Size(), bs.size());
-    EXPECT_EQ(fbuf.Feed(Bytes(), more), ERR_CHECKSUM_FAILURE);
+    EXPECT_EQ(fbuf.Extract(Bytes(), more), ERR_CHECKSUM_FAILURE);
     EXPECT_EQ(more, 0);
     EXPECT_EQ(fbuf.magic_, -1);
 
@@ -203,7 +201,7 @@ TEST(RBuffer, DetechMagic4) {
     TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-11,
         1, Bytes{byte('a'), byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('1'), byte('2'), byte('3'), byte('4'), byte('5'), byte('b')});
 
-    auto bs = getTestBytes();
+    auto bs = getTestBytes('a');
     bs[0] = byte('x');
     size_t more(0);
     EXPECT_EQ(fbuf.detectMagic(bs, more), OK);
@@ -220,7 +218,7 @@ TEST(RBuffer, DetechMagic4) {
     EXPECT_EQ(more, TSSD_FRAGMENT_MIN_HEADER_SIZE-4);
     EXPECT_EQ(fbuf.magic_, -1);
     EXPECT_EQ(fbuf.Size(), 4);
-    EXPECT_EQ(fbuf.Feed(Bytes(), more), ERR_INSUFFICIENT_DATA);
+    EXPECT_EQ(fbuf.Extract(Bytes(), more), ERR_INSUFFICIENT_DATA);
     EXPECT_EQ(more, TSSD_FRAGMENT_MIN_HEADER_SIZE-4);
 }
 
@@ -268,4 +266,111 @@ TEST(RBuffer, DetechMagic5) {
     TestDetechMagic(fbuf, OK, 0, tssd::TSSD_FRAGMENT_MIN_HEADER_SIZE-6,
         1, Bytes{byte('D'),byte('V'), byte('a')});
     EXPECT_TRUE(Basic::BytesEqual(fbuf.Data(), Bytes{byte('T'), byte('S'), byte('S'), byte('D'), byte('V'), byte('a')}));
+}
+
+void testExtract(int expect_frags, int count, ...) {
+
+    Bytes mbs;
+    va_list args;
+    va_start(args, count);
+    for (int i=0; i<count; ++i) {
+        Bytes b = va_arg(args, Bytes);
+        mbs.insert(mbs.end(), b.cbegin(), b.cend());
+    }
+    va_end(args);
+
+    RBuffer fbuf;
+    Buffer tbuf;
+    std::size_t more = 0;
+
+    auto ret = fbuf.Extract(mbs, more);
+    int i = 0;
+    do {
+        EXPECT_TRUE( ret == OK && !more);
+        auto frag = fbuf.Fragment();
+        EXPECT_TRUE(frag);
+
+        tbuf.Clear();
+        EXPECT_EQ(tbuf.Push(frag), 0);
+
+        Struct1Flat<char> out;
+
+        EXPECT_EQ(Manager::UnmarshalTo(tbuf, out), OK);
+        EXPECT_EQ(out.struct1.v1, 'a' + i);
+
+        more = 0;
+        ret = fbuf.Extract(more);
+        --expect_frags;
+        i++;
+    } while (expect_frags);
+
+    more = 0;
+    EXPECT_EQ(fbuf.Extract(more), ERR_INSUFFICIENT_DATA);
+    EXPECT_TRUE(more);
+}
+
+TEST(RBuffer, FeedBytes) {
+    testExtract(1, 1, getTestBytes('a'));
+}
+
+TEST(RBuffer, FeedBytes2) {
+    auto bs = getTestBytes('a');
+    auto bs2 = getTestBytes('b');
+    testExtract(2, 2, bs, bs2);
+}
+
+TEST(RBuffer, FeedBytes3) {
+    auto bs = getTestBytes('a');
+    auto bs2 = getTestBytes('b');
+
+    Bytes other = { byte('T'), byte('S'), byte('S'), byte('D'), byte('V')};
+    Bytes other2 = { byte('b')};
+
+    testExtract(2, 4, other, bs, other2, bs2);
+    testExtract(2, 4, other, bs, other, bs2);
+    testExtract(2, 4, other2, bs, other2, bs2);
+    testExtract(2, 4, other2, bs, other, bs2);
+}
+
+TEST(RBuffer, FeedBytes4) {
+    auto bs = getTestBytes('a');
+    auto bs2 = getTestBytes('b');
+    auto other2 = getTestBytes('a');
+
+    Bytes other = { byte('T'), byte('S'), byte('S'), byte('D'), byte('V')};
+    other2[7] = byte('x');
+
+    testExtract(2, 4, other, bs, other2, bs2);
+    testExtract(2, 4, other, bs, other, bs2);
+    testExtract(2, 4, other2, bs, other2, bs2);
+    testExtract(2, 4, other2, bs, other, bs2);
+}
+
+class MockReader : public tssd::Reader
+{
+    list<Bytes> datas;
+public:
+    void Set(Bytes data) {
+        datas.emplace_back(data);
+    }
+
+    int Read(void *dest, std::size_t numb) const {
+        auto d = datas.front();
+        auto ret = std::min(numb, d.size());
+        memcpy(dest, d.data(), ret);
+        datas.pop_front();
+        return ret;
+    }
+    //MOCK_METHOD(int, Read, (void *, std::size_t), (const, override));
+};
+
+
+TEST(RBuffer, ExtractReader) {
+
+    MockReader mockReader;
+    mockReader.Set(getTestBytes('a'));
+
+    Struct1Flat<char> out;
+    EXPECT_EQ(Manager::Read(mockReader, out), OK);
+    EXPECT_EQ(out.struct1.v1, 'a');
 }
