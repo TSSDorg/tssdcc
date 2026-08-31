@@ -155,7 +155,7 @@ TError RBuffer::parseHeads(std::size_t &more)
     const auto schema_size = schema_buf.Size();
     if (auto ret = schema.Unmarshal(schema_buf)) {
         if (ret == ERR_INSUFFICIENT_DATA) {
-            more = TSSD_FRAGMENT_MIN_HEADER_SIZE - this->Size();
+            more = TSSD_FRAGMENT_MIN_HEADER_SIZE;
         }
         return ret;
     }
@@ -265,15 +265,6 @@ pFragment RBuffer::Fragment()
     reset();
     return frag;
 }
-/*
-pBuffer RBuffer::Buffer() {
-    if (!frag_) return nullptr;
-    auto version = Manager::TypesToVersionInfo(frag_->schema.Types);
-    auto ret = results_[version->family][version->version][frag_->schema.TID];
-    results_[version->family][version->version].erase(frag_->schema.TID);
-    return ret;
-}
-*/
 
 pBuffer RBuffer::Buffer(const std::string &family, const std::string &version)
 {
@@ -287,13 +278,15 @@ pBuffer RBuffer::Buffer(const std::string &family, const std::string &version)
     return nullptr;
 }
 
-
 TError RBuffer::Extract(const Reader &reader)
 {
     Bytes bs(TSSD_BUFFER_MTU);
-    std::size_t more(TSSD_BUFFER_MTU);
+    std::size_t more(0);
+    bs.resize(0);
     do {
         if (more) {
+            more = std::min(more, TSSD_BUFFER_MTU);
+            bs.resize(more);
             int n = reader.Read(bs.data(), more);
             if (!n) return ERR_IO;
             if (n<0) return n;
@@ -333,6 +326,43 @@ TError RBuffer::Extract(const Reader &reader)
         }
         return OK;
     } while(1);
+    return OK;
+}
+
+TError RBuffer::Read(const Reader &reader, Flatable &flat)
+{
+    pBuffer dbuf;
+    while(!(dbuf = this->Buffer(flat.Family(), flat.Version())))
+    {
+        if (auto ret = this->Extract(reader)) {
+            return ret;
+        }
+    }
+
+    return Manager::UnmarshalTo(*dbuf, flat);
+}
+
+TError RBuffer::Read(Flatable &flat)
+{
+    pBuffer dbuf = this->Buffer(flat.Family(), flat.Version());
+    if(!dbuf)
+        return ERR_INSUFFICIENT_DATA;
+
+    return Manager::UnmarshalTo(*dbuf, flat);
+}
+
+TError RBuffer::Write(const Flatable &flat, const Writer &writer, const int mtu)
+{
+    tssd::Buffer buf(mtu);
+    if (auto ret = tssd::Manager::MarshalTo(flat, buf)) {
+        return ret;
+    }
+
+    auto frags  = buf.Fragments();
+    for (std::size_t i=0; i<frags.size(); i++) {
+        int n = writer.Write(frags[i]->data.data(), frags[i]->data.size());
+        if (n<=0) return ERR_IO;
+    }
     return OK;
 }
 
