@@ -442,10 +442,14 @@ TEST(RBuffer, ExtractReader5) {
     MockReader mockReader;
     auto bs = getTestBytes('a');
     auto bs2 = getTestBytes<int>(123);
+    Bytes mbs, magic{byte('T'), byte('S'), byte('S'), byte('D'), byte{'V'}}, other{byte('x'), byte('y')};
+    mbs.insert(mbs.end(), other.cbegin(), other.cend());
 
-    bs.insert(bs.end(), bs2.cbegin(), bs2.cend());
+    mbs.insert(mbs.end(), bs.cbegin(), bs.cend());
+    mbs.insert(mbs.end(), magic.cbegin(), magic.cend());
+    mbs.insert(mbs.end(), bs2.cbegin(), bs2.cend());
 
-    mockReader.Set(1, bs);
+    mockReader.Set(1, mbs);
     RBuffer rbuf;
 
     Struct1Flat<int> out;
@@ -462,10 +466,14 @@ TEST(RBuffer, ExtractReader6) {
     MockReader mockReader;
     auto bs = getTestBytes('a');
     auto bs2 = getTestBytes<int>(123);
+    Bytes mbs, magic{byte('T'), byte('S'), byte('S'), byte('D'), byte{'V'}}, other{byte('x'), byte('y')};
+    mbs.insert(mbs.end(), other.cbegin(), other.cend());
 
-    bs.insert(bs.end(), bs2.cbegin(), bs2.cend());
+    mbs.insert(mbs.end(), bs.cbegin(), bs.cend());
+    mbs.insert(mbs.end(), magic.cbegin(), magic.cend());
+    mbs.insert(mbs.end(), bs2.cbegin(), bs2.cend());
 
-    mockReader.Set(1, bs);
+    mockReader.Set(1, mbs);
     RBuffer rbuf;
 
     Struct1Flat<char> out2;
