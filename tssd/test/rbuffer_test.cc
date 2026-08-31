@@ -365,7 +365,7 @@ public:
         va_end(args);
     }
 
-    int Read(void *dest, std::size_t numb) const {
+    int Read(void *dest, std::size_t numb) {
         if (datas.empty()) return 0;
         auto d = datas.front();
         auto n = std::min(numb, d.size());

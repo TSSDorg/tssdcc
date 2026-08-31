@@ -417,13 +417,11 @@ UPDATE:
         if (pcontainer1->size() != pcontainer2->size())
             return false;
 
-        const auto it1 = pcontainer1->cbegin(), it2 = pcontainer2->cbegin();
-        while (it1 != pcontainer1->cend() && it2 != pcontainer2->cend())
+        auto it1 = pcontainer1->cbegin(), it2 = pcontainer2->cbegin();
+        for (; it1 != pcontainer1->cend() && it2 != pcontainer2->cend(); ++it1, ++it2)
         {
             if (!children_[0]->equal((const std::byte*)&(*it1),  (const std::byte*)&(*it2)))
                 return false;
-            ++it1;
-            ++it2;
         }
         return it1 == pcontainer1->cend() && it2 == pcontainer2->cend();
     }
