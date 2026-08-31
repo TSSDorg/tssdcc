@@ -354,16 +354,37 @@ public:
         datas.emplace_back(data);
     }
 
+    void Set(int count, ...)
+    {
+        va_list args;
+        va_start(args, count);
+        for (int i=0; i<count; ++i) {
+            Bytes b = va_arg(args, Bytes);
+            Set(b);
+        }
+        va_end(args);
+    }
+
     int Read(void *dest, std::size_t numb) const {
+        if (datas.empty()) return 0;
         auto d = datas.front();
-        auto ret = std::min(numb, d.size());
-        memcpy(dest, d.data(), ret);
-        datas.pop_front();
-        return ret;
+        auto n = std::min(numb, d.size());
+        auto p = (byte*)dest;
+        memcpy(p, d.data(), n);
+
+        if (n<d.size()) {
+            Bytes bs(d.size()-n);
+            for (size_t i = 0; i<d.size()-n; i++)
+                bs[i] = d[i+n];
+            datas.pop_front();
+            datas.push_front(bs);
+        } else
+            datas.pop_front();
+
+        return n;
     }
     //MOCK_METHOD(int, Read, (void *, std::size_t), (const, override));
 };
-
 
 TEST(RBuffer, ExtractReader) {
 
@@ -371,6 +392,87 @@ TEST(RBuffer, ExtractReader) {
     mockReader.Set(getTestBytes('a'));
 
     Struct1Flat<char> out;
-    EXPECT_EQ(Manager::Read(mockReader, out), OK);
+    RBuffer rbuf;
+    EXPECT_EQ(rbuf.Read(mockReader, out), OK);
     EXPECT_EQ(out.struct1.v1, 'a');
+}
+
+TEST(RBuffer, ExtractReader2) {
+
+    MockReader mockReader;
+    mockReader.Set(3, Bytes{byte('a')}, Bytes{byte('b')},
+        getTestBytes('a'));
+
+    Struct1Flat<char> out;
+    RBuffer rbuf;
+    EXPECT_EQ(rbuf.Read(mockReader, out), OK);
+    EXPECT_EQ(out.struct1.v1, 'a');
+}
+
+TEST(RBuffer, ExtractReader3) {
+
+    MockReader mockReader;
+    mockReader.Set(3, Bytes{byte('T'), byte('S'), byte('S'), byte('D')}, Bytes{byte('V')},
+        getTestBytes('a'));
+
+    Struct1Flat<char> out;
+    RBuffer rbuf;
+    EXPECT_EQ(rbuf.Read(mockReader, out), OK);
+    EXPECT_EQ(out.struct1.v1, 'a');
+}
+
+TEST(RBuffer, ExtractReader4) {
+
+    MockReader mockReader;
+    mockReader.Set(5, Bytes{byte('T'), byte('S'), byte('S'), byte('D')}, Bytes{byte('V')},
+        getTestBytes('a'), Bytes{byte('T'), byte('S'), byte('S'), byte('D'), byte{'V'}}, getTestBytes<int>(123));
+
+    Struct1Flat<int> out;
+    RBuffer rbuf;
+    EXPECT_EQ(rbuf.Read(mockReader, out), OK);
+    EXPECT_EQ(out.struct1.v1, 123);
+
+    Struct1Flat<char> out2;
+    EXPECT_EQ(rbuf.Read(mockReader, out2), OK);
+    EXPECT_EQ(out2.struct1.v1, 'a');
+}
+
+TEST(RBuffer, ExtractReader5) {
+
+    MockReader mockReader;
+    auto bs = getTestBytes('a');
+    auto bs2 = getTestBytes<int>(123);
+
+    bs.insert(bs.end(), bs2.cbegin(), bs2.cend());
+
+    mockReader.Set(1, bs);
+    RBuffer rbuf;
+
+    Struct1Flat<int> out;
+    EXPECT_EQ(rbuf.Read(mockReader, out), OK);
+    EXPECT_EQ(out.struct1.v1, 123);
+
+    Struct1Flat<char> out2;
+    EXPECT_EQ(rbuf.Read(mockReader, out2), OK);
+    EXPECT_EQ(out2.struct1.v1, 'a');
+}
+
+TEST(RBuffer, ExtractReader6) {
+
+    MockReader mockReader;
+    auto bs = getTestBytes('a');
+    auto bs2 = getTestBytes<int>(123);
+
+    bs.insert(bs.end(), bs2.cbegin(), bs2.cend());
+
+    mockReader.Set(1, bs);
+    RBuffer rbuf;
+
+    Struct1Flat<char> out2;
+    EXPECT_EQ(rbuf.Read(mockReader, out2), OK);
+    EXPECT_EQ(out2.struct1.v1, 'a');
+
+    Struct1Flat<int> out;
+    EXPECT_EQ(rbuf.Read(mockReader, out), OK);
+    EXPECT_EQ(out.struct1.v1, 123);
 }

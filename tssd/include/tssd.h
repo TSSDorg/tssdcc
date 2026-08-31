@@ -55,7 +55,7 @@ enum class TType {
 const char MINOR = 1;
 const char MAJOR = 0;
 const char TSSD_VERSION[2] = {MINOR, MAJOR};
-const std::size_t TSSD_FRAGMENT_MIN_HEADER_SIZE = 41;
+const std::size_t TSSD_FRAGMENT_MIN_HEADER_SIZE = 64;
 const std::size_t TSSD_BUFFER_MIN_MTU = 256;
 const std::size_t TSSD_BUFFER_MTU = 2048;
 const std::size_t TSSD_TARRAYM_HEAD_LENGTH      = 8;  // [Tarraym][Tuint8][sizet/4B][sizea/2B]
@@ -230,20 +230,32 @@ public:
         return (*buffer_)[pos];
     }
 
+    // extract fragment from data and cache the remain data
+    // return OK if success, then you should call Fragment() to get the fragment
     TError Extract(const Bytes &data, std::size_t &more);
+
+    // extract a fragment from the cache data
     TError Extract(std::size_t &more) {
         return Extract(Bytes(), more);
     }
     // Extract got OK, call it to get the lastest Fragment;
     pFragment Fragment();
 
+    // read Fragments/TSSD buffers from reader and cache them
+    // you can call Buffer to fetch the cached buffers
     TError Extract(const Reader &reader);
 
-    //if Feed OK, call it fetch the lastest Buffer
-    //pBuffer Buffer();
-
+    // read a TSSD Buffer from cache
     pBuffer Buffer(const std::string &family, const std::string &version);
 
+    // read a flat object from reader
+    TError Read(const Reader &reader, Flatable &flat);
+
+    // read a flat object from the cache, if not found will return ERR_INSUFFICIENT_DATA
+    TError Read(Flatable &flat);
+
+    // write a flat object to writer
+    static TError Write(const Flatable &flat, const Writer &writer, const int mtu = TSSD_BUFFER_MTU);
 };
 
 } //end namespace tssd

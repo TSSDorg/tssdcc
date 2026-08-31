@@ -115,34 +115,4 @@ pFlatable Manager::Unmarshal(Buffer &buf)
     return decorate(remote, *flat) ? nullptr : flat;
 }
 
-
-TError Manager::Read(const Reader &reader, Flatable &flat)
-{
-    tssd::RBuffer rbuf;  // RBuffer to process raw data buffer
-    pBuffer dbuf;        // data buffer
-    do {
-        if (auto ret = rbuf.Extract(reader)) {
-            return ret;
-        }
-    }
-    while(!(dbuf = rbuf.Buffer(flat.Family(), flat.Version())));
-
-    return tssd::Manager::UnmarshalTo(*dbuf, flat);
-}
-
-TError Manager::Write(const Writer &writer, const Flatable &flat, const int mtu)
-{
-     tssd::Buffer buf(mtu);
-    if (auto ret = tssd::Manager::MarshalTo(flat, buf)) {
-        return ret;
-    }
-
-    auto frags  = buf.Fragments();
-    for (std::size_t i=0; i<frags.size(); i++) {
-        int n = writer.Write(frags[i]->data.data(), frags[i]->data.size());
-        if (n<=0) return ERR_IO;
-    }
-    return OK;
-}
-
 } //end namespace tssd
