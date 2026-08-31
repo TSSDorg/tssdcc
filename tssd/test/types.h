@@ -240,7 +240,7 @@ class SocketReader : public tssd::Reader {
     int flags_;
 public:
     SocketReader(int sockfd, int flags=0) : sockfd_(sockfd), flags_(flags) {}
-    int Read(void *dest, std::size_t numb) const override {
+    int Read(void *dest, std::size_t numb) override {
         auto n = recv(sockfd_, dest, numb, flags_);
         std::cout << " recv " << n << " bytes" << std::endl;
         return n;
@@ -252,7 +252,7 @@ class SocketWriter : public tssd::Writer {
     int flags_;
 public:
     SocketWriter(int sockfd, int flags=0) : sockfd_(sockfd), flags_(flags) {}
-    int Write(void *data, std::size_t numb) const override {
+    int Write(void *data, std::size_t numb) override {
         auto n = send(sockfd_, data, numb, flags_);
         std::cout << " send " << n << " bytes" << std::endl;
         return n;

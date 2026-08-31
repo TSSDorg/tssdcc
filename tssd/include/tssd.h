@@ -137,13 +137,13 @@ public:
 class Reader {
 public:
     virtual ~Reader() = 0;
-    virtual int Read(void *dest, std::size_t numb) const = 0;
+    virtual int Read(void *dest, std::size_t numb) = 0;
 };
 
 class Writer {
 public:
     virtual ~Writer() = 0;
-    virtual int Write(void *dest, std::size_t numb) const = 0;
+    virtual int Write(void *dest, std::size_t numb) = 0;
 };
 
 class Flatable {
@@ -244,19 +244,19 @@ public:
 
     // read Fragments/TSSD buffers from reader and cache them
     // you can call Buffer to fetch the cached buffers
-    TError Extract(const Reader &reader);
+    TError Extract(Reader &reader);
 
     // read a TSSD Buffer from cache
     pBuffer Buffer(const std::string &family, const std::string &version);
 
     // read a flat object from reader
-    TError Read(const Reader &reader, Flatable &flat);
+    TError Read(Reader &reader, Flatable &flat);
 
     // read a flat object from the cache, if not found will return ERR_INSUFFICIENT_DATA
     TError Read(Flatable &flat);
 
     // write a flat object to writer
-    static TError Write(const Flatable &flat, const Writer &writer, const int mtu = TSSD_BUFFER_MTU);
+    static TError Write(const Flatable &flat, Writer &writer, const int mtu = TSSD_BUFFER_MTU);
 };
 
 } //end namespace tssd

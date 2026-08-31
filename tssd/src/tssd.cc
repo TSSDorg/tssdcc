@@ -278,7 +278,7 @@ pBuffer RBuffer::Buffer(const std::string &family, const std::string &version)
     return nullptr;
 }
 
-TError RBuffer::Extract(const Reader &reader)
+TError RBuffer::Extract(Reader &reader)
 {
     Bytes bs(TSSD_BUFFER_MTU);
     std::size_t more(TSSD_BUFFER_MTU);
@@ -339,7 +339,7 @@ TError RBuffer::pushFragment()
     return bufs[version->version][frag->schema.TID]->Push(frag);
 }
 
-TError RBuffer::Read(const Reader &reader, Flatable &flat)
+TError RBuffer::Read(Reader &reader, Flatable &flat)
 {
     pBuffer dbuf;
     while(!(dbuf = this->Buffer(flat.Family(), flat.Version())))
@@ -361,7 +361,7 @@ TError RBuffer::Read(Flatable &flat)
     return Manager::UnmarshalTo(*dbuf, flat);
 }
 
-TError RBuffer::Write(const Flatable &flat, const Writer &writer, const int mtu)
+TError RBuffer::Write(const Flatable &flat, Writer &writer, const int mtu)
 {
     tssd::Buffer buf(mtu);
     if (auto ret = tssd::Manager::MarshalTo(flat, buf)) {
