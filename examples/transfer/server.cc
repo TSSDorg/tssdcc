@@ -22,7 +22,8 @@ int recvRequest(int sockfd)
     tssd::Manager::Register<Request>();
     SocketReader socketReader(sockfd);
     Request request;
-    if (auto ret = tssd::Manager::Read(socketReader, request)) {
+    tssd::RBuffer rbuf;
+    if (auto ret = rbuf.Read(socketReader, request)) {
         printf("recv request failure: %d\n", ret);
     }
 
@@ -40,7 +41,7 @@ bool sendStudent(int sockfd)
 
     tssd::Manager::Register<Student>();
     SocketWriter socketWriter(sockfd);
-    auto ret = tssd::Manager::Write(socketWriter, student);
+    auto ret = tssd::RBuffer::Write(student, socketWriter);
     if (ret != tssd::OK) {
         printf("Write data failure: %d\n", ret);
         return false;

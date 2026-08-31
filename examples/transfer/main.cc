@@ -21,20 +21,15 @@ using namespace std;
 void recvStudent(int sockfd)
 {
     tssd::Manager::Register<Student>();
-    tssd::RBuffer fbuf;  // RBuffer to process raw data buffer
+    tssd::RBuffer rbuf;  // RBuffer to process raw data buffer
     Student student;   // object to receive
     size_t more(0);
 
     SocketReader socketReader(sockfd);
-    if (fbuf.Extract(socketReader) != tssd::OK || !fbuf.Ready(student.Family(), student.Version())) {
-        cout << "recv Student err" << endl;
-        return;
-    }
-    auto dbuf = fbuf.Buffer(student.Family(), student.Version());
-
-    if (tssd::Manager::UnmarshalTo(*dbuf, student) != tssd::OK) {
-        cout << "unmarshal err:" << endl;
-        return;
+    int ret = rbuf.Read(socketReader, student);
+    if (ret) {
+        cout << "tssd RBuffer Read error:" << ret << endl;
+        return false;
     }
     // process your data
     student.print();
@@ -45,22 +40,12 @@ bool sendRequest(int sockfd, int16_t fid)
     Request request;
     request.fid = fid;
     tssd::Manager::Register<Request>();
-    tssd::Buffer buf(256);
-    if (auto ret = tssd::Manager::MarshalTo(request, buf)) {
-        cout << "tssd Marshal error:" << ret << endl;
+    //tssd::RBuffer buf(256);
+    SocketWriter socketWriter(sockfd);
+    int ret = tssd::RBuffer::Write(request, socketWriter);
+    if (ret) {
+        cout << "tssd RBuffer Write error:" << ret << endl;
         return false;
-    }
-    buf.print();
-
-    auto frags  = buf.Fragments();
-    for (int i=0; i<frags.size(); i++) {
-        //std::span<std::byte> sp(frags[i]->data.data(), frags[i]->data.size());
-        int n = write(sockfd, frags[i]->data.data(), frags[i]->data.size());
-        if (n<=0) {
-            cout << "tcp client send fail" << endl;
-            return false;
-        }
-        cout << "send " << n << " bytes" << endl;
     }
     return true;
 }

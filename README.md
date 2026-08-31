@@ -1,6 +1,6 @@
 # TSSDcc
 [TSSD](http://https://github.com/TSSDorg/TSSD-Spec "TSSD") is an open binary data for exchange or storage.
-tssdgo implement TSSD with C++, you can read, write and print TSSD data with this library package easily.
+tssdcc implement TSSD with C++, you can read, write and print TSSD data with this library package easily.
 ## features
 
 - **API simple** **effective**: parse with reflect once, run without reflect
@@ -23,7 +23,7 @@ tssdgo implement TSSD with C++, you can read, write and print TSSD data with thi
 *  4). cd tssdc/tssd;  make test;
 */
 
-// the complete demo code: examples/transfer/main.cc
+// the complete demo code: examples/transfer/main.cc, server.cc
 
 // define a real class with string/vector/map/list/shared_ptr/unique_ptr
 // just derived tssd::Flatable and implment Family(), Version()
@@ -92,7 +92,8 @@ int recvRequest(int sockfd)
     tssd::Manager::Register<Request>();
     SocketReader socketReader(sockfd);
     Request request;
-    if (auto ret = tssd::Manager::Read(socketReader, request)) {
+    tssd::RBuffer rbuf;
+    if (auto ret = rbuf.Read(socketReader, request)) {
         printf("recv request failure: %d\n", ret);
     }
     printf("request: %d %s %s\n", request.fid, request.tid.c_str(), request.types.c_str());
@@ -109,7 +110,7 @@ bool sendStudent(int sockfd)
 
     tssd::Manager::Register<Student>();
     SocketWriter socketWriter(sockfd);
-    auto ret = tssd::Manager::Write(socketWriter, student);
+    auto ret = tssd::RBuffer::Write(student, socketWriter);
     if (ret != tssd::OK) {
         printf("Write data failure: %d\n", ret);
         return false;
