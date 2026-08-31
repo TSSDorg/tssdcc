@@ -281,52 +281,62 @@ pBuffer RBuffer::Buffer(const std::string &family, const std::string &version)
 TError RBuffer::Extract(const Reader &reader)
 {
     Bytes bs(TSSD_BUFFER_MTU);
-    std::size_t more(0);
-    bs.resize(0);
+    std::size_t more(TSSD_BUFFER_MTU);
+    bool exit(false), got(false);
+    TError ret = OK;
     do {
         if (more) {
             more = std::min(more, TSSD_BUFFER_MTU);
             bs.resize(more);
             int n = reader.Read(bs.data(), more);
-            if (!n) return ERR_IO;
-            if (n<0) return n;
-            bs.resize(n);
+            if (n<=0) {
+                exit = true;
+                ret = ERR_IO;
+            }
+            bs.resize(n<0 ? 0 : n);
         }
-        auto ret = Extract(bs, more);
+        while(!(ret = Extract(bs, more)))
+        {
+            exit = !pushFragment();  // exit out loop after got a buffer
+            if (!got) got = exit;    // save if we got a TSSD Buffer
+            bs.resize(0);
+            //repeate extract cache data until failure
+        }
+
         if (ret==ERR_INSUFFICIENT_DATA) {
             continue;
         }
         if (ret) return ret;
-        auto frag = this->Fragment();
-        auto &types = frag->schema.Types;
-        auto version = Manager::TypesToVersionInfo(types);
-        if (!version) {
-            if (!unregistered_.contains(types))
-                unregistered_[types] = std::make_shared<tssd::Buffer>();
+    } while(!exit);
+    return got ? OK : ret;   // return OK, if we got a TSSD Buffer
+}
 
-            auto &buf = unregistered_[types];
-            if (buf->Push(frag)) {
-                bs.resize(0);
-                continue;
-            }
-            return ERR_SCHEMA_NOT_MATCH;
-        }
-        if (!results_.contains(version->family))
-            results_[version->family] = VBuffers();
+TError RBuffer::pushFragment()
+{
+    auto frag = this->Fragment();
+    auto &types = frag->schema.Types;
+    auto version = Manager::TypesToVersionInfo(types);
+    if (!version) {
+        if (!unregistered_.contains(types))
+            unregistered_[types] = TBuffers();
 
-        auto &bufs = results_[version->family];
+        auto &tbuf = unregistered_[types];
+        if (!tbuf.contains(frag->schema.TID))
+            tbuf[frag->schema.TID] = std::make_shared<tssd::Buffer>();
+        tbuf[frag->schema.TID]->Push(frag);
+        return ERR_SCHEMA_NOT_MATCH;
+    }
+    if (!results_.contains(version->family))
+        results_[version->family] = VBuffers();
 
-        if (!bufs.contains(version->version))
-            bufs[version->version] = TBuffers();
-        if (!bufs[version->version].contains(frag->schema.TID))
-            bufs[version->version][frag->schema.TID] = std::make_shared<tssd::Buffer>();
-        if (bufs[version->version][frag->schema.TID]->Push(frag)) {
-            bs.resize(0);
-            continue;
-        }
-        return OK;
-    } while(1);
-    return OK;
+    auto &bufs = results_[version->family];
+
+    if (!bufs.contains(version->version))
+        bufs[version->version] = TBuffers();
+    if (!bufs[version->version].contains(frag->schema.TID))
+        bufs[version->version][frag->schema.TID] = std::make_shared<tssd::Buffer>();
+
+    return bufs[version->version][frag->schema.TID]->Push(frag);
 }
 
 TError RBuffer::Read(const Reader &reader, Flatable &flat)

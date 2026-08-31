@@ -484,3 +484,31 @@ TEST(RBuffer, ExtractReader6) {
     EXPECT_EQ(rbuf.Read(mockReader, out), OK);
     EXPECT_EQ(out.struct1.v1, 123);
 }
+
+
+TEST(RBuffer, ExtractReader7) {
+
+    MockReader mockReader;
+    auto bs = getTestBytes('a');
+    auto bs2 = getTestBytes<int>(123);
+    Bytes mbs, magic{byte('T'), byte('S'), byte('S'), byte('D'), byte{'V'}}, other{byte('x'), byte('y')};
+    mbs.insert(mbs.end(), other.cbegin(), other.cend());
+
+    mbs.insert(mbs.end(), bs.cbegin(), bs.cend());
+    mbs.insert(mbs.end(), magic.cbegin(), magic.cend());
+    mbs.insert(mbs.end(), bs2.cbegin(), bs2.cend());
+
+    mockReader.Set(4, other, mbs, magic, getTestBytes<int>(456));
+    RBuffer rbuf;
+
+    Struct1Flat<int> out;
+    EXPECT_EQ(rbuf.Read(mockReader, out), OK);
+    EXPECT_EQ(out.struct1.v1, 123);
+
+    Struct1Flat<char> out2;
+    EXPECT_EQ(rbuf.Read(mockReader, out2), OK);
+    EXPECT_EQ(out2.struct1.v1, 'a');
+
+    EXPECT_EQ(rbuf.Read(mockReader, out), OK);
+    EXPECT_EQ(out.struct1.v1, 456);
+}
