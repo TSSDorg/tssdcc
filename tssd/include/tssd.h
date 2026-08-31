@@ -179,7 +179,7 @@ private:
     using TBuffers = std::unordered_map<std::string, pBuffer>;  // (TID, pBuffer)
     using VBuffers = std::unordered_map<std::string, TBuffers>; // (Version, TBuffers)
     std::unordered_map<std::string, VBuffers> results_;  //(family, buffers)
-    TBuffers unregistered_;
+    VBuffers unregistered_;  // (Types, TBuffers)
 
     inline void append(const Bytes &data)
     {
@@ -217,6 +217,7 @@ private:
     TError parsePayload(std::size_t &more);
     TError parseChecksum(std::size_t more);
     void moveFront(const std::size_t pos, const int n);
+    TError pushFragment();
 
 public:
     static constexpr std::string MAGIC = "TSSDV";
