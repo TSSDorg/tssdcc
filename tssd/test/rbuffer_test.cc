@@ -72,6 +72,32 @@ TEST(RBuffer, DetechMagic) {
     EXPECT_TRUE(!fbuf.detectMagic(bs, more));
 }
 
+TEST(RBuffer, ParsePayload) {
+    auto bs = getTestBytes('a');
+    RBuffer fbuf;
+    std::size_t more = 0;
+
+    Bytes bs2(bs.size() - 20);
+    std::copy(bs.begin(), bs.begin() + bs2.size(), bs2.begin());
+    EXPECT_TRUE(!fbuf.detectMagic(bs2, more));
+    EXPECT_EQ(fbuf.parseHeads(more), OK);
+    EXPECT_EQ(fbuf.parsePayload(more), OK);
+    EXPECT_EQ(more, 0);
+}
+
+TEST(RBuffer, ParsePayload2) {
+    auto bs = getTestBytes('a');
+    RBuffer fbuf;
+    std::size_t more = 0;
+
+    Bytes bs2(bs.size() - 22);
+    std::copy(bs.begin(), bs.begin() + bs2.size(), bs2.begin());
+    EXPECT_TRUE(!fbuf.detectMagic(bs2, more));
+    EXPECT_EQ(fbuf.parseHeads(more), OK);
+    EXPECT_EQ(fbuf.parsePayload(more), ERR_INSUFFICIENT_DATA);
+    EXPECT_EQ(more, 2);
+}
+
 void TestDetechMagic(RBuffer &fbuf, TError expectRet, int expectMagic, size_t expectMore, int count, ...)
 {
     std::size_t more = 0;
