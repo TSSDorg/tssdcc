@@ -173,8 +173,8 @@ TError RBuffer::parsePayload(std::size_t &more)
 {
     if (payload_>=0) return OK;
 
-    if (heads_len_ + TSSD_TARRAYM_HEAD_LENGTH + payload_len_ > this->Size()) {
-        more = heads_len_ + TSSD_TARRAYM_HEAD_LENGTH + payload_len_ - this->Size();
+    if (heads_len_ + payload_len_ > (int)this->Size() - magic_) {
+        more = std::size_t(heads_len_ + payload_len_) - (this->Size() - (std::size_t)magic_);
         return ERR_INSUFFICIENT_DATA;
     }
     payload_ = magic_ + heads_len_;
@@ -191,8 +191,8 @@ TError RBuffer::parseChecksum(std::size_t more)
         return ret;
     }
     // check checksum leng
-    if (heads_len_ + payload_len_ + TSSD_TARRAYM_HEAD_LENGTH + checksum_len_ > this->Size()) {
-        more = heads_len_ + payload_len_ + TSSD_TARRAYM_HEAD_LENGTH + checksum_len_ - this->Size();
+    if (heads_len_ + payload_len_ + TSSD_TARRAYM_HEAD_LENGTH + checksum_len_ > this->Size() - magic_) {
+        more = heads_len_ + payload_len_ + TSSD_TARRAYM_HEAD_LENGTH + checksum_len_ - (this->Size() - magic_);
         return ERR_INSUFFICIENT_DATA;
     }
     checksum_len_ += TSSD_TARRAYM_HEAD_LENGTH;
